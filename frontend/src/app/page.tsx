@@ -1,6 +1,8 @@
 "use client";
 
 import { ChartComponent } from "@/components/Charts/ChartComponent";
+import { StockNewsCard } from "@/components/StockNewsCard";
+
 
 export default function Home() {
 
@@ -53,28 +55,43 @@ export default function Home() {
 
                 {/* --- Right Column --- */}
                 <div className="flex flex-col gap-6">
-                    <div className="bg-neutral-900 rounded-2xl p-6 shadow-lg">
-                        <h3 className="text-gray-100 font-medium mb-4">Upcoming Earnings</h3>
-                        <ul className="space-y-2 text-gray-300">
-                            <li className="flex justify-between">
-                                <span>NVIDIA</span>
-                                <span>Feb 27, 5:00 AM</span>
-                            </li>
-                            <li className="flex justify-between">
-                                <span>Salesforce</span>
-                                <span>Feb 27, 5:00 AM</span>
-                            </li>
-                        </ul>
-                    </div>
+                    {[1,2,3,4].map(i => (
+                        <StockNewsCard
+                            logoUrl="/logos/nvidia.png"
+                            ticker="NVDA"
+                            change={-2.60}
+                            timeAgo="1h ago"
+                            news="Chinese firms boost Nvidia's H20 chip orders, driven by rising demand for DeepSeek's AI models, according to sources."
+                        />
+                    ))}
 
-                    <div className="bg-neutral-900 rounded-2xl p-6 shadow-lg text-gray-300">
-                        Spain’s Argentina unit sold for $1.245B.
-                    </div>
-
-                    <div className="bg-neutral-900 rounded-2xl p-6 shadow-lg text-gray-300">
-                        Regeneron’s experimental gene therapy improved hearing in children.
-                    </div>
                 </div>
+
+                {/*
+                    <div className="flex flex-col gap-6">
+                        <div className="bg-neutral-900 rounded-2xl p-6 shadow-lg">
+                            <h3 className="text-gray-100 font-medium mb-4">Upcoming Earnings</h3>
+                            <ul className="space-y-2 text-gray-300">
+                                <li className="flex justify-between">
+                                    <span>NVIDIA</span>
+                                    <span>Feb 27, 5:00 AM</span>
+                                </li>
+                                <li className="flex justify-between">
+                                    <span>Salesforce</span>
+                                    <span>Feb 27, 5:00 AM</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-neutral-900 rounded-2xl p-6 shadow-lg text-gray-300">
+                            Spain’s Argentina unit sold for $1.245B.
+                        </div>
+
+                        <div className="bg-neutral-900 rounded-2xl p-6 shadow-lg text-gray-300">
+                            Regeneron’s experimental gene therapy improved hearing in children.
+                        </div>
+                    </div>
+                */}
             </div>
         </div>
     );
