@@ -7,7 +7,7 @@ from openai import OpenAI
 
 # internal helpers
 from app.utils.sanitizer_util import sanitize
-from app.services.fetchers.financials import fetch_stock_financials  # summarize_financials removed
+from app.integrations.financials import fetch_stock_financials  # summarize_financials removed
 
 load_dotenv()  # Load environment variables from .env
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
