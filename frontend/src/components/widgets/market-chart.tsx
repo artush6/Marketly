@@ -1,20 +1,34 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createChart, ColorType, LineSeries } from "lightweight-charts";
+import {
+  createChart,
+  ColorType,
+  IChartApi,
+  ISeriesApi,
+  LineData,
+  Time,
+  LineSeries,
+} from "lightweight-charts";
+
+type ChartDataPoint = {
+  time: Time;
+  portfolio: number;
+  sp500: number;
+  gold: number;
+};
 
 export function MarketChart() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [marketStatus, setMarketStatus] = useState<
-    "neutral" | "positive" | "negative"
-  >("neutral");
-  const [isLoading, setIsLoading] = useState(true);
+  const [marketStatus] = useState<"neutral" | "positive" | "negative">(
+    "neutral"
+  );
   const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const chartInstanceRef = useRef<any>(null);
-  const portfolioSeriesRef = useRef<any>(null);
-  const sp500SeriesRef = useRef<any>(null);
-  const goldSeriesRef = useRef<any>(null);
-  const chartDataRef = useRef<any>(null);
+  const chartInstanceRef = useRef<IChartApi | null>(null);
+  const portfolioSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const sp500SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const goldSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const chartDataRef = useRef<ChartDataPoint[] | null>(null);
 
   const getCurrentDate = () => {
     const now = new Date();
@@ -45,13 +59,14 @@ export function MarketChart() {
 
   useEffect(() => {
     if (!chartDataRef.current) {
-      const data = [];
+      const data: ChartDataPoint[] = [];
       let portfolioValue = 4500;
       let sp500Value = 5000;
       let goldValue = 2000;
 
       for (let i = 0; i < 50; i++) {
-        const timestamp = Math.floor(Date.now() / 1000) - (50 - i) * 3600;
+        const timestamp = (Math.floor(Date.now() / 1000) -
+          (50 - i) * 3600) as Time;
         portfolioValue += Math.random() * 200 - 75;
         sp500Value += Math.random() * 150 - 60;
         goldValue += Math.random() * 50 - 20;
@@ -182,50 +197,51 @@ export function MarketChart() {
       goldSeriesRef.current = goldSeries;
 
       portfolioSeries.setData(
-        chartDataRef.current.map((d: any) => ({
+        chartDataRef.current.map((d) => ({
           time: d.time,
           value: d.portfolio,
-        }))
+        })) as LineData[]
       );
 
       sp500Series.setData(
-        chartDataRef.current.map((d: any) => ({
+        chartDataRef.current.map((d) => ({
           time: d.time,
           value: d.sp500,
-        }))
+        })) as LineData[]
       );
 
       goldSeries.setData(
-        chartDataRef.current.map((d: any) => ({
+        chartDataRef.current.map((d) => ({
           time: d.time,
           value: d.gold,
-        }))
+        })) as LineData[]
       );
 
       chart.timeScale().fitContent();
-      setIsLoading(false);
 
-      const handleResize = () => {
-        if (containerRef.current && chartInstanceRef.current) {
-          chartInstanceRef.current.applyOptions({
-            width: containerRef.current.clientWidth,
-          });
+      const resizeObserver = new ResizeObserver((entries) => {
+        if (entries[0] && chartInstanceRef.current) {
+          const { width } = entries[0].contentRect;
+          if (width > 0) {
+            chartInstanceRef.current.applyOptions({ width });
+          }
         }
-      };
+      });
 
-      window.addEventListener("resize", handleResize);
+      if (containerRef.current) {
+        resizeObserver.observe(containerRef.current);
+      }
 
       return () => {
-        window.removeEventListener("resize", handleResize);
+        resizeObserver.disconnect();
         if (chartInstanceRef.current) {
           chartInstanceRef.current.remove();
         }
       };
     } catch (error) {
       console.error("[v0] Error creating chart:", error);
-      setIsLoading(false);
     }
-  }, []);
+  }, [theme]);
 
   return (
     <div className="w-full space-y-4">

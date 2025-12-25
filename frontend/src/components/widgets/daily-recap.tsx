@@ -1,10 +1,10 @@
 interface NewsItem {
-  id: string;
-  timestamp: string;
-  title: string;
-  company?: string;
-  logo?: string;
-  change?: number;
+  id: string
+  timestamp: string
+  title: string
+  company?: string
+  logo?: string
+  change?: number
 }
 
 const newsItems: NewsItem[] = [
@@ -17,8 +17,7 @@ const newsItems: NewsItem[] = [
   {
     id: "2",
     timestamp: "Today • 10m ago",
-    title:
-      "Oil prices climb for the 2nd day as US sanctions on Iran heighten fears of supply constraints.",
+    title: "Oil prices climb for the 2nd day as US sanctions on Iran heighten fears of supply constraints.",
   },
   {
     id: "3",
@@ -39,8 +38,7 @@ const newsItems: NewsItem[] = [
     id: "5",
     timestamp: "Today • 4h ago",
     company: "JNJ",
-    title:
-      "Johnson & Johnson sues Samsung Bioepis, claiming breach of contract on Stelara's",
+    title: "Johnson & Johnson sues Samsung Bioepis, claiming breach of contract on Stelara's",
   },
   {
     id: "6",
@@ -99,8 +97,7 @@ const newsItems: NewsItem[] = [
     timestamp: "Today • 12h ago",
     company: "NFLX",
     change: 3.1,
-    title:
-      "Netflix subscriber growth accelerates in Asia-Pacific region, adding 8.2 million new members in Q4 2024.",
+    title: "Netflix subscriber growth accelerates in Asia-Pacific region, adding 8.2 million new members in Q4 2024.",
   },
   {
     id: "14",
@@ -118,34 +115,19 @@ const newsItems: NewsItem[] = [
     title:
       "Disney+ streaming service crosses 200 million subscribers worldwide, CEO announces plans for ad-tier expansion.",
   },
-];
+]
 
 export function DailyRecap() {
   return (
     <div className="bg-card rounded-lg border border-border h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between p-6 pb-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           <h3 className="font-semibold">Daily recap</h3>
         </div>
-        <svg
-          className="w-4 h-4 text-muted-foreground"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -165,46 +147,27 @@ export function DailyRecap() {
                     {item.company[0]}
                   </div>
                   <span className="font-semibold">{item.company}</span>
-                  {item.change && (
-                    <span className="text-red-500">{item.change}%</span>
-                  )}
+                  {item.change && <span className="text-red-500">{item.change}%</span>}
                 </div>
               ) : (
                 <span className="text-muted-foreground">{item.timestamp}</span>
               )}
               {item.timestamp && !item.company && (
-                <svg
-                  className="w-3 h-3 text-muted-foreground"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 5l7 7-7 7M5 5l7 7-7 7"
-                  />
+                <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               )}
             </div>
             <p className="text-sm leading-relaxed text-foreground/90">
               {item.title}
               {!item.company && item.id === "1" && (
-                <span className="text-accent hover:underline cursor-pointer">
-                  {" "}
-                  Read more
-                </span>
+                <span className="text-accent hover:underline cursor-pointer"> Read more</span>
               )}
             </p>
-            {item.company && (
-              <span className="text-xs text-muted-foreground">
-                {item.timestamp}
-              </span>
-            )}
+            {item.company && <span className="text-xs text-muted-foreground">{item.timestamp}</span>}
           </div>
         ))}
       </div>
     </div>
-  );
+  )
 }

@@ -1,7 +1,7 @@
 interface Sector {
-  name: string;
-  change: number;
-  isPositive: boolean;
+  name: string
+  change: number
+  isPositive: boolean
 }
 
 const sectors: Sector[] = [
@@ -16,23 +16,15 @@ const sectors: Sector[] = [
   { name: "Utilities", change: -0.37, isPositive: false },
   { name: "Consumer Cyclical", change: -0.6, isPositive: false },
   { name: "Technology", change: -1.29, isPositive: false },
-];
+]
 
 export function SectorList() {
   return (
     <div className="bg-card rounded-lg border border-border p-6 space-y-4">
       {sectors.map((sector) => (
-        <div
-          key={sector.name}
-          className="flex items-center justify-between gap-4"
-        >
+        <div key={sector.name} className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1">
-            <svg
-              className="w-4 h-4 text-muted-foreground"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -42,11 +34,7 @@ export function SectorList() {
             </svg>
             <span className="text-sm">{sector.name}</span>
           </div>
-          <span
-            className={`text-sm font-semibold ${
-              sector.isPositive ? "text-green-500" : "text-red-500"
-            }`}
-          >
+          <span className={`text-sm font-semibold ${sector.isPositive ? "text-green-500" : "text-red-500"}`}>
             {sector.isPositive ? "+" : ""}
             {sector.change.toFixed(2)}%
           </span>
@@ -56,5 +44,5 @@ export function SectorList() {
         </div>
       ))}
     </div>
-  );
+  )
 }
