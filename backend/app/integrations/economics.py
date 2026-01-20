@@ -10,14 +10,13 @@ def fetch_macro_indicators(years: int = 20):
     Fetch selected macroeconomic indicators from FRED.
     Returns last `years` of data, resampled to monthly (last value).
     """
-    
+
     cache_key = CacheManager.make_key("macro", f"indicators_{years}")
     cached = CacheManager.get(cache_key)
-    
-    if cached: 
+
+    if cached:
         print("✅ Loaded macro data from cache")
         return json.loads(cached)
-
 
     print("🌀 Fetching macro data from FRED API...")
     api_key = os.getenv("FRED_API_KEY")
@@ -57,7 +56,7 @@ def fetch_macro_indicators(years: int = 20):
             data[label] = records
         except Exception as e:
             print(f"❌ Failed {label}: {e}")
-            
+
     print(data)
     CacheManager.set(cache_key, json.dumps(data))
     return data
