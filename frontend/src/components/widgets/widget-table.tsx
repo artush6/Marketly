@@ -1,4 +1,11 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export function WidgetTable() {
   const data = [
@@ -7,7 +14,7 @@ export function WidgetTable() {
     { symbol: "GOOGL", price: "$142.68", change: "-0.5%", volume: "28.5M" },
     { symbol: "AMZN", price: "$178.32", change: "+3.1%", volume: "52.3M" },
     { symbol: "META", price: "$512.45", change: "+1.2%", volume: "18.9M" },
-  ]
+  ];
 
   return (
     <div className="h-full flex flex-col">
@@ -28,17 +35,27 @@ export function WidgetTable() {
           <TableBody>
             {data.map((row) => (
               <TableRow key={row.symbol}>
-                <TableCell className="font-mono font-semibold">{row.symbol}</TableCell>
+                <TableCell className="font-mono font-semibold">
+                  {row.symbol}
+                </TableCell>
                 <TableCell>{row.price}</TableCell>
-                <TableCell className={`font-medium ${row.change.startsWith("+") ? "text-accent" : "text-destructive"}`}>
+                <TableCell
+                  className={`font-medium ${
+                    row.change.startsWith("+")
+                      ? "text-accent"
+                      : "text-destructive"
+                  }`}
+                >
                   {row.change}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{row.volume}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {row.volume}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
     </div>
-  )
+  );
 }

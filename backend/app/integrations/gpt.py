@@ -7,7 +7,8 @@ from openai import OpenAI
 
 # internal helpers
 from app.utils.sanitizer_util import sanitize
-from app.integrations.financials import fetch_stock_financials  # summarize_financials removed
+# summarize_financials removed
+from app.integrations.financials import fetch_stock_financials
 
 load_dotenv()  # Load environment variables from .env
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -46,7 +47,8 @@ def score_stock(financial_data: dict, news_data: dict | list, economical_data: d
             "cash_flow": financial_data.get("cash_flow"),
         },
         "analyst_data": financial_data.get("analyst_data"),
-        "news_data": news_data[:20] if isinstance(news_data, list) else news_data,  # limit for safety
+        # limit for safety
+        "news_data": news_data[:20] if isinstance(news_data, list) else news_data,
         "economical_data": economical_data,
     }
 

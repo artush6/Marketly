@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { TrendingUp, TrendingDown } from "lucide-react"
+import { useState } from "react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface TickerItem {
-  symbol: string
-  price: number
-  change: number
-  changePercent: number
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
 }
 
 export function TickerTape() {
@@ -24,7 +24,7 @@ export function TickerTape() {
     { symbol: "TSLA", price: 345.18, change: -12.35, changePercent: -3.45 },
     { symbol: "NVDA", price: 505.48, change: 15.92, changePercent: 3.25 },
     { symbol: "META", price: 638.24, change: 8.43, changePercent: 1.34 },
-  ])
+  ]);
 
   return (
     <div className="bg-accent/30 border-b border-border overflow-hidden">
@@ -37,8 +37,16 @@ export function TickerTape() {
           >
             <span className="font-semibold text-sm">{item.symbol}</span>
             <span className="text-sm">${item.price.toLocaleString()}</span>
-            <span className={`text-xs flex items-center gap-1 ${item.change >= 0 ? "text-green-500" : "text-red-500"}`}>
-              {item.change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            <span
+              className={`text-xs flex items-center gap-1 ${
+                item.change >= 0 ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {item.change >= 0 ? (
+                <TrendingUp className="w-3 h-3" />
+              ) : (
+                <TrendingDown className="w-3 h-3" />
+              )}
               {item.change >= 0 ? "+" : ""}
               {item.changePercent.toFixed(2)}%
             </span>
@@ -46,5 +54,5 @@ export function TickerTape() {
         ))}
       </div>
     </div>
-  )
+  );
 }

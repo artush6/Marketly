@@ -86,7 +86,7 @@ export default function TerminalDashboard() {
 
   const updateWindow = (id: string, updates: Partial<WindowType>) => {
     setWindows((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, ...updates } : w))
+      prev.map((w) => (w.id === id ? { ...w, ...updates } : w)),
     );
   };
 
