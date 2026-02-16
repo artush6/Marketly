@@ -10,4 +10,3 @@ router = APIRouter()
 def get_financials(symbol: str, refresh: bool = False):
     data = fetch_stock_financials(symbol, force_refresh=refresh)
     return data
-

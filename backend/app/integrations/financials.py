@@ -206,6 +206,16 @@ def fetch_stock_financials(symbol: str, force_refresh: bool = False) -> dict:
             })
             merged["sources"]["ratios"] = "fmp"
 
+        income = safe_get(
+            f"{FMP}/income-statement/{symbol}",
+            {"limit": 4, "apikey": FMP_KEY},
+            "FMP income"
+        )
+
+        if income and isinstance(income, list) and len(income) >= 4:
+            merged["financials"]["income_statement"] = income
+            merged["sources"]["income_statement"] = "fmp"
+
     # ---------------- yfinance dividends ----------------
     try:
         ticker = yf.Ticker(symbol)
