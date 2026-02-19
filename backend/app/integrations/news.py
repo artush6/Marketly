@@ -1,12 +1,10 @@
 import os
 import json
 import datetime
+import logging
 from app.core.cache import CacheManager
-import yfinance as yf
 import finnhub
 from dotenv import load_dotenv, find_dotenv
-from fastapi.encoders import jsonable_encoder
-from app.utils.news_util import tickers_to_concept_uris
 
 
 # --- Load API keys ---
@@ -14,6 +12,7 @@ load_dotenv(find_dotenv())
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")  # match .env key name exactly
 finnhub_client = finnhub.Client(
     api_key=FINNHUB_API_KEY)
+logger = logging.getLogger(__name__)
 
 
 def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: str | None = None):
@@ -47,8 +46,8 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: str | 
     if output_file:
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(articles, f, ensure_ascii=False, indent=2)
-        print(f"✅ Saved {len(articles)} articles for {symbol} → {output_file}")
-        print(">>> RAW RESPONSE:", symbol, articles[:2])
+        logger.info("Saved %s articles for %s → %s", len(articles), symbol, output_file)
+        logger.debug("Raw response sample for %s: %s", symbol, articles[:2])
 
     return articles
 
@@ -79,8 +78,8 @@ def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: 
     for symbol in symbols:
         articles = finnhub_client.company_news(
             symbol, _from=date_start, to=date_end)
-        print(f"{symbol}: {len(articles)} articles")
-        print(f"{symbol}: type={type(articles)}, sample={articles[:1]}")
+        logger.debug("%s: %s articles", symbol, len(articles))
+        logger.debug("%s: type=%s, sample=%s", symbol, type(articles), articles[:1])
 
         if max_items:
             articles = articles[:max_items]
@@ -136,6 +135,6 @@ def get_news_mixed(symbols, max_items: int = 10, days: int = 3, output_file: str
     if output_file:
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(mixed_articles, f, ensure_ascii=False, indent=2)
-        print(f"✅ Saved {len(mixed_articles)} articles → {output_file}")
+        logger.info("Saved %s articles → %s", len(mixed_articles), output_file)
 
     return mixed_articles

@@ -1,6 +1,7 @@
 import time
+import logging
 from fastapi import APIRouter
-from app.integrations.economics import fetch_macro_indicators
+from app.services.economics_service import get_macro_indicators
 
 router = APIRouter()
 
@@ -13,8 +14,8 @@ def macro_indicators():
     will be resampled (via .last()) to that freq and aligned.
     """
     start_time = time.time()
-    result = fetch_macro_indicators()
+    result = get_macro_indicators()
     end_time = time.time()
     elapsed_time = end_time - start_time
-    print(f"Elapsed time: {elapsed_time} seconds")
+    logging.getLogger(__name__).debug("Macro indicators fetched in %.2fs", elapsed_time)
     return result

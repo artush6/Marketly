@@ -8,9 +8,11 @@ from dotenv import load_dotenv
 from app.core.cache import CacheManager
 from datetime import datetime
 import pandas as pd
+import logging
 
 # === Load environment variables ===
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 # === API Base URLs ===
 FINNHUB = "https://finnhub.io/api/v1"
@@ -38,11 +40,11 @@ def safe_get(url, params=None, source_name=""):
         r.raise_for_status()
         data = r.json()
         if isinstance(data, dict) and data.get("status") == "error":
-            print(f"⚠️  {source_name}: {data.get('message')}")
+            logger.warning("%s: %s", source_name, data.get("message"))
             return None
         return data
     except Exception as e:
-        print(f"⚠️  {source_name} failed: {e}")
+        logger.warning("%s failed: %s", source_name, e)
         return None
 
 
@@ -124,7 +126,7 @@ def fetch_yahoo_summary(symbol: str) -> dict:
             },
         }
     except Exception as e:
-        print(f"⚠️  Yahoo RapidAPI failed: {e}")
+        logger.warning("Yahoo RapidAPI failed: %s", e)
         return {}
 
 
@@ -139,7 +141,7 @@ def fetch_stock_financials(symbol: str, force_refresh: bool = False) -> dict:
         cached = CacheManager.get(cache_key)
         if cached:
             try:
-                print(f"💾  Loaded {symbol} from cache")
+                logger.debug("Loaded %s from cache", symbol)
                 return json.loads(cached)
             except Exception:
                 pass
@@ -224,7 +226,7 @@ def fetch_stock_financials(symbol: str, force_refresh: bool = False) -> dict:
             merged["dividends"] = make_json_safe(divs.tail(10).to_dict())
             merged["sources"]["dividends"] = "yfinance"
     except Exception as e:
-        print(f"⚠️  yfinance failed: {e}")
+        logger.warning("yfinance failed: %s", e)
 
     # ---------------- Yahoo fallback ----------------
     yahoo = fetch_yahoo_summary(symbol)
@@ -234,7 +236,8 @@ def fetch_stock_financials(symbol: str, force_refresh: bool = False) -> dict:
         merged["sources"]["yahoo"] = "rapidapi"
 
     filled_fields = sum(1 for v in merged["info"].values() if v is not None)
-    print(f"✅  {symbol}: fetched with {filled_fields} info fields filled")
+    logger.info("%s: fetched with %s info fields filled",
+                symbol, filled_fields)
 
     CacheManager.set(cache_key, json.dumps(make_json_safe(merged)))
     return merged

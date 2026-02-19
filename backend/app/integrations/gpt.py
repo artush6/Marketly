@@ -7,46 +7,54 @@ from openai import OpenAI
 
 # internal helpers
 from app.utils.sanitizer_util import sanitize
+from app.domain.models import StockFinancials
 # summarize_financials removed
-from app.integrations.financials import fetch_stock_financials
 
 load_dotenv()  # Load environment variables from .env
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-def score_stock(financial_data: dict, news_data: dict | list, economical_data: dict) -> dict:
+def score_stock(
+    financial_data: StockFinancials | dict,
+    news_data: dict | list,
+    economical_data: dict,
+) -> dict:
     """
     Evaluate a stock using financial, macroeconomic, and news data via GPT model.
     Returns a structured score with summary, positives, and negatives.
     """
 
-    info = financial_data.get("info", {})
+    if not isinstance(financial_data, StockFinancials):
+        financial_data = StockFinancials.from_raw(financial_data)
+
+    info = financial_data.info
+    financials = financial_data.financials
 
     # --- Safe, minimal payload ---
     safe_payload = {
         "company_overview": {
-            "name": info.get("shortName"),
-            "sector": info.get("sector"),
-            "industry": info.get("industry"),
-            "country": info.get("country"),
-            "currency": info.get("currency"),
-            "market_cap": info.get("marketCap"),
+            "name": info.shortName,
+            "sector": info.sector,
+            "industry": info.industry,
+            "country": info.country,
+            "currency": info.currency,
+            "market_cap": info.marketCap,
         },
         "valuation_metrics": {
-            "trailingPE": info.get("trailingPE"),
-            "forwardPE": info.get("forwardPE"),
-            "peg_ratio": info.get("pegRatio"),
-            "price_to_book": info.get("priceToBook"),
-            "price_to_sales": info.get("priceToSalesTrailing12Months"),
-            "dividend_yield": info.get("dividendYield"),
-            "beta": info.get("beta"),
+            "trailingPE": info.trailingPE,
+            "forwardPE": info.forwardPE,
+            "peg_ratio": info.pegRatio,
+            "price_to_book": info.priceToBook,
+            "price_to_sales": info.priceToSalesTrailing12Months,
+            "dividend_yield": info.dividendYield,
+            "beta": info.beta,
         },
         "financials": {
-            "income_statement": financial_data.get("income_statement"),
-            "balance_sheet": financial_data.get("balance_sheet"),
-            "cash_flow": financial_data.get("cash_flow"),
+            "income_statement": financials.income_statement,
+            "balance_sheet": None,
+            "cash_flow": None,
         },
-        "analyst_data": financial_data.get("analyst_data"),
+        "analyst_data": financial_data.analyst_data,
         # limit for safety
         "news_data": news_data[:20] if isinstance(news_data, list) else news_data,
         "economical_data": economical_data,
