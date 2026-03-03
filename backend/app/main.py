@@ -16,4 +16,6 @@ app.include_router(econ_situation.router)
 
 @app.get("/")
 def root():
-    return {"message": "Marketly backend is running"}
+    return {"message": "Marketly backend is running!"}
+
+
