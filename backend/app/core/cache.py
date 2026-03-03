@@ -1,9 +1,12 @@
+import logging
+
 import redis
-import json
+from redis.exceptions import RedisError
+
 from app.core.config import settings
 
-r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 PREFIX = "marketly"
+logger = logging.getLogger(__name__)
 
 TTL_PRESETS = {
     "macro": 86400 * 7,     # 7 days
@@ -13,6 +16,23 @@ TTL_PRESETS = {
 }
 
 
+def _build_client():
+    if not settings.REDIS_URL:
+        logger.info("REDIS_URL not set; cache disabled")
+        return None
+
+    try:
+        client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        client.ping()
+        return client
+    except RedisError as exc:
+        logger.warning("Redis unavailable; cache disabled: %s", exc)
+        return None
+
+
+r = _build_client()
+
+
 class CacheManager:
     @staticmethod
     def make_key(namespace: str, identifier: str) -> str:
@@ -20,17 +40,33 @@ class CacheManager:
 
     @staticmethod
     def get(key: str):
-        value = r.get(key)
-        return value if value else None
+        if r is None:
+            return None
+        try:
+            value = r.get(key)
+            return value if value else None
+        except RedisError as exc:
+            logger.warning("Cache read failed for %s: %s", key, exc)
+            return None
 
     @staticmethod
     def set(key: str, value: str, ttl: int | None = None):
+        if r is None:
+            return
         # Determine namespace from key
         namespace = key.split(":")[1] if ":" in key else None
         ttl = ttl or TTL_PRESETS.get(namespace, 3600)  # default 1 h fallback
-        r.set(key, value, ex=ttl)
+        try:
+            r.set(key, value, ex=ttl)
+        except RedisError as exc:
+            logger.warning("Cache write failed for %s: %s", key, exc)
 
     @staticmethod
     def delete(pattern: str):
-        for key in r.scan_iter(f"{PREFIX}:{pattern}*"):
-            r.delete(key)
+        if r is None:
+            return
+        try:
+            for key in r.scan_iter(f"{PREFIX}:{pattern}*"):
+                r.delete(key)
+        except RedisError as exc:
+            logger.warning("Cache delete failed for %s: %s", pattern, exc)

@@ -26,13 +26,13 @@ It centralizes everything you need to track and analyze your investments: **fina
 **Backend (Python / FastAPI)**
 
 * FastAPI for routes & APIs
-* Data fetching via `yfinance`, FMP, Finnhub, and other APIs
-* GPT integration for stock analysis (`services/gpt.py`)
+* Data fetching via `yfinance`, FMP, Finnhub, and FRED
+* GPT integration for stock analysis (`app/integrations/gpt.py`)
 
 **Database & Infra**
 
 * Supabase (Postgres, auth, storage)
-* Planned: Redis caching
+* Optional Redis caching when `REDIS_URL` is configured
 
 ---
 
@@ -44,10 +44,14 @@ It centralizes everything you need to track and analyze your investments: **fina
 backend/
 ├── app
 │   ├── main.py              # FastAPI entrypoint
-│   ├── routes/              # API routes (analysis, econ, financials, news)
-│   └── services/            # Business logic & integrations
+│   ├── routes/              # HTTP endpoints
+│   ├── integrations/        # External APIs + data fetchers
+│   ├── services/            # Cross-source business logic
+│   ├── models.py            # Typed backend models
+│   ├── serialization.py     # Shared JSON-safe serializer helper
+│   └── core/                # Shared config + cache wrapper
+├── ARCHITECTURE.md          # Quick map of the live backend
 ├── run.py                   # Dev server runner
-├── company_financials.json  # Example stored data
 ```
 
 ### Frontend (`/frontend/src`)
@@ -58,7 +62,6 @@ frontend/src/
 ├── components/    # Reusable UI components
 ├── hooks/         # Custom React hooks
 ├── lib/           # API utils
-├── types/         # Shared TypeScript types
 ```
 
 ---
@@ -94,6 +97,8 @@ The app will run at:
 * **Frontend:** `http://localhost:3000`
 * **Backend API:** `http://localhost:8000`
 
+For a quick backend orientation, see `backend/ARCHITECTURE.md`.
+
 ---
 
 ## 🤝 Contributing
@@ -105,4 +110,3 @@ This is an early-stage project. Contributions, ideas, and feedback are welcome!
 ## 📜 License
 
 MIT License – feel free to use, modify, and share.
-

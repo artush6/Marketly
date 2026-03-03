@@ -1,5 +1,3 @@
-# app/services/fetchers/financials.py
-
 import os
 import json
 import requests

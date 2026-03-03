@@ -1,9 +1,6 @@
 from fastapi import APIRouter, Query
-from app.services.news_service import (
-    get_company_news,
-    get_grouped_news,
-    get_mixed_news,
-)
+
+from app.integrations.news import get_news, get_news_grouped, get_news_mixed
 
 router = APIRouter(prefix="/news", tags=["news"])
 
@@ -16,7 +13,7 @@ def grouped_news(
         50, description="Max number of articles per company"),
 ):
     symbol_list = [s.strip() for s in symbols.split(",")]
-    grouped = get_grouped_news(symbol_list, max_items=max_items, days=days)
+    grouped = get_news_grouped(symbol_list, max_items=max_items, days=days)
     return grouped  # FastAPI will JSON-encode automatically
 
 
@@ -31,7 +28,7 @@ def mixed_news(
     Example: /news/mixed?symbols=AAPL,NVDA
     """
     symbol_list = [s.strip() for s in symbols.split(",")]
-    return get_mixed_news(symbol_list, max_items=max_items, days=days)
+    return get_news_mixed(symbol_list, max_items=max_items, days=days)
 
 
 @router.get("/{symbol}")
@@ -44,4 +41,4 @@ def company_news(
     Fetch latest news for a single company.
     Example: /news/AAPL?days=5&max_items=12
     """
-    return get_company_news(symbol, days=days, max_items=max_items)
+    return get_news(symbol, days=days, max_items=max_items)

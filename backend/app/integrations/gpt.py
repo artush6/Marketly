@@ -1,14 +1,11 @@
-# app/services/gpt.py
-
 import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
 # internal helpers
-from app.utils.sanitizer_util import sanitize
-from app.domain.models import StockFinancials
-# summarize_financials removed
+from app.models import StockFinancials
+from app.serialization import sanitize
 
 load_dotenv()  # Load environment variables from .env
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -17,7 +14,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def score_stock(
     financial_data: StockFinancials | dict,
     news_data: dict | list,
-    economical_data: dict,
+    economic_data: dict,
 ) -> dict:
     """
     Evaluate a stock using financial, macroeconomic, and news data via GPT model.
@@ -57,7 +54,7 @@ def score_stock(
         "analyst_data": financial_data.analyst_data,
         # limit for safety
         "news_data": news_data[:20] if isinstance(news_data, list) else news_data,
-        "economical_data": economical_data,
+        "economic_data": economic_data,
     }
 
     # --- Truncate for token safety ---
