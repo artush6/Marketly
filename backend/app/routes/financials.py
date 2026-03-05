@@ -1,10 +1,29 @@
-from fastapi import APIRouter
+import logging
 
+from fastapi import APIRouter, HTTPException
+
+from app.core.errors import MisconfigurationError
 from app.integrations.financials import fetch_stock_financials
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/financials/{symbol}")
 def get_financials(symbol: str, refresh: bool = False):
-    return fetch_stock_financials(symbol, force_refresh=refresh)
+    """Return aggregated financial market data for a ticker symbol."""
+
+    try:
+        return fetch_stock_financials(symbol, force_refresh=refresh)
+    except MisconfigurationError:
+        logger.exception("Financials endpoint is misconfigured")
+        raise HTTPException(
+            status_code=503,
+            detail="Financials service is not configured correctly.",
+        )
+    except Exception:
+        logger.exception("Unexpected financials failure")
+        raise HTTPException(
+            status_code=502,
+            detail="Financials provider is currently unavailable.",
+        )

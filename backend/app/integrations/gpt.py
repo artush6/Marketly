@@ -1,14 +1,25 @@
-import os
 import json
-from dotenv import load_dotenv
+import logging
+from functools import lru_cache
+
 from openai import OpenAI
 
 # internal helpers
+from app.core.config import settings
+from app.core.errors import MisconfigurationError
 from app.models import StockFinancials
 from app.serialization import sanitize
 
-load_dotenv()  # Load environment variables from .env
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _get_client() -> OpenAI:
+    """Create and cache the OpenAI client for the process lifetime."""
+
+    if not settings.OPENAI_API_KEY:
+        raise MisconfigurationError("OPENAI_API_KEY is not configured")
+    return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 def score_stock(
@@ -61,8 +72,9 @@ def score_stock(
     safe_payload_json = json.dumps(safe_payload, ensure_ascii=False)[:20000]
 
     try:
+        client = _get_client()
         response = client.chat.completions.create(
-            model="gpt-5-nano-2025-08-07",
+            model=settings.OPENAI_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -135,7 +147,8 @@ def score_stock(
         parsed.setdefault("negatives", [])
 
         return sanitize(parsed)
-
+    except MisconfigurationError:
+        raise
     except Exception as e:
-        print(f"[ERROR] GPT scoring failed: {e}")
+        logger.exception("GPT scoring failed")
         return {"error": str(e)}

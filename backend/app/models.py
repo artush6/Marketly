@@ -50,6 +50,8 @@ class StockFinancials(BaseModel):
         data = dict(raw or {})
         data.setdefault("info", {})
         data.setdefault("financials", {})
+        if hasattr(cls, "model_validate"):
+            return cls.model_validate(data)
         return cls.parse_obj(data)
 
     def to_api_dict(self) -> Dict[str, Any]:

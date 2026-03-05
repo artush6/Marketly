@@ -1,18 +1,23 @@
-import os
 import json
 import datetime
 import logging
+from functools import lru_cache
+
 from app.core.cache import CacheManager
+from app.core.config import settings
+from app.core.errors import MisconfigurationError
 import finnhub
-from dotenv import load_dotenv, find_dotenv
 
-
-# --- Load API keys ---
-load_dotenv(find_dotenv())
-FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")  # match .env key name exactly
-finnhub_client = finnhub.Client(
-    api_key=FINNHUB_API_KEY)
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _get_finnhub_client() -> finnhub.Client:
+    """Create and cache the Finnhub SDK client."""
+
+    if not settings.FINNHUB_API_KEY:
+        raise MisconfigurationError("FINNHUB_API_KEY is not configured")
+    return finnhub.Client(api_key=settings.FINNHUB_API_KEY)
 
 
 def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: str | None = None):
@@ -29,10 +34,12 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: str | 
         return json.loads(cached)
 
     # Otherwise fetch fresh data
+    symbol = symbol.strip().upper()
     date_start = (datetime.date.today() -
                   datetime.timedelta(days=days)).isoformat()
     date_end = datetime.date.today().isoformat()
 
+    finnhub_client = _get_finnhub_client()
     articles = finnhub_client.company_news(
         symbol, _from=date_start, to=date_end)
 
@@ -75,6 +82,7 @@ def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: 
 
     grouped = {}
 
+    finnhub_client = _get_finnhub_client()
     for symbol in symbols:
         articles = finnhub_client.company_news(
             symbol, _from=date_start, to=date_end)
@@ -121,6 +129,7 @@ def get_news_mixed(symbols, max_items: int = 10, days: int = 3, output_file: str
 
     mixed_articles = []
 
+    finnhub_client = _get_finnhub_client()
     for symbol in symbols:
         articles = finnhub_client.company_news(
             symbol, _from=date_start, to=date_end)

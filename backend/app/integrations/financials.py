@@ -1,28 +1,19 @@
-import os
 import json
+import logging
+from datetime import datetime
+
+import pandas as pd
 import requests
 import yfinance as yf
-from dotenv import load_dotenv
 from app.core.cache import CacheManager
-from datetime import datetime
-import pandas as pd
-import logging
+from app.core.config import settings
 
-# === Load environment variables ===
-load_dotenv()
 logger = logging.getLogger(__name__)
 
 # === API Base URLs ===
 FINNHUB = "https://finnhub.io/api/v1"
 FMP = "https://financialmodelingprep.com/api/v3"
-TWELVE = "https://api.twelvedata.com"
 RAPIDAPI_HOST = "yh-finance.p.rapidapi.com"
-
-# === API Keys ===
-FINNHUB_KEY = os.getenv("FINNHUB_API_KEY")
-FMP_KEY = os.getenv("FMPSDK_API_KEY")
-TWELVE_KEY = os.getenv("TWELVE_API_KEY")
-RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 
 
 # =====================================================================
@@ -68,11 +59,11 @@ def make_json_safe(obj):
 # 🧩 Yahoo Finance (RapidAPI)
 # =====================================================================
 def fetch_yahoo_summary(symbol: str) -> dict:
-    if not RAPIDAPI_KEY:
+    if not settings.RAPIDAPI_KEY:
         return {}
 
     headers = {
-        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-key": settings.RAPIDAPI_KEY,
         "x-rapidapi-host": RAPIDAPI_HOST,
     }
 
@@ -155,15 +146,15 @@ def fetch_stock_financials(symbol: str, force_refresh: bool = False) -> dict:
     }
 
     # ---------------- Finnhub ----------------
-    if FINNHUB_KEY:
+    if settings.FINNHUB_API_KEY:
         profile = safe_get(f"{FINNHUB}/stock/profile2",
-                           {"symbol": symbol, "token": FINNHUB_KEY}, "Finnhub profile")
+                           {"symbol": symbol, "token": settings.FINNHUB_API_KEY}, "Finnhub profile")
         metrics = safe_get(f"{FINNHUB}/stock/metric",
-                           {"symbol": symbol, "token": FINNHUB_KEY}, "Finnhub metrics")
+                           {"symbol": symbol, "token": settings.FINNHUB_API_KEY}, "Finnhub metrics")
         quote = safe_get(f"{FINNHUB}/quote", {"symbol": symbol,
-                         "token": FINNHUB_KEY}, "Finnhub quote")
+                         "token": settings.FINNHUB_API_KEY}, "Finnhub quote")
         recs = safe_get(f"{FINNHUB}/stock/recommendation",
-                        {"symbol": symbol, "token": FINNHUB_KEY}, "Finnhub recs")
+                        {"symbol": symbol, "token": settings.FINNHUB_API_KEY}, "Finnhub recs")
 
         if profile:
             safe_update(merged["info"], {
@@ -194,9 +185,9 @@ def fetch_stock_financials(symbol: str, force_refresh: bool = False) -> dict:
             merged["sources"]["analyst_data"] = "finnhub"
 
     # ---------------- FMP ----------------
-    if FMP_KEY:
+    if settings.FMPSDK_API_KEY:
         ratios = safe_get(f"{FMP}/ratios/{symbol}",
-                          {"apikey": FMP_KEY}, "FMP ratios")
+                          {"apikey": settings.FMPSDK_API_KEY}, "FMP ratios")
         if ratios and isinstance(ratios, list):
             r = ratios[0]
             safe_update(merged["info"], {
@@ -208,7 +199,7 @@ def fetch_stock_financials(symbol: str, force_refresh: bool = False) -> dict:
 
         income = safe_get(
             f"{FMP}/income-statement/{symbol}",
-            {"limit": 4, "apikey": FMP_KEY},
+            {"limit": 4, "apikey": settings.FMPSDK_API_KEY},
             "FMP income"
         )
 
