@@ -33,7 +33,7 @@ class FinancialsBlock(BaseModel):
         extra = "allow"
 
 
-class StockFinancials(BaseModel):
+class TickerData(BaseModel):
     symbol: Optional[str] = None
     info: CompanyInfo = Field(default_factory=CompanyInfo)
     quote: Dict[str, Any] = Field(default_factory=dict)
@@ -46,7 +46,7 @@ class StockFinancials(BaseModel):
         extra = "allow"
 
     @classmethod
-    def from_raw(cls, raw: Dict[str, Any]) -> "StockFinancials":
+    def from_raw(cls, raw: Dict[str, Any]) -> "TickerData":
         data = dict(raw or {})
         data.setdefault("info", {})
         data.setdefault("financials", {})

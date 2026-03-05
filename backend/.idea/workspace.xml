@@ -5,17 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eb96996f-ca0d-436b-b9e1-00395e8e9e81" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/services/scoring /profitability.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/core/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/integrations/economics.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/integrations/economics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/integrations/financials.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/integrations/financials.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/integrations/gpt.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/integrations/gpt.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/integrations/news.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/integrations/news.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routes/analysis.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routes/analysis.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routes/econ_situation.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routes/econ_situation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routes/financials.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routes/financials.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routes/news.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routes/news.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/schemas/analysis.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/schemas/analysis.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/analysis_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/analysis_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/scoring/profitability.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/scoring/profitability.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_analysis_route.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_analysis_route.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

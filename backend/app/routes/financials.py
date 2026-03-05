@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.core.errors import MisconfigurationError
-from app.integrations.financials import fetch_stock_financials
+from app.integrations.financials import fetch_ticker_financials
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ def get_financials(symbol: str, refresh: bool = False):
     """Return aggregated financial market data for a ticker symbol."""
 
     try:
-        return fetch_stock_financials(symbol, force_refresh=refresh)
+        return fetch_ticker_financials(symbol, force_refresh=refresh)
     except MisconfigurationError:
         logger.exception("Financials endpoint is misconfigured")
         raise HTTPException(

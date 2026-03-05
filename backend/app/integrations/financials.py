@@ -122,9 +122,9 @@ def fetch_yahoo_summary(symbol: str) -> dict:
 # =====================================================================
 # 🧩 Main Aggregator
 # =====================================================================
-def fetch_stock_financials(symbol: str, force_refresh: bool = False) -> dict:
+def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
     symbol = normalize_symbol(symbol)
-    cache_key = CacheManager.make_key("stocks", symbol)
+    cache_key = CacheManager.make_key("tickers", symbol)
 
     if not force_refresh:
         cached = CacheManager.get(cache_key)

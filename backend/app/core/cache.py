@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 TTL_PRESETS = {
     "macro": 86400 * 7,     # 7 days
-    "stocks": 86400,        # 1 day
+    "tickers": 86400,       # 1 day
     "news": 3600 * 3,       # 3 hours
     "analyst": 86400 * 2,   # 2 days
 }

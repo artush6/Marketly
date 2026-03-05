@@ -3,19 +3,19 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.core.errors import MisconfigurationError
-from app.services.analysis_service import build_stock_score
-from app.schemas.analysis import StockScoreResponse
+from app.schemas.analysis import TickerScoreResponse
+from app.services.analysis_service import build_ticker_score
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get("/score/{symbol}", response_model=StockScoreResponse)
-def stock_score(symbol: str):
-    """Build an AI-based stock score response for a single ticker symbol."""
+@router.get("/score/{symbol}", response_model=TickerScoreResponse)
+def ticker_score(symbol: str):
+    """Build an AI-based ticker score response for a single ticker symbol."""
 
     try:
-        return build_stock_score(symbol)
+        return build_ticker_score(symbol)
 
     except MisconfigurationError:
         logger.exception("Analysis failed because configuration is missing")

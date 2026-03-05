@@ -7,7 +7,7 @@ from openai import OpenAI
 # internal helpers
 from app.core.config import settings
 from app.core.errors import MisconfigurationError
-from app.models import StockFinancials
+from app.models import TickerData
 from app.serialization import sanitize
 
 logger = logging.getLogger(__name__)
@@ -22,21 +22,22 @@ def _get_client() -> OpenAI:
     return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
-def score_stock(
-    financial_data: StockFinancials | dict,
+def score_ticker(
+    ticker_data: TickerData | dict,
     news_data: dict | list,
     economic_data: dict,
+    profitability_metrics: dict | None = None,
 ) -> dict:
     """
-    Evaluate a stock using financial, macroeconomic, and news data via GPT model.
+    Evaluate a ticker using financial, macroeconomic, and news data via GPT model.
     Returns a structured score with summary, positives, and negatives.
     """
 
-    if not isinstance(financial_data, StockFinancials):
-        financial_data = StockFinancials.from_raw(financial_data)
+    if not isinstance(ticker_data, TickerData):
+        ticker_data = TickerData.from_raw(ticker_data)
 
-    info = financial_data.info
-    financials = financial_data.financials
+    info = ticker_data.info
+    financials = ticker_data.financials
 
     # --- Safe, minimal payload ---
     safe_payload = {
@@ -57,12 +58,13 @@ def score_stock(
             "dividend_yield": info.dividendYield,
             "beta": info.beta,
         },
+        "profitability_metrics": profitability_metrics or {},
         "financials": {
             "income_statement": financials.income_statement,
             "balance_sheet": None,
             "cash_flow": None,
         },
-        "analyst_data": financial_data.analyst_data,
+        "analyst_data": ticker_data.analyst_data,
         # limit for safety
         "news_data": news_data[:20] if isinstance(news_data, list) else news_data,
         "economic_data": economic_data,
@@ -80,7 +82,7 @@ def score_stock(
                     "role": "system",
                     "content": (
                         """You are a world-class equity analyst and quant strategist.
-                        Evaluate the investment quality of a stock from 0 to 100 using 
+                        Evaluate the investment quality of a ticker from 0 to 100 using 
                         fundamentals, macroeconomic data, and recent news.
 
                         Follow this rubric strictly:
@@ -112,13 +114,13 @@ def score_stock(
                 },
                 {
                     "role": "user",
-                    "content": f"Stock data (financials, macro, news): {safe_payload_json}"
+                    "content": f"Ticker data (financials, macro, news): {safe_payload_json}"
                 }
             ],
             response_format={
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "stock_score",
+                    "name": "ticker_score",
                     "schema": {
                         "type": "object",
                         "properties": {
