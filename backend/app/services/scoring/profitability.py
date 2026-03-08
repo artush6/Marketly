@@ -17,12 +17,12 @@ def calculate_operating_margin(operating_income, revenue):
     return operating_income / revenue
 
 
-def calculate_EBTDA_margin(EBITDA, revenue):
-    if EBITDA is None or revenue is None:
+def calculate_ebitda_margin(ebitda, revenue):
+    if ebitda is None or revenue is None:
         return None
     if revenue == 0:
         return None
-    return EBITDA / revenue
+    return ebitda / revenue
 
 
 def calculate_gross_margin(cost_of_revenue, revenue):
@@ -32,6 +32,10 @@ def calculate_gross_margin(cost_of_revenue, revenue):
         return None
     return (revenue - cost_of_revenue) / revenue
 
+def calculate_roe(net_income, shareholder_equity):
+    if net_income is None or shareholder_equity is None:
+        return None
+    return net_income / shareholder_equity
 
 def compute_profitability_metrics(income_statement):
     """Build a simple profitability summary from the latest income statement row."""
@@ -56,7 +60,7 @@ def compute_profitability_metrics(income_statement):
     gross_margin = calculate_gross_margin(cost_of_revenue, revenue)
     operating_margin = calculate_operating_margin(operating_income, revenue)
     net_margin = calculate_net_margin(net_income, revenue)
-    ebitda_margin = calculate_EBTDA_margin(ebitda, revenue)
+    ebitda_margin = calculate_ebitda_margin(ebitda, revenue)
 
     available = [v for v in [gross_margin, operating_margin, net_margin, ebitda_margin] if v is not None]
     profitability_score = None
