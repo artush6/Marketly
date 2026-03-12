@@ -8,3 +8,4 @@ single_company_articles.json
 # Ignore Python cache
 __pycache__/
 *.py[cod]
+.todo.md
