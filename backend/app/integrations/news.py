@@ -2,6 +2,7 @@ import json
 import datetime
 import logging
 from functools import lru_cache
+from typing import Optional
 
 from app.core.cache import CacheManager
 from app.core.config import settings
@@ -20,7 +21,7 @@ def _get_finnhub_client() -> finnhub.Client:
     return finnhub.Client(api_key=settings.FINNHUB_API_KEY)
 
 
-def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: str | None = None):
+def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Optional[str] = None):
     """"
     Fetch recent company news from Finnhub for a given symbol.
     Uses Redis caching to avoid redundant API calls.
@@ -59,7 +60,7 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: str | 
     return articles
 
 
-def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: str | None = None):
+def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: Optional[str] = None):
     if isinstance(symbols, str):
         symbols_list = [s.strip().upper() for s in symbols.split(",")]
     else:
@@ -101,7 +102,7 @@ def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: 
     return grouped
 
 
-def get_news_mixed(symbols, max_items: int = 10, days: int = 3, output_file: str | None = None):
+def get_news_mixed(symbols, max_items: int = 10, days: int = 3, output_file: Optional[str] = None):
     """
     Returns a combined list of articles across ALL symbols.
     Optionally saves results to a JSON file if output_file is provided.

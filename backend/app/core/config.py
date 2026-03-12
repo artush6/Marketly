@@ -3,6 +3,7 @@
 import os
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -13,12 +14,12 @@ load_dotenv()
 class Settings:
     """Immutable runtime settings read from environment variables."""
 
-    REDIS_URL: str | None
-    FINNHUB_API_KEY: str | None
-    FMPSDK_API_KEY: str | None
-    RAPIDAPI_KEY: str | None
-    FRED_API_KEY: str | None
-    OPENAI_API_KEY: str | None
+    REDIS_URL: Optional[str]
+    FINNHUB_API_KEY: Optional[str]
+    FMPSDK_API_KEY: Optional[str]
+    RAPIDAPI_KEY: Optional[str]
+    FRED_API_KEY: Optional[str]
+    OPENAI_API_KEY: Optional[str]
     OPENAI_MODEL: str
 
 

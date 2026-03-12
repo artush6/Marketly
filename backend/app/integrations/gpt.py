@@ -1,6 +1,7 @@
 import json
 import logging
 from functools import lru_cache
+from typing import Any, Optional, Union
 
 from openai import OpenAI
 
@@ -23,10 +24,10 @@ def _get_client() -> OpenAI:
 
 
 def score_ticker(
-    ticker_data: TickerData | dict,
-    news_data: dict | list,
+    ticker_data: Union[TickerData, dict],
+    news_data: Union[dict, list],
     economic_data: dict,
-    scoring_metrics: dict | None = None,
+    scoring_metrics: Optional[dict[str, Any]] = None,
 ) -> dict:
     """
     Evaluate a ticker using financial, macroeconomic, and news data via GPT model.

@@ -32,7 +32,7 @@ class AnalysisServiceTests(unittest.TestCase):
 
         result = build_ticker_score("aapl")
 
-        mock_fetch_ticker_financials.assert_called_once_with("AAPL")
+        mock_fetch_ticker_financials.assert_called_once_with("AAPL", force_refresh=False)
         mock_fetch_macro_indicators.assert_called_once_with()
         mock_get_news.assert_called_once_with("AAPL")
         self.assertEqual(result["symbol"], "AAPL")
@@ -71,6 +71,16 @@ class AnalysisServiceTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             build_ticker_score("aapl")
+
+    @patch("app.services.analysis_service.CacheManager")
+    def test_build_ticker_score_returns_cached_score_when_available(self, mock_cache):
+        mock_cache.make_key.return_value = "marketly:scores:AAPL"
+        mock_cache.get.return_value = '{"symbol":"AAPL","score":91,"summary":"Cached","positives":[],"negatives":[],"company":"Apple Inc.","profitability":{"coverage":0.0},"growth":{"coverage":0.0},"stability":{"coverage":0.0},"valuation":{"coverage":0.0}}'
+
+        result = build_ticker_score("aapl")
+
+        self.assertEqual(result["score"], 91)
+        mock_cache.get.assert_called_once_with("marketly:scores:AAPL")
 
 
 if __name__ == "__main__":

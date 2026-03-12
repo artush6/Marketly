@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+
+from app.core.cache import CacheManager
 from app.models import TickerData
 from app.integrations.economics import fetch_macro_indicators
 from app.integrations.financials import fetch_ticker_financials
@@ -8,7 +11,7 @@ from app.integrations.gpt import score_ticker
 from app.services.scoring.metrics import build_scoring_metrics
 
 
-def build_ticker_score(symbol: str) -> dict:
+def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
     """
     Fetch financial, macro, and news data for a ticker symbol,
     and generate an AI-based investment score.
@@ -16,9 +19,15 @@ def build_ticker_score(symbol: str) -> dict:
     Returns the same response shape expected by the API routes.
     """
     symbol = symbol.upper()
+    cache_key = CacheManager.make_key("scores", symbol)
+
+    if not force_refresh:
+        cached = CacheManager.get(cache_key)
+        if cached:
+            return json.loads(cached)
 
     # Step 1: Fetch all raw data
-    raw_financials = fetch_ticker_financials(symbol)
+    raw_financials = fetch_ticker_financials(symbol, force_refresh=force_refresh)
     if "error" in raw_financials:
         raise ValueError(raw_financials["error"])
     ticker_data = TickerData.from_raw(raw_financials)
@@ -39,7 +48,7 @@ def build_ticker_score(symbol: str) -> dict:
 
     # Step 3: Return structured response (preserve existing output contract)
     info = ticker_data.info
-    return {
+    response = {
         "symbol": symbol,
         "score": analysis.get("score"),
         "summary": analysis.get("summary"),
@@ -51,3 +60,5 @@ def build_ticker_score(symbol: str) -> dict:
         "stability": scoring_metrics["stability"],
         "valuation": scoring_metrics["valuation"],
     }
+    CacheManager.set(cache_key, json.dumps(response))
+    return response

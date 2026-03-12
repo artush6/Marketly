@@ -19,3 +19,7 @@ def root():
     return {"message": "Marketly backend is running!"}
 
 
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+

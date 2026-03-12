@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.errors import MisconfigurationError
 from app.schemas.analysis import TickerScoreResponse
@@ -11,11 +11,14 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/score/{symbol}", response_model=TickerScoreResponse)
-def ticker_score(symbol: str):
+def ticker_score(
+    symbol: str,
+    refresh: bool = Query(False, description="Bypass cached score and rebuild analysis"),
+):
     """Build an AI-based ticker score response for a single ticker symbol."""
 
     try:
-        return build_ticker_score(symbol)
+        return build_ticker_score(symbol, force_refresh=refresh)
 
     except MisconfigurationError:
         logger.exception("Analysis failed because configuration is missing")

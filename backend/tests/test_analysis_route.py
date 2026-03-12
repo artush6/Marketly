@@ -59,6 +59,27 @@ class AnalysisRouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["symbol"], "AAPL")
+        mock_build_ticker_score.assert_called_once_with("AAPL", force_refresh=False)
+
+    @patch("app.routes.analysis.build_ticker_score")
+    def test_score_refresh_passes_force_refresh(self, mock_build_ticker_score):
+        mock_build_ticker_score.return_value = {
+            "symbol": "AAPL",
+            "score": 75,
+            "summary": "Solid fundamentals",
+            "positives": [],
+            "negatives": [],
+            "company": "Apple Inc.",
+            "profitability": {"coverage": 0.0},
+            "growth": {"coverage": 0.0},
+            "stability": {"coverage": 0.0},
+            "valuation": {"coverage": 0.0},
+        }
+
+        response = self.client.get("/score/AAPL?refresh=true")
+
+        self.assertEqual(response.status_code, 200)
+        mock_build_ticker_score.assert_called_once_with("AAPL", force_refresh=True)
 
     @patch("app.routes.analysis.build_ticker_score", side_effect=MisconfigurationError)
     def test_score_misconfigured(self, _):
