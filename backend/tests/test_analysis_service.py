@@ -1,10 +1,30 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.services.analysis_service import build_ticker_score
 
 
 class AnalysisServiceTests(unittest.TestCase):
+    def setUp(self):
+        settings_patcher = patch(
+            "app.services.analysis_service.settings",
+            SimpleNamespace(
+                FRED_API_KEY="fred-key",
+                FINNHUB_API_KEY="finnhub-key",
+                OPENAI_API_KEY="openai-key",
+                FMPSDK_API_KEY="fmp-key",
+                RAPIDAPI_KEY=None,
+            ),
+        )
+        validator_patcher = patch(
+            "app.services.analysis_service.validate_financials_configuration"
+        )
+        self.addCleanup(settings_patcher.stop)
+        self.addCleanup(validator_patcher.stop)
+        settings_patcher.start()
+        validator_patcher.start()
+
     @patch("app.services.analysis_service.score_ticker")
     @patch("app.services.analysis_service.get_news")
     @patch("app.services.analysis_service.fetch_macro_indicators")

@@ -7,6 +7,7 @@ import requests
 import yfinance as yf
 from app.core.cache import CacheManager
 from app.core.config import settings
+from app.core.errors import MisconfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,25 @@ RAPIDAPI_HOST = "yh-finance.p.rapidapi.com"
 # =====================================================================
 def normalize_symbol(symbol: str) -> str:
     return symbol.strip().upper()
+
+
+def _has_financial_provider_config() -> bool:
+    return any(
+        [
+            settings.FINNHUB_API_KEY,
+            settings.FMPSDK_API_KEY,
+            settings.RAPIDAPI_KEY,
+        ]
+    )
+
+
+def validate_financials_configuration() -> None:
+    if _has_financial_provider_config():
+        return
+    raise MisconfigurationError(
+        "Financial data requires at least one provider key: "
+        "FINNHUB_API_KEY, FMPSDK_API_KEY, or RAPIDAPI_KEY."
+    )
 
 
 def safe_get(url, params=None, source_name=""):
@@ -123,6 +143,7 @@ def fetch_yahoo_summary(symbol: str) -> dict:
 # 🧩 Main Aggregator
 # =====================================================================
 def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
+    validate_financials_configuration()
     symbol = normalize_symbol(symbol)
     cache_key = CacheManager.make_key("tickers", symbol)
 

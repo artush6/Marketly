@@ -23,11 +23,11 @@ def macro_indicators():
         elapsed_time = time.time() - start_time
         logger.debug("Macro indicators fetched in %.2fs", elapsed_time)
         return result
-    except MisconfigurationError:
+    except MisconfigurationError as exc:
         logger.exception("Economics endpoint is misconfigured")
         raise HTTPException(
             status_code=503,
-            detail="Economics service is not configured correctly.",
+            detail=str(exc),
         )
     except Exception:
         logger.exception("Unexpected economics failure")

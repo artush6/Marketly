@@ -20,11 +20,11 @@ def ticker_score(
     try:
         return build_ticker_score(symbol, force_refresh=refresh)
 
-    except MisconfigurationError:
+    except MisconfigurationError as exc:
         logger.exception("Analysis failed because configuration is missing")
         raise HTTPException(
             status_code=503,
-            detail="Analysis service is not configured correctly.",
+            detail=str(exc),
         )
     except ValueError:
         logger.exception("Analysis failed due to upstream data issue")

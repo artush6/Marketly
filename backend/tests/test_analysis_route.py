@@ -81,14 +81,17 @@ class AnalysisRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         mock_build_ticker_score.assert_called_once_with("AAPL", force_refresh=True)
 
-    @patch("app.routes.analysis.build_ticker_score", side_effect=MisconfigurationError)
+    @patch(
+        "app.routes.analysis.build_ticker_score",
+        side_effect=MisconfigurationError("OPENAI_API_KEY is not configured."),
+    )
     def test_score_misconfigured(self, _):
         response = self.client.get("/score/AAPL")
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(
             response.json()["detail"],
-            "Analysis service is not configured correctly.",
+            "OPENAI_API_KEY is not configured.",
         )
 
     @patch("app.routes.analysis.build_ticker_score", side_effect=ValueError("upstream"))

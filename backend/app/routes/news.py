@@ -22,11 +22,11 @@ def grouped_news(
         symbol_list = [s.strip() for s in symbols.split(",")]
         grouped = get_news_grouped(symbol_list, max_items=max_items, days=days)
         return grouped  # FastAPI will JSON-encode automatically
-    except MisconfigurationError:
+    except MisconfigurationError as exc:
         logger.exception("News endpoint is misconfigured")
         raise HTTPException(
             status_code=503,
-            detail="News service is not configured correctly.",
+            detail=str(exc),
         )
     except Exception:
         logger.exception("Unexpected news failure")
@@ -49,11 +49,11 @@ def mixed_news(
     try:
         symbol_list = [s.strip() for s in symbols.split(",")]
         return get_news_mixed(symbol_list, max_items=max_items, days=days)
-    except MisconfigurationError:
+    except MisconfigurationError as exc:
         logger.exception("News endpoint is misconfigured")
         raise HTTPException(
             status_code=503,
-            detail="News service is not configured correctly.",
+            detail=str(exc),
         )
     except Exception:
         logger.exception("Unexpected news failure")
@@ -75,11 +75,11 @@ def company_news(
     """
     try:
         return get_news(symbol, days=days, max_items=max_items)
-    except MisconfigurationError:
+    except MisconfigurationError as exc:
         logger.exception("News endpoint is misconfigured")
         raise HTTPException(
             status_code=503,
-            detail="News service is not configured correctly.",
+            detail=str(exc),
         )
     except Exception:
         logger.exception("Unexpected news failure")
