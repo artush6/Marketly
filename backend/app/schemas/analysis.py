@@ -5,10 +5,12 @@ from typing import List, Optional
 class ValuationResponse(BaseModel):
     trailingPE: Optional[float] = None
     forwardPE: Optional[float] = None
+    pegRatio: Optional[float] = None
     priceToBook: Optional[float] = None
     priceToSales: Optional[float] = None
     dividendYield: Optional[float] = None
     marketCap: Optional[float] = None
+    coverage: float = 0.0
 
 
 class ProfitabilityResponse(BaseModel):
@@ -16,7 +18,23 @@ class ProfitabilityResponse(BaseModel):
     operatingMargin: Optional[float] = None
     netMargin: Optional[float] = None
     ebitdaMargin: Optional[float] = None
+    roe: Optional[float] = None
     profitabilityScore: Optional[float] = None
+    coverage: float = 0.0
+
+
+class GrowthResponse(BaseModel):
+    revenueGrowthYoY: Optional[float] = None
+    revenueCagr3Y: Optional[float] = None
+    epsGrowthYoY: Optional[float] = None
+    netIncomeGrowthYoY: Optional[float] = None
+    coverage: float = 0.0
+
+
+class StabilityResponse(BaseModel):
+    debtToEquity: Optional[float] = None
+    debtRatio: Optional[float] = None
+    interestCoverage: Optional[float] = None
     coverage: float = 0.0
 
 
@@ -28,4 +46,6 @@ class TickerScoreResponse(BaseModel):
     negatives: List[str] = Field(default_factory=list)
     company: Optional[str] = None
     profitability: ProfitabilityResponse
+    growth: GrowthResponse
+    stability: StabilityResponse
     valuation: ValuationResponse

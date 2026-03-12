@@ -5,7 +5,7 @@ from app.integrations.economics import fetch_macro_indicators
 from app.integrations.financials import fetch_ticker_financials
 from app.integrations.news import get_news
 from app.integrations.gpt import score_ticker
-from app.services.scoring.profitability import compute_profitability_metrics
+from app.services.scoring.metrics import build_scoring_metrics
 
 
 def build_ticker_score(symbol: str) -> dict:
@@ -22,19 +22,17 @@ def build_ticker_score(symbol: str) -> dict:
     if "error" in raw_financials:
         raise ValueError(raw_financials["error"])
     ticker_data = TickerData.from_raw(raw_financials)
+    scoring_metrics = build_scoring_metrics(ticker_data)
 
     economic_data = fetch_macro_indicators()
     news_data = get_news(symbol)
-    profitability = compute_profitability_metrics(
-        ticker_data.financials.income_statement
-    )
 
     # Step 2: Score the ticker with GPT
     analysis = score_ticker(
         ticker_data,
         news_data,
         economic_data,
-        profitability_metrics=profitability,
+        scoring_metrics=scoring_metrics,
     )
     if "error" in analysis:
         raise ValueError(analysis["error"])
@@ -48,13 +46,8 @@ def build_ticker_score(symbol: str) -> dict:
         "positives": analysis.get("positives", []),
         "negatives": analysis.get("negatives", []),
         "company": info.shortName,
-        "profitability": profitability,
-        "valuation": {
-            "trailingPE": info.trailingPE,
-            "forwardPE": info.forwardPE,
-            "priceToBook": info.priceToBook,
-            "priceToSales": info.priceToSalesTrailing12Months,
-            "dividendYield": info.dividendYield,
-            "marketCap": info.marketCap,
-        },
+        "profitability": scoring_metrics["profitability"],
+        "growth": scoring_metrics["growth"],
+        "stability": scoring_metrics["stability"],
+        "valuation": scoring_metrics["valuation"],
     }

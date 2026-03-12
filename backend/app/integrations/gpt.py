@@ -26,7 +26,7 @@ def score_ticker(
     ticker_data: TickerData | dict,
     news_data: dict | list,
     economic_data: dict,
-    profitability_metrics: dict | None = None,
+    scoring_metrics: dict | None = None,
 ) -> dict:
     """
     Evaluate a ticker using financial, macroeconomic, and news data via GPT model.
@@ -38,6 +38,7 @@ def score_ticker(
 
     info = ticker_data.info
     financials = ticker_data.financials
+    scoring_metrics = scoring_metrics or {}
 
     # --- Safe, minimal payload ---
     safe_payload = {
@@ -49,16 +50,13 @@ def score_ticker(
             "currency": info.currency,
             "market_cap": info.marketCap,
         },
-        "valuation_metrics": {
-            "trailingPE": info.trailingPE,
-            "forwardPE": info.forwardPE,
-            "peg_ratio": info.pegRatio,
-            "price_to_book": info.priceToBook,
-            "price_to_sales": info.priceToSalesTrailing12Months,
-            "dividend_yield": info.dividendYield,
+        "valuation_metrics": scoring_metrics.get("valuation", {}),
+        "profitability_metrics": scoring_metrics.get("profitability", {}),
+        "growth_metrics": scoring_metrics.get("growth", {}),
+        "stability_metrics": scoring_metrics.get("stability", {}),
+        "market_metrics": {
             "beta": info.beta,
         },
-        "profitability_metrics": profitability_metrics or {},
         "financials": {
             "income_statement": financials.income_statement,
             "balance_sheet": None,
@@ -84,6 +82,9 @@ def score_ticker(
                         """You are a world-class equity analyst and quant strategist.
                         Evaluate the investment quality of a ticker from 0 to 100 using 
                         fundamentals, macroeconomic data, and recent news.
+
+                        Use the provided precomputed metric blocks directly when available.
+                        Treat raw financial statements as fallback context, not the primary source.
 
                         Follow this rubric strictly:
 

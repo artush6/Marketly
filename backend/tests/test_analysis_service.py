@@ -37,6 +37,10 @@ class AnalysisServiceTests(unittest.TestCase):
         mock_get_news.assert_called_once_with("AAPL")
         self.assertEqual(result["symbol"], "AAPL")
         self.assertEqual(result["score"], 80)
+        self.assertIn("profitability", result)
+        self.assertIn("growth", result)
+        self.assertIn("stability", result)
+        self.assertIn("valuation", result)
 
     @patch("app.services.analysis_service.fetch_ticker_financials")
     def test_build_ticker_score_raises_on_financials_error(self, mock_fetch_ticker_financials):

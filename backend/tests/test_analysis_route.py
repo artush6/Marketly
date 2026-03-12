@@ -26,16 +26,32 @@ class AnalysisRouteTests(unittest.TestCase):
                 "operatingMargin": 0.22,
                 "netMargin": 0.15,
                 "ebitdaMargin": 0.30,
+                "roe": 0.28,
                 "profitabilityScore": 68.5,
+                "coverage": 1.0,
+            },
+            "growth": {
+                "revenueGrowthYoY": 0.08,
+                "revenueCagr3Y": 0.11,
+                "epsGrowthYoY": 0.12,
+                "netIncomeGrowthYoY": 0.10,
+                "coverage": 1.0,
+            },
+            "stability": {
+                "debtToEquity": 1.5,
+                "debtRatio": 0.4,
+                "interestCoverage": 12.0,
                 "coverage": 1.0,
             },
             "valuation": {
                 "trailingPE": 30.0,
                 "forwardPE": 28.0,
+                "pegRatio": 1.8,
                 "priceToBook": 40.0,
                 "priceToSales": 7.0,
                 "dividendYield": 0.005,
                 "marketCap": 1_000_000,
+                "coverage": 1.0,
             },
         }
 

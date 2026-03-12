@@ -17,10 +17,12 @@ class CompanyInfo(BaseModel):
     forwardPE: Optional[float] = None
     priceToBook: Optional[float] = None
     priceToSalesTrailing12Months: Optional[float] = None
+    priceToSales: Optional[float] = None
     dividendYield: Optional[float] = None
     pegRatio: Optional[float] = None
     roe: Optional[float] = None
     grossMargin: Optional[float] = None
+    debtToEquity: Optional[float] = None
 
     class Config:
         extra = "allow"
