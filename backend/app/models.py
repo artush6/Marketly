@@ -30,6 +30,9 @@ class CompanyInfo(BaseModel):
 
 class FinancialsBlock(BaseModel):
     income_statement: Optional[List[Dict[str, Any]]] = None
+    balance_sheet: Optional[List[Dict[str, Any]]] = None
+    cash_flow: Optional[List[Dict[str, Any]]] = None
+    as_reported_income_statement: Optional[List[Dict[str, Any]]] = None
 
     class Config:
         extra = "allow"

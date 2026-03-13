@@ -12,6 +12,7 @@ class AnalysisServiceTests(unittest.TestCase):
             SimpleNamespace(
                 FRED_API_KEY="fred-key",
                 FINNHUB_API_KEY="finnhub-key",
+                FMP_API_KEY="fmp-key",
                 OPENAI_API_KEY="openai-key",
                 FMPSDK_API_KEY="fmp-key",
                 RAPIDAPI_KEY=None,

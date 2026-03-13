@@ -56,9 +56,11 @@ def build_scoring_metrics(ticker_data: TickerData | dict) -> dict[str, dict[str,
     info = ticker_data.info
     quote = ticker_data.quote or {}
     income_statement = ticker_data.financials.income_statement or []
+    balance_sheet = ticker_data.financials.balance_sheet or []
     latest = income_statement[0] if income_statement else {}
     previous = income_statement[1] if len(income_statement) > 1 else {}
     oldest = income_statement[-1] if len(income_statement) > 1 else {}
+    latest_balance_sheet = balance_sheet[0] if balance_sheet else {}
 
     share_price = _quote_value(quote, "currentPrice", "c")
     market_cap = info.marketCap
@@ -75,14 +77,14 @@ def build_scoring_metrics(ticker_data: TickerData | dict) -> dict[str, dict[str,
     expected_eps = _quote_value(quote, "forwardEps")
 
     shareholders_equity = _statement_value(
-        latest,
+        latest_balance_sheet,
         "totalStockholdersEquity",
         "totalShareholderEquity",
         "stockholdersEquity",
         "shareholdersEquity",
     )
-    total_debt = _statement_value(latest, "totalDebt", "netDebt")
-    total_assets = _statement_value(latest, "totalAssets")
+    total_debt = _statement_value(latest_balance_sheet, "totalDebt", "netDebt")
+    total_assets = _statement_value(latest_balance_sheet, "totalAssets")
     operating_income = _statement_value(latest, "operatingIncome", "incomeFromOperations")
     interest_expense = _statement_value(latest, "interestExpense")
 

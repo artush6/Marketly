@@ -60,8 +60,8 @@ def score_ticker(
         },
         "financials": {
             "income_statement": financials.income_statement,
-            "balance_sheet": None,
-            "cash_flow": None,
+            "balance_sheet": financials.balance_sheet,
+            "cash_flow": financials.cash_flow,
         },
         "analyst_data": ticker_data.analyst_data,
         # limit for safety

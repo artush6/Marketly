@@ -16,6 +16,7 @@ class Settings:
 
     REDIS_URL: Optional[str]
     FINNHUB_API_KEY: Optional[str]
+    FMP_API_KEY: Optional[str]
     FMPSDK_API_KEY: Optional[str]
     RAPIDAPI_KEY: Optional[str]
     FRED_API_KEY: Optional[str]
@@ -30,6 +31,7 @@ def get_settings() -> Settings:
     return Settings(
         REDIS_URL=os.getenv("REDIS_URL"),
         FINNHUB_API_KEY=os.getenv("FINNHUB_API_KEY"),
+        FMP_API_KEY=os.getenv("FMP_API_KEY") or os.getenv("FMPSDK_API_KEY"),
         FMPSDK_API_KEY=os.getenv("FMPSDK_API_KEY"),
         RAPIDAPI_KEY=os.getenv("RAPIDAPI_KEY"),
         FRED_API_KEY=os.getenv("FRED_API_KEY"),
