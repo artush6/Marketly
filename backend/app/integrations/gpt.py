@@ -156,3 +156,78 @@ def score_ticker(
     except Exception as e:
         logger.exception("GPT scoring failed")
         return {"error": str(e)}
+
+
+def answer_follow_up(
+    symbol: str,
+    question: str,
+    score_payload: dict[str, Any],
+    financial_payload: dict[str, Any],
+    news_payload: list[dict[str, Any]],
+) -> dict:
+    """
+    Answer a follow-up question about a ticker using the same backend OpenAI setup.
+    """
+
+    safe_payload = {
+        "symbol": symbol.upper(),
+        "score_payload": score_payload,
+        "financial_payload": financial_payload,
+        "news_payload": news_payload[:12],
+        "question": question,
+    }
+    safe_payload_json = json.dumps(safe_payload, ensure_ascii=False)[:20000]
+
+    try:
+        client = _get_client()
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        """You are a buy-side equity research assistant.
+                        Answer follow-up questions using the supplied scoring output,
+                        financial data, and recent news. Stay grounded in the provided data.
+
+                        Rules:
+                        - Do not invent metrics or events not present in the payload.
+                        - Reference the scoring output as the primary interpretation layer.
+                        - Keep the answer concise but specific.
+                        - If the needed data is missing, say that clearly.
+
+                        JSON schema:
+                        {
+                            "answer": string
+                        }
+                        """
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Follow-up payload: {safe_payload_json}",
+                },
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "follow_up_answer",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "answer": {"type": "string"},
+                        },
+                        "required": ["answer"],
+                    },
+                },
+            },
+        )
+
+        content = response.choices[0].message.content
+        parsed = json.loads(content)
+        return sanitize(parsed)
+    except MisconfigurationError:
+        raise
+    except Exception as exc:
+        logger.exception("Follow-up answer generation failed")
+        return {"error": str(exc)}

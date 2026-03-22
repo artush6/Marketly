@@ -99,6 +99,16 @@ def _extract_quote_value(quote: dict[str, Any], *keys: str) -> Any:
     return None
 
 
+def _normalize_market_cap(value: Any, source: str | None = None) -> Any:
+    if not isinstance(value, (int, float)):
+        return value
+
+    if source == "finnhub-metric":
+        return value * 1_000_000
+
+    return value
+
+
 def fetch_finnhub_payload(symbol: str) -> dict[str, Any]:
     if not settings.FINNHUB_API_KEY:
         return {}
@@ -143,7 +153,10 @@ def fetch_finnhub_payload(symbol: str) -> dict[str, Any]:
         safe_update(
             payload["info"],
             {
-                "marketCap": metric_values.get("marketCapitalization"),
+                "marketCap": _normalize_market_cap(
+                    metric_values.get("marketCapitalization"),
+                    source="finnhub-metric",
+                ),
                 "trailingPE": metric_values.get("peBasicExclExtraTTM"),
                 "priceToBook": metric_values.get("pbAnnual"),
                 "roe": metric_values.get("roeTTM"),
@@ -260,7 +273,7 @@ def fetch_yfinance_dividends(symbol: str) -> dict[str, Any]:
     try:
         ticker = yf.Ticker(symbol)
         dividends = ticker.dividends
-        if dividends.empty:
+        if not hasattr(dividends, "empty") or dividends.empty:
             return {}
         return {
             "dividends": make_json_safe(dividends.tail(10).to_dict()),
@@ -396,6 +409,8 @@ def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
 
     filled_fields = sum(1 for value in merged["info"].values() if value is not None)
     logger.info("%s: fetched with %s info fields filled", symbol, filled_fields)
+    if not merged["financials"]:
+        logger.info("%s: no statement history available from configured providers", symbol)
 
     CacheManager.set(cache_key, json.dumps(make_json_safe(merged)))
     return merged
