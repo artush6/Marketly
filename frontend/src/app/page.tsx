@@ -1,32 +1,40 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { DashboardWindow } from "@/components/dashboard-window";
-import { TickerTape } from "@/components/widgets/ticker-tape";
-import { PortfolioPanel } from "@/components/widgets/portfolio-panel";
-import { MarketIndicesPanel } from "@/components/widgets/market-indices-panel";
-import { SectorList } from "@/components/widgets/sector-list";
-import { ChatPanel } from "@/components/widgets/chat-panel";
-import { MarketChart } from "@/components/widgets/market-chart";
-import { DailyRecap } from "@/components/widgets/daily-recap";
+  AIInsights,
+  AnalysisBlockSkeleton,
+  BullBear,
+  ChatInput,
+  EmptyState,
+  FinalVerdict,
+  FollowUpPanel,
+  MarketlyNavbar,
+  MetricsGrid,
+  NewsSection,
+  RevenueTrend,
+  StockHeader,
+  TradingViewChart,
+  type AnalysisBlock,
+  type FollowUpAnswer,
+} from "@/components/marketly";
+import { ANALYSIS_LOADING_STEPS, MARKET_TICKERS } from "@/components/marketly/mock-data";
+import { postFollowUp } from "@/lib/api";
+import {
+  buildAnalysisBlockFromBackend,
+  buildMissingAnalysisBlock,
+  resolveQuerySymbol,
+  shouldRunFullAnalysis,
+} from "@/lib/marketly-analysis";
+
+type PendingBlock = {
+  id: string;
+  query: string;
+  stepIndex: number;
+};
 
 export type WindowType = {
   id: string;
-  type:
-    | "portfolio"
-    | "market-indices"
-    | "sectors"
-    | "chat"
-    | "market-chart"
-    | "recap";
   title: string;
   x: number;
   y: number;
@@ -35,201 +43,263 @@ export type WindowType = {
   zIndex: number;
 };
 
-const WIDGET_TYPES = [
-  { type: "portfolio" as const, label: "Portfolio", icon: "💼" },
-  { type: "market-indices" as const, label: "Market Indices", icon: "📊" },
-  { type: "market-chart" as const, label: "Market Chart", icon: "📈" },
-  { type: "sectors" as const, label: "Sectors", icon: "🏢" },
-  { type: "recap" as const, label: "Daily Recap", icon: "📰" },
-  { type: "chat" as const, label: "AI Assistant", icon: "💬" },
-];
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
 
-export default function TerminalDashboard() {
-  const [windows, setWindows] = useState<WindowType[]>([]);
-  const [maxZIndex, setMaxZIndex] = useState(1);
+export default function Page() {
+  const [analysisBlocks, setAnalysisBlocks] = useState<AnalysisBlock[]>([]);
+  const [pendingBlocks, setPendingBlocks] = useState<PendingBlock[]>([]);
+  const [followUps, setFollowUps] = useState<FollowUpAnswer[]>([]);
+  const canvasEndRef = useRef<HTMLDivElement | null>(null);
+  const isMountedRef = useRef(true);
 
-  // camera offset (the infinite plane)
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const isPanning = useRef(false);
-  const panStart = useRef({ x: 0, y: 0 });
+  const hasContent =
+    analysisBlocks.length > 0 || pendingBlocks.length > 0 || followUps.length > 0;
+  const currentSymbol = analysisBlocks[analysisBlocks.length - 1]?.resolution.symbol ?? null;
 
-  const addWindow = (type: WindowType["type"]) => {
-    const id = `window-${Date.now()}`;
+  useEffect(() => {
+    canvasEndRef.current?.scrollIntoView({
+      behavior: hasContent ? "smooth" : "auto",
+      block: "end",
+    });
+  }, [analysisBlocks, pendingBlocks, followUps, hasContent]);
 
-    const defaultSizes: Record<string, { width: number; height: number }> = {
-      portfolio: { width: 420, height: 600 },
-      "market-indices": { width: 500, height: 700 },
-      "market-chart": { width: 600, height: 450 },
-      sectors: { width: 400, height: 600 },
-      recap: { width: 450, height: 650 },
-      chat: { width: 400, height: 550 },
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
     };
+  }, []);
 
-    const size = defaultSizes[type];
-
-    const newWindow: WindowType = {
-      id,
-      type,
-      title: `${WIDGET_TYPES.find((w) => w.type === type)?.label} ${
-        windows.filter((w) => w.type === type).length + 1
-      }`,
-      x: -offset.x + 200,
-      y: -offset.y + 200,
-      width: size.width,
-      height: size.height,
-      zIndex: maxZIndex + 1,
-    };
-
-    setWindows((prev) => [...prev, newWindow]);
-    setMaxZIndex((z) => z + 1);
-  };
-
-  const updateWindow = (id: string, updates: Partial<WindowType>) => {
-    setWindows((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, ...updates } : w)),
+  const updatePendingStep = (id: string, stepIndex: number) => {
+    setPendingBlocks((current) =>
+      current.map((block) =>
+        block.id === id ? { ...block, stepIndex } : block,
+      ),
     );
   };
 
-  const bringToFront = (id: string) => {
-    const z = maxZIndex + 1;
-    updateWindow(id, { zIndex: z });
-    setMaxZIndex(z);
-  };
-
-  const closeWindow = (id: string) => {
-    setWindows((prev) => prev.filter((w) => w.id !== id));
-  };
-
-  const renderWidgetContent = (type: WindowType["type"]) => {
-    switch (type) {
-      case "portfolio":
-        return <PortfolioPanel />;
-      case "market-indices":
-        return <MarketIndicesPanel />;
-      case "market-chart":
-        return <MarketChart />;
-      case "sectors":
-        return <SectorList />;
-      case "recap":
-        return <DailyRecap />;
-      case "chat":
-        return <ChatPanel />;
-      default:
-        return null;
+  const completePendingBlock = (id: string, block: AnalysisBlock) => {
+    if (!isMountedRef.current) {
+      return;
     }
+
+    setPendingBlocks((current) => current.filter((item) => item.id !== id));
+    setAnalysisBlocks((current) => [...current, block]);
   };
 
-  /* =======================
-     PANNING (INFINITE CANVAS)
-     ======================= */
+  const handleFullAnalysis = (normalizedQuery: string) => {
+    const resolved = resolveQuerySymbol(normalizedQuery);
+    const id = `analysis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 1 && !e.altKey) return;
-    isPanning.current = true;
-    panStart.current = {
-      x: e.clientX - offset.x,
-      y: e.clientY - offset.y,
-    };
+    setPendingBlocks((current) => [...current, { id, query: normalizedQuery, stepIndex: 0 }]);
+
+    void (async () => {
+      try {
+        await sleep(250);
+        updatePendingStep(id, 1);
+
+        const blockPromise = buildAnalysisBlockFromBackend(normalizedQuery, id);
+
+        await sleep(360);
+        updatePendingStep(id, 2);
+
+        await sleep(360);
+        updatePendingStep(id, 3);
+
+        const block = await blockPromise;
+
+        await sleep(240);
+        updatePendingStep(id, 4);
+        await sleep(180);
+
+        completePendingBlock(id, block);
+      } catch {
+        completePendingBlock(id, buildMissingAnalysisBlock(normalizedQuery, id, resolved));
+      }
+    })();
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isPanning.current) return;
-    setOffset({
-      x: e.clientX - panStart.current.x,
-      y: e.clientY - panStart.current.y,
-    });
+  const handleFollowUp = (normalizedQuery: string, symbol: string) => {
+    const id = `follow-up-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setFollowUps((current) => [
+      ...current,
+      {
+        id,
+        question: normalizedQuery,
+        symbol,
+        answer: "",
+        status: "loading",
+      },
+    ]);
+
+    void (async () => {
+      try {
+        const response = await postFollowUp(symbol, normalizedQuery);
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        setFollowUps((current) =>
+          current.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  answer: response.answer,
+                  status: "ready",
+                }
+              : item,
+          ),
+        );
+      } catch {
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        setFollowUps((current) =>
+          current.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  answer: "Follow-up data is missing.",
+                  status: "error",
+                }
+              : item,
+          ),
+        );
+      }
+    })();
   };
 
-  const stopPan = () => {
-    isPanning.current = false;
+  const handleSubmit = (query: string) => {
+    const normalizedQuery = query.trim();
+
+    if (!normalizedQuery) {
+      return;
+    }
+
+    if (shouldRunFullAnalysis(normalizedQuery, currentSymbol)) {
+      handleFullAnalysis(normalizedQuery);
+      return;
+    }
+
+    if (currentSymbol) {
+      handleFollowUp(normalizedQuery, currentSymbol);
+      return;
+    }
+
+    handleFullAnalysis(normalizedQuery);
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    setOffset((prev) => ({
-      x: prev.x - e.deltaX,
-      y: prev.y - e.deltaY,
-    }));
-  };
+  const renderedTickerBar = useMemo(
+    () => (
+      <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
+        {MARKET_TICKERS.map((ticker) => (
+          <div
+            key={ticker.symbol}
+            className="flex min-w-[122px] items-center justify-between rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[11px] tracking-[0.18em] text-[#9CA3AF] uppercase"
+          >
+            <span>{ticker.symbol}</span>
+            <span className={ticker.change.startsWith("-") ? "text-[#EF4444]" : "text-[#22C55E]"}>
+              {ticker.change}
+            </span>
+          </div>
+        ))}
+      </div>
+    ),
+    [],
+  );
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-background">
-      {/* Ticker */}
-      <div className="absolute top-0 left-0 right-0 z-50">
-        <TickerTape />
-      </div>
+    <div className="relative min-h-screen bg-background text-foreground">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_38%),linear-gradient(180deg,rgba(12,16,22,0.92),rgba(11,15,20,1))]" />
+      <div className="terminal-grid pointer-events-none absolute inset-0 opacity-40" />
 
-      {/* Header */}
-      <div className="absolute top-[41px] left-0 right-0 h-14 border-b border-border bg-card/50 backdrop-blur-sm flex items-center px-4 z-40">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-9 w-9">
-              <Plus className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            {WIDGET_TYPES.map((widget) => (
-              <DropdownMenuItem
-                key={widget.type}
-                onClick={() => addWindow(widget.type)}
-                className="flex items-center gap-3 cursor-pointer"
+      <MarketlyNavbar />
+
+      <main className="relative mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 pb-44 pt-[84px] sm:px-6 lg:px-10">
+        {!hasContent ? (
+          <EmptyState onSubmit={handleSubmit} tickerBar={renderedTickerBar} />
+        ) : (
+          <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 pb-8">
+            {analysisBlocks.map((block, index) => (
+              <section
+                key={block.id}
+                className="animate-enter rounded-[24px] border border-white/8 bg-[#121821]/88 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.01)] backdrop-blur-sm sm:p-6 lg:p-7"
+                style={{ animationDelay: `${index * 80}ms` }}
               >
-                <span className="text-lg">{widget.icon}</span>
-                <span>{widget.label}</span>
-              </DropdownMenuItem>
+                <div className="mb-6 flex items-center justify-between border-b border-white/6 pb-3">
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#9CA3AF]">
+                      Analysis Query
+                    </p>
+                    <h2 className="mt-2 text-base font-medium text-[#E5E7EB]">
+                      {block.query}
+                    </h2>
+                  </div>
+                  <div className="hidden text-right sm:block">
+                    <span className="text-[11px] uppercase tracking-[0.24em] text-[#6B7280]">
+                      {block.dataStatus.analysis === "backend"
+                        ? "Scoring Engine + GPT"
+                        : "Analysis Missing"}
+                    </span>
+                    <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#9CA3AF]">
+                      {block.resolution.symbol} via {block.resolution.matchedBy}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-5">
+                  {[
+                    <StockHeader key="stock" stock={block.stock} />,
+                    <TradingViewChart
+                      key="live-chart"
+                      symbol={block.stock.ticker}
+                      exchange={block.stock.exchange}
+                    />,
+                    <MetricsGrid key="metrics" metrics={block.metrics} />,
+                    <RevenueTrend key="revenue" {...block.revenue} />,
+                    <AIInsights key="insights" insights={block.insights} />,
+                    <NewsSection key="news" news={block.news} />,
+                    <BullBear
+                      key="bullbear"
+                      bullPoints={block.bullPoints}
+                      bearPoints={block.bearPoints}
+                    />,
+                    <FinalVerdict key="verdict" verdict={block.verdict} />,
+                  ].map((section, sectionIndex) => (
+                    <div
+                      key={sectionIndex}
+                      className="animate-enter"
+                      style={{ animationDelay: `${140 + sectionIndex * 90}ms` }}
+                    >
+                      {section}
+                    </div>
+                  ))}
+                </div>
+              </section>
             ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
 
-        <div className="ml-4 flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-sm text-muted-foreground font-mono">
-            Terminal Dashboard
-          </span>
-        </div>
-      </div>
+            {followUps.map((item) => (
+              <FollowUpPanel key={item.id} item={item} />
+            ))}
 
-      {/* CANVAS */}
-      <div
-        className="absolute inset-0 top-[96px] overflow-hidden"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={stopPan}
-        onMouseLeave={stopPan}
-        onWheel={handleWheel}
-      >
-        {/* Infinite grid */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.02]"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, currentColor 1px, transparent 1px),
-              linear-gradient(to bottom, currentColor 1px, transparent 1px)
-            `,
-            backgroundSize: "40px 40px",
-            backgroundPosition: `${offset.x}px ${offset.y}px`,
-          }}
-        />
+            {pendingBlocks.map((block) => (
+              <AnalysisBlockSkeleton
+                key={block.id}
+                query={block.query}
+                stepIndex={Math.min(
+                  block.stepIndex,
+                  ANALYSIS_LOADING_STEPS.length - 1,
+                )}
+              />
+            ))}
+            <div ref={canvasEndRef} />
+          </div>
+        )}
+      </main>
 
-        {/* World */}
-        <div
-          className="absolute inset-0"
-          style={{
-            transform: `translate(${offset.x}px, ${offset.y}px)`,
-          }}
-        >
-          {windows.map((window) => (
-            <DashboardWindow
-              key={window.id}
-              window={window}
-              onUpdate={updateWindow}
-              onClose={closeWindow}
-              onFocus={bringToFront}
-            >
-              {renderWidgetContent(window.type)}
-            </DashboardWindow>
-          ))}
-        </div>
-      </div>
+      {hasContent ? <ChatInput onSubmit={handleSubmit} compact /> : null}
     </div>
   );
 }
