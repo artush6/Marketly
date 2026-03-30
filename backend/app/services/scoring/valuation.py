@@ -15,6 +15,7 @@ def calculate_forward_pe(share_price, expected_eps):
         return None
     return share_price / expected_eps
 
+
 def calculate_price_to_book(market_cap, shareholders_equity):
     if market_cap is None or shareholders_equity in (None, 0):
         return None
@@ -27,7 +28,21 @@ def calculate_price_to_sales(market_cap, revenue):
     return market_cap / revenue
 
 
+def normalize_growth_rate(eps_growth):
+    if eps_growth is None:
+        return None
+    growth = abs(eps_growth)
+    if growth == 0:
+        return None
+    if growth <= 1:
+        return growth * 100
+    return growth
+
+
 def calculate_peg_ratio(pe_ratio, eps_growth):
     if pe_ratio is None or eps_growth in (None, 0):
         return None
-    return pe_ratio / eps_growth
+    normalized_growth = normalize_growth_rate(eps_growth)
+    if normalized_growth in (None, 0):
+        return None
+    return pe_ratio / normalized_growth

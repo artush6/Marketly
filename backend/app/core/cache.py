@@ -19,8 +19,25 @@ TTL_PRESETS = {
 }
 
 
+def _normalize_redis_url(raw_url: str) -> str:
+    redis_url = raw_url.strip().strip("\"'")
+    if not redis_url:
+        return ""
+
+    if "://" not in redis_url:
+        return f"rediss://{redis_url}"
+
+    parsed = urlparse(redis_url)
+    if parsed.scheme == "https":
+        return redis_url.replace("https://", "rediss://", 1)
+    if parsed.scheme == "http":
+        return redis_url.replace("http://", "redis://", 1)
+
+    return redis_url
+
+
 def _build_client():
-    redis_url = (settings.REDIS_URL or "").strip()
+    redis_url = _normalize_redis_url(settings.REDIS_URL or "")
     if not redis_url:
         logger.info("REDIS_URL not set; cache disabled")
         return None

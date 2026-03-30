@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.errors import MisconfigurationError
+from app.core.symbols import normalize_symbol_input
 from app.schemas.analysis import TickerScoreResponse
 from app.services.analysis_service import build_ticker_score
 
@@ -18,7 +19,7 @@ def ticker_score(
     """Build an AI-based ticker score response for a single ticker symbol."""
 
     try:
-        return build_ticker_score(symbol, force_refresh=refresh)
+        return build_ticker_score(normalize_symbol_input(symbol), force_refresh=refresh)
 
     except MisconfigurationError as exc:
         logger.exception("Analysis failed because configuration is missing")

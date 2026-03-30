@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.core.errors import MisconfigurationError
+from app.core.symbols import normalize_symbol_input
 from app.integrations.financials import fetch_ticker_financials
 from app.integrations.gpt import answer_follow_up
 from app.integrations.news import get_news
@@ -26,7 +27,7 @@ class FollowUpResponse(BaseModel):
 @router.post("/follow-up", response_model=FollowUpResponse)
 def follow_up(request: FollowUpRequest):
     try:
-        symbol = request.symbol.strip().upper()
+        symbol = normalize_symbol_input(request.symbol)
         financials = fetch_ticker_financials(symbol)
         score = build_ticker_score(symbol)
         news = get_news(symbol)

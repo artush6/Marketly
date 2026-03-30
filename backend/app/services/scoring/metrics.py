@@ -49,6 +49,26 @@ def _quote_value(quote: dict[str, Any], *keys: str) -> Any:
     return None
 
 
+def _normalize_percent_like(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) and abs(value) > 1 and abs(value) <= 100:
+        return value / 100
+    return value
+
+
+def _normalize_ratio_metric(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) and value > 10:
+        return value / 100
+    return value
+
+
+def _is_plausible_peg_ratio(value: Any) -> bool:
+    return isinstance(value, (int, float)) and 0 < value <= 50
+
+
 def build_scoring_metrics(ticker_data: TickerData | dict) -> dict[str, dict[str, Any]]:
     if not isinstance(ticker_data, TickerData):
         ticker_data = TickerData.from_raw(ticker_data)
@@ -83,17 +103,31 @@ def build_scoring_metrics(ticker_data: TickerData | dict) -> dict[str, dict[str,
         "stockholdersEquity",
         "shareholdersEquity",
     )
+    if shareholders_equity is None:
+        shareholders_equity = _statement_value(
+            latest,
+            "totalStockholdersEquity",
+            "totalShareholderEquity",
+            "stockholdersEquity",
+            "shareholdersEquity",
+        )
+
     total_debt = _statement_value(latest_balance_sheet, "totalDebt", "netDebt")
+    if total_debt is None:
+        total_debt = _statement_value(latest, "totalDebt", "netDebt")
+
     total_assets = _statement_value(latest_balance_sheet, "totalAssets")
+    if total_assets is None:
+        total_assets = _statement_value(latest, "totalAssets")
     operating_income = _statement_value(latest, "operatingIncome", "incomeFromOperations")
     interest_expense = _statement_value(latest, "interestExpense")
 
     profitability = compute_profitability_metrics(income_statement)
-    api_gross_margin = _company_value(info, "grossMargin")
+    api_gross_margin = _normalize_percent_like(_company_value(info, "grossMargin"))
     if api_gross_margin is not None:
         profitability["grossMargin"] = api_gross_margin
 
-    api_roe = _company_value(info, "roe")
+    api_roe = _normalize_percent_like(_company_value(info, "roe"))
     profitability["roe"] = api_roe if api_roe is not None else calculate_roe(net_income, shareholders_equity)
 
     revenue_growth_yoy = calculate_revenue_growth_yoy(revenue, previous_revenue)
@@ -117,7 +151,7 @@ def build_scoring_metrics(ticker_data: TickerData | dict) -> dict[str, dict[str,
     if price_to_sales is None:
         price_to_sales = calculate_price_to_sales(market_cap, revenue)
 
-    dividend_yield = _company_value(info, "dividendYield")
+    dividend_yield = _normalize_percent_like(_company_value(info, "dividendYield"))
     if dividend_yield is None:
         dividend_per_share = _quote_value(quote, "dividendRate")
         dividend_yield = (
@@ -127,10 +161,10 @@ def build_scoring_metrics(ticker_data: TickerData | dict) -> dict[str, dict[str,
         )
 
     peg_ratio = _company_value(info, "pegRatio")
-    if peg_ratio is None:
+    if not _is_plausible_peg_ratio(peg_ratio):
         peg_ratio = calculate_peg_ratio(trailing_pe, eps_growth)
 
-    debt_to_equity = _company_value(info, "debtToEquity")
+    debt_to_equity = _normalize_ratio_metric(_company_value(info, "debtToEquity"))
     if debt_to_equity is None and total_debt is not None and shareholders_equity not in (None, 0):
         debt_to_equity = total_debt / shareholders_equity
 

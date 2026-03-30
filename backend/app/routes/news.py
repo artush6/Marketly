@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.errors import MisconfigurationError
+from app.core.symbols import normalize_symbol_input
 from app.integrations.news import get_news, get_news_grouped, get_news_mixed
 
 router = APIRouter(prefix="/news", tags=["news"])
@@ -19,7 +20,7 @@ def grouped_news(
     """Return news grouped by ticker for a comma-separated symbol list."""
 
     try:
-        symbol_list = [s.strip() for s in symbols.split(",")]
+        symbol_list = [normalize_symbol_input(s) for s in symbols.split(",")]
         grouped = get_news_grouped(symbol_list, max_items=max_items, days=days)
         return grouped  # FastAPI will JSON-encode automatically
     except MisconfigurationError as exc:
@@ -47,7 +48,7 @@ def mixed_news(
     Example: `/news/mixed?symbols=AAPL,NVDA`.
     """
     try:
-        symbol_list = [s.strip() for s in symbols.split(",")]
+        symbol_list = [normalize_symbol_input(s) for s in symbols.split(",")]
         return get_news_mixed(symbol_list, max_items=max_items, days=days)
     except MisconfigurationError as exc:
         logger.exception("News endpoint is misconfigured")
@@ -74,7 +75,7 @@ def company_news(
     Example: `/news/AAPL?days=5&max_items=12`.
     """
     try:
-        return get_news(symbol, days=days, max_items=max_items)
+        return get_news(normalize_symbol_input(symbol), days=days, max_items=max_items)
     except MisconfigurationError as exc:
         logger.exception("News endpoint is misconfigured")
         raise HTTPException(
