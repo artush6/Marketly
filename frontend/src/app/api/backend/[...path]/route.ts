@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const DEFAULT_BACKEND_URL = "https://marketly-sxn7.onrender.com";
+const REQUEST_TIMEOUT_MS = 70_000;
 
 function getBackendBaseUrl() {
   return (process.env.BACKEND_API_URL || DEFAULT_BACKEND_URL).replace(/\/$/, "");
@@ -26,21 +27,39 @@ async function proxy(request: NextRequest, path: string[]) {
     headers.set("content-type", contentType);
   }
 
-  const response = await fetch(targetUrl, {
-    method: request.method,
-    headers,
-    cache: "no-store",
-    body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.text(),
-  });
+  try {
+    const response = await fetch(targetUrl, {
+      method: request.method,
+      headers,
+      cache: "no-store",
+      body:
+        request.method === "GET" || request.method === "HEAD"
+          ? undefined
+          : await request.text(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
 
-  const text = await response.text();
+    const text = await response.text();
 
-  return new NextResponse(text, {
-    status: response.status,
-    headers: {
-      "content-type": response.headers.get("content-type") || "application/json",
-    },
-  });
+    return new NextResponse(text, {
+      status: response.status,
+      headers: {
+        "content-type": response.headers.get("content-type") || "application/json",
+      },
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown backend connection failure";
+
+    return NextResponse.json(
+      {
+        error: "Backend connection failed",
+        detail: message,
+        backendUrl: getBackendBaseUrl(),
+      },
+      { status: 502 },
+    );
+  }
 }
 
 export async function GET(

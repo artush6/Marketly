@@ -20,22 +20,22 @@ export function AnalysisBlockSkeleton({
   stepIndex,
 }: AnalysisBlockSkeletonProps) {
   return (
-    <section className="rounded-[24px] border border-white/8 bg-[#121821]/70 p-5 backdrop-blur-sm sm:p-6 lg:p-7">
+    <section className="rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(15,24,35,0.92),rgba(8,12,18,0.96))] p-5 backdrop-blur-sm sm:p-6 lg:p-7">
       <div className="mb-6 flex items-center justify-between border-b border-white/6 pb-3">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#9CA3AF]">
+          <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#9FB3C8]">
             Analysis Query
           </p>
-          <h2 className="mt-2 text-base font-medium text-[#E5E7EB]">{query}</h2>
+          <h2 className="mt-2 text-base font-medium text-[#F3F7FB]">{query}</h2>
         </div>
-        <span className="hidden text-[11px] uppercase tracking-[0.24em] text-[#6B7280] sm:block">
+        <span className="hidden text-[11px] uppercase tracking-[0.24em] text-[#6F8197] sm:block">
           Generating
         </span>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="border border-white/8 bg-[#0F141C] p-4">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-[#9CA3AF]">
+        <div className="rounded-[24px] border border-white/8 bg-[#0F141C] p-4">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-[#9FB3C8]">
             Agent Activity
           </p>
           <div className="mt-4 space-y-4">

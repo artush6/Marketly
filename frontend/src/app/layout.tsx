@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
-
 export const metadata: Metadata = {
-  title: "Marketly",
-  description: "AI-powered financial analysis terminal",
+  title: {
+    default: "Marketly",
+    template: "%s | Marketly",
+  },
+  description: "A premium market intelligence workspace for company analysis, news flow, and financial drill-downs.",
 };
 
 export default function RootLayout({
@@ -19,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans`}>
+      <body className="font-sans">
         {children}
       </body>
     </html>

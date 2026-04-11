@@ -6,10 +6,10 @@ type NewsSectionProps = {
 
 export function NewsSection({ news }: NewsSectionProps) {
   return (
-    <div className="border border-white/8 bg-[#0F141C] p-5">
+    <div className="rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(12,19,29,0.96),rgba(8,12,18,0.96))] p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[11px] uppercase tracking-[0.24em] text-[#9CA3AF]">News Flow</h3>
-        <span className="text-[11px] uppercase tracking-[0.24em] text-[#6B7280]">Latest</span>
+        <h3 className="text-[11px] uppercase tracking-[0.24em] text-[#9FB3C8]">News Flow</h3>
+        <span className="text-[11px] uppercase tracking-[0.24em] text-[#6F8197]">Latest headlines</span>
       </div>
 
       {news.length === 0 ? (
@@ -32,12 +32,12 @@ export function NewsSection({ news }: NewsSectionProps) {
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-[#D1D5DB]">{item.title}</p>
+                <p className="mt-2 text-sm leading-6 text-[#DDE7F0]">{item.title}</p>
                 {item.summary ? (
-                  <p className="mt-2 max-w-[780px] text-sm leading-6 text-[#9CA3AF]">{item.summary}</p>
+                  <p className="mt-2 max-w-[780px] text-sm leading-6 text-[#8EA0B8]">{item.summary}</p>
                 ) : null}
               </div>
-              <span className="shrink-0 text-xs tabular-nums text-[#6B7280]">{item.timestamp}</span>
+              <span className="shrink-0 text-xs tabular-nums text-[#6F8197]">{item.timestamp}</span>
             </>
           );
 

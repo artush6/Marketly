@@ -23,27 +23,27 @@ export function RevenueTrend({
   const deltaColor = delta >= 0 ? "text-[#22C55E]" : "text-[#EF4444]";
 
   return (
-    <div className="border border-white/8 bg-[#0F141C] p-5">
+    <div className="rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(12,19,29,0.96),rgba(8,12,18,0.96))] p-5">
       <div className="flex flex-col gap-4 border-b border-white/8 pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.24em] text-[#9CA3AF]">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-[#9FB3C8]">
             Financial History
           </p>
-          <p className="mt-2 max-w-[680px] text-sm leading-6 text-[#D1D5DB]">
+          <p className="mt-2 max-w-[680px] text-sm leading-6 text-[#DDE7F0]">
             {description}
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-4">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-[#6B7280]">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[#6F8197]">
               Latest Revenue
             </p>
-            <p className="mt-2 tabular-nums text-2xl font-medium text-[#E5E7EB]">
+            <p className="mt-2 tabular-nums text-2xl font-medium text-[#F3F7FB]">
               {series.length > 0 ? formatBillions(latestValue) : "Data missing"}
             </p>
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-[#6B7280]">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[#6F8197]">
               Seq. Change
             </p>
             <p className={`mt-2 tabular-nums text-sm ${deltaColor}`}>
@@ -59,7 +59,7 @@ export function RevenueTrend({
           </div>
           <Link
             href={href}
-            className="rounded-full border border-white/10 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-[#E5E7EB] transition-colors hover:bg-white/[0.04]"
+            className="rounded-full border border-white/10 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-[#F3F7FB] transition-colors hover:bg-white/[0.04]"
           >
             Open Financials
           </Link>
@@ -81,10 +81,10 @@ export function RevenueTrend({
                   />
                 </div>
                 <div>
-                  <p className="text-xs tabular-nums text-[#E5E7EB]">
+                  <p className="text-xs tabular-nums text-[#F3F7FB]">
                     {formatBillions(point.value)}
                   </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#6B7280]">
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#6F8197]">
                     {point.label}
                   </p>
                 </div>
@@ -97,12 +97,12 @@ export function RevenueTrend({
           </div>
         )}
 
-        <div className="border border-white/8 bg-[#121821] p-4">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-[#9CA3AF]">
+        <div className="rounded-[24px] border border-white/8 bg-[#121821] p-4">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-[#9FB3C8]">
             Data Source
           </p>
-          <p className="mt-3 text-sm leading-6 text-[#D1D5DB]">{sourceLabel}</p>
-          <p className="mt-4 text-xs leading-6 text-[#6B7280]">{sourceSummary}</p>
+          <p className="mt-3 text-sm leading-6 text-[#DDE7F0]">{sourceLabel}</p>
+          <p className="mt-4 text-xs leading-6 text-[#6F8197]">{sourceSummary}</p>
         </div>
       </div>
 

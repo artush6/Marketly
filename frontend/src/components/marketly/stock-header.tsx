@@ -54,24 +54,24 @@ export function StockHeader({ stock }: StockHeaderProps) {
     .toUpperCase();
 
   return (
-    <div className="grid gap-5 border border-white/8 bg-[#0F141C] p-4 sm:grid-cols-[minmax(0,1fr)_260px] sm:p-5">
+    <div className="grid gap-5 rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(12,19,29,0.96),rgba(8,12,18,0.96))] p-4 sm:grid-cols-[minmax(0,1fr)_260px] sm:p-5">
       <div className="flex min-w-0 items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#121821] text-lg font-medium text-[#E5E7EB]">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#3DD9B3]/18 bg-[#3DD9B3]/10 text-lg font-medium text-[#E9FFF8]">
           {monogram}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h3 className="text-xl font-medium tracking-[-0.02em] text-[#E5E7EB]">
+            <h3 className="text-xl font-medium tracking-[-0.02em] text-[#F3F7FB]">
               {stock.company}
             </h3>
-            <span className="text-[11px] uppercase tracking-[0.24em] text-[#9CA3AF]">
+            <span className="text-[11px] uppercase tracking-[0.24em] text-[#9FB3C8]">
               {stock.ticker} / {stock.exchange}
             </span>
           </div>
 
           <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2">
-            <span className="tabular-nums text-3xl font-medium tracking-[-0.03em] text-[#E5E7EB]">
+            <span className="tabular-nums text-3xl font-medium tracking-[-0.03em] text-[#F3F7FB]">
               {stock.price}
             </span>
             <div className="flex items-center gap-2">
@@ -85,7 +85,7 @@ export function StockHeader({ stock }: StockHeaderProps) {
       </div>
 
       <div className="border-t border-white/8 pt-4 sm:border-t-0 sm:border-l sm:pl-5 sm:pt-0">
-        <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em] text-[#6B7280]">
+        <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em] text-[#6F8197]">
           <span>Signal Trace</span>
           <span>4P</span>
         </div>

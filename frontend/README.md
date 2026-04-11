@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Marketly Frontend
 
-## Getting Started
+Marketly is a Next.js App Router frontend for a market-intelligence workflow. It combines:
 
-First, run the development server:
+- a workspace-style analysis surface for company and catalyst prompts
+- backend-powered financial and scoring data
+- follow-up Q&A on the active symbol
+- a dedicated financials drill-down route for statement coverage
+
+## Local Development
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Scripts
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm run start
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create `.env.local` with any frontend overrides you need.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEXT_PUBLIC_API_URL=/api/backend
+BACKEND_API_URL=https://your-backend-url
+```
 
-## Learn More
+`NEXT_PUBLIC_API_URL` controls the browser-facing base URL.
 
-To learn more about Next.js, take a look at the following resources:
+`BACKEND_API_URL` controls the Next.js proxy route target used by `src/app/api/backend/[...path]/route.ts`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## App Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `src/app/page.tsx`: main analysis workspace
+- `src/app/financials/[symbol]/page.tsx`: financial drill-down
+- `src/app/api/backend/[...path]/route.ts`: backend proxy
+- `src/lib/marketly-analysis.ts`: data shaping from backend payloads into UI-ready blocks
+- `src/components/marketly/*`: primary product UI components
 
-## Deploy on Vercel
+## Current UX Principles
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- keep the main workspace calm and dense instead of dashboard-card heavy
+- expose backend coverage and missing-data states clearly
+- preserve recent prompts and current analysis context locally
+- make financial drill-downs reachable without losing the active thesis
