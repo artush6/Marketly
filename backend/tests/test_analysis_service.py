@@ -62,6 +62,14 @@ class AnalysisServiceTests(unittest.TestCase):
         self.assertIn("growth", result)
         self.assertIn("stability", result)
         self.assertIn("valuation", result)
+        self.assertIn("analysisMetadata", result)
+        self.assertIn("factCoverage", result["analysisMetadata"])
+        self.assertIn("businessModel", result)
+        self.assertIn("interpretation", result)
+        self.assertIn("eventCatalysts", result)
+        self.assertIn("historyContext", result)
+        self.assertIn("scenarios", result)
+        self.assertEqual(result["analysisSource"], "openai")
 
     @patch("app.services.analysis_service.fetch_ticker_financials")
     def test_build_ticker_score_raises_on_financials_error(self, mock_fetch_ticker_financials):
@@ -74,7 +82,7 @@ class AnalysisServiceTests(unittest.TestCase):
     @patch("app.services.analysis_service.get_news")
     @patch("app.services.analysis_service.fetch_macro_indicators")
     @patch("app.services.analysis_service.fetch_ticker_financials")
-    def test_build_ticker_score_raises_on_analysis_error(
+    def test_build_ticker_score_falls_back_on_analysis_error(
         self,
         mock_fetch_ticker_financials,
         mock_fetch_macro_indicators,
@@ -90,8 +98,10 @@ class AnalysisServiceTests(unittest.TestCase):
         mock_get_news.return_value = []
         mock_score_ticker.return_value = {"error": "openai timeout"}
 
-        with self.assertRaises(ValueError):
-            build_ticker_score("aapl")
+        result = build_ticker_score("aapl")
+
+        self.assertEqual(result["analysisSource"], "fallback")
+        self.assertIsInstance(result["score"], int)
 
     @patch("app.services.analysis_service.CacheManager")
     def test_build_ticker_score_returns_cached_score_when_available(self, mock_cache):

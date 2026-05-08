@@ -1,7 +1,9 @@
 import {
+  type BackendTrajectoryHorizon,
   getCompanyNews,
   getFinancials,
   getTickerScore,
+  type BackendCatalystItem,
   type BackendFinancialStatement,
   type BackendFinancialsResponse,
   type BackendNewsItem,
@@ -10,8 +12,11 @@ import {
 import { QUERY_ALIASES, resolveFallbackTicker } from "@/components/marketly/mock-data";
 import type {
   AnalysisBlock,
+  AnalysisLensData,
+  CatalystData,
   FinancialMiniChartData,
   InsightData,
+  LensItem,
   MetricCardData,
   NewsItem,
   RevenuePoint,
@@ -103,6 +108,26 @@ function formatPercentRatio(value: number | null | undefined, digits = 1) {
   }
 
   return `${(value * 100).toFixed(digits)}%`;
+}
+
+function formatPercentWhole(value: number | null | undefined, digits = 0) {
+  if (value == null) {
+    return "Data missing";
+  }
+
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
+function titleCase(value: string | null | undefined) {
+  if (!value) {
+    return "Data missing";
+  }
+
+  return value
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
 }
 
 function formatChartDelta(current: number, previous: number, format: "billions" | "percent") {
@@ -473,14 +498,31 @@ function buildInsights(score: BackendScoreResponse | null): InsightData {
       strengths: [],
       risks: [],
       sourceLabel: "Data missing",
+      evidence: [],
+      criticalUnknowns: [],
     };
   }
 
   return {
-    summary: score.summary?.trim() || "Analysis is missing.",
-    strengths: score.positives?.length ? score.positives : [],
-    risks: score.negatives?.length ? score.negatives : [],
-    sourceLabel: "Scoring algo + OpenAI backend analysis",
+    summary: score.interpretation?.summary?.trim() || score.summary?.trim() || "Analysis is missing.",
+    strengths:
+      score.interpretation?.strengths?.length
+        ? score.interpretation.strengths
+        : score.positives?.length
+          ? score.positives
+          : [],
+    risks:
+      score.interpretation?.risks?.length
+        ? score.interpretation.risks
+        : score.negatives?.length
+          ? score.negatives
+          : [],
+    sourceLabel:
+      score.analysisSource === "fallback"
+        ? "Structured fallback analysis"
+        : "Scoring algo + OpenAI backend analysis",
+    evidence: score.businessModel?.evidence?.length ? score.businessModel.evidence : [],
+    criticalUnknowns: score.interpretation?.criticalUnknowns?.length ? score.interpretation.criticalUnknowns : [],
   };
 }
 
@@ -490,6 +532,10 @@ function buildVerdict(score: BackendScoreResponse | null): VerdictData {
       summary: "Score is missing because the backend analysis could not be generated.",
       score: "--",
       label: "Data missing",
+      businessModel: undefined,
+      confidence: undefined,
+      asymmetry: undefined,
+      source: undefined,
     };
   }
 
@@ -497,12 +543,120 @@ function buildVerdict(score: BackendScoreResponse | null): VerdictData {
     summary: score.summary?.trim() || "Score is missing.",
     score: scoreToDisplay(score.score),
     label: buildScoreLabel(score.score),
+    businessModel: titleCase(score.businessModel?.primaryModel),
+    confidence:
+      typeof score.businessModel?.confidence === "number"
+        ? formatPercentWhole(score.businessModel.confidence)
+        : undefined,
+    asymmetry: titleCase(score.scenarios?.asymmetry),
+    source: score.analysisSource === "fallback" ? "Fallback" : "OpenAI",
   };
 }
 
 function buildScenarioPoints(score: BackendScoreResponse | null, type: "positives" | "negatives") {
+  const scenarioKey = type === "positives" ? "bull" : "bear";
+  const scenario = score?.scenarios?.cases?.find((item) => item.name === scenarioKey);
+  if (scenario) {
+    const lines = [scenario.thesis];
+    if (scenario.mustGoRight?.length) {
+      lines.push(...scenario.mustGoRight);
+    }
+    if (scenario.breaksIf?.length) {
+      lines.push(...scenario.breaksIf.map((item) => `Breaks if: ${item}`));
+    }
+    return lines;
+  }
+
   const points = type === "positives" ? score?.positives : score?.negatives;
   return points?.length ? points : [];
+}
+
+function toneFromLabel(label: string | null | undefined): LensItem["tone"] {
+  if (!label) {
+    return "neutral";
+  }
+  const normalized = label.toLowerCase();
+  if (normalized === "strong" || normalized === "low") {
+    return "positive";
+  }
+  if (normalized === "weak" || normalized === "high") {
+    return "negative";
+  }
+  return "neutral";
+}
+
+function buildCatalysts(score: BackendScoreResponse | null): CatalystData[] {
+  return (
+    score?.eventCatalysts?.keyCatalysts?.slice(0, 4).map((item: BackendCatalystItem) => ({
+      title: item.title,
+      type: item.type,
+      tone: item.tone === "positive" || item.tone === "negative" ? item.tone : "neutral",
+      importance: item.importance,
+      rationale: item.rationale,
+    })) ?? []
+  );
+}
+
+function buildAnalysisLens(score: BackendScoreResponse | null): AnalysisLensData {
+  const lenses: LensItem[] = [
+    {
+      label: "Margin Quality",
+      value: titleCase(score?.interpretation?.marginQuality?.label),
+      tone: toneFromLabel(score?.interpretation?.marginQuality?.label),
+      detail: score?.interpretation?.marginQuality?.detail ?? undefined,
+    },
+    {
+      label: "Growth Durability",
+      value: titleCase(score?.interpretation?.growthDurability?.label),
+      tone: toneFromLabel(score?.interpretation?.growthDurability?.label),
+      detail: score?.interpretation?.growthDurability?.detail ?? undefined,
+    },
+    {
+      label: "Balance Sheet Risk",
+      value: titleCase(score?.interpretation?.balanceSheetRisk?.label),
+      tone: toneFromLabel(score?.interpretation?.balanceSheetRisk?.label),
+      detail: score?.interpretation?.balanceSheetRisk?.detail ?? undefined,
+    },
+    {
+      label: "Valuation Dependency",
+      value: titleCase(score?.interpretation?.valuationDependency?.label),
+      tone: toneFromLabel(score?.interpretation?.valuationDependency?.label),
+      detail: score?.interpretation?.valuationDependency?.detail ?? undefined,
+    },
+  ];
+
+  return {
+    businessModel: titleCase(score?.businessModel?.primaryModel),
+    businessConfidence:
+      typeof score?.businessModel?.confidence === "number"
+        ? formatPercentWhole(score.businessModel.confidence)
+        : "Data missing",
+    factCoverage:
+      typeof score?.analysisMetadata?.factCoverage === "number"
+        ? formatPercentWhole(score.analysisMetadata.factCoverage)
+        : "Data missing",
+    asymmetry: titleCase(score?.scenarios?.asymmetry),
+    analysisSource: score?.analysisSource === "fallback" ? "Fallback analysis" : "OpenAI synthesis",
+    lenses,
+    catalysts: buildCatalysts(score),
+    lifecyclePattern: score?.eventCatalysts?.lifecycleModel?.pattern ?? undefined,
+    lifecycleFocus: score?.eventCatalysts?.lifecycleModel?.focus ?? undefined,
+    historicalContext: score?.scenarios?.historicalContextNeeded?.length
+      ? score.scenarios.historicalContextNeeded
+      : score?.historyContext?.analogTemplates?.length
+        ? score.historyContext.analogTemplates
+        : [],
+    pastDrivers: score?.trajectory?.pastDrivers?.length ? score.trajectory.pastDrivers : [],
+    upcomingDrivers: score?.trajectory?.upcomingDrivers?.length ? score.trajectory.upcomingDrivers : [],
+    horizons:
+      score?.trajectory?.horizons?.map((item: BackendTrajectoryHorizon) => ({
+        horizon: item.horizon,
+        outlook: item.outlook,
+        drivers: item.drivers?.length ? item.drivers : [],
+        risks: item.risks?.length ? item.risks : [],
+        focus: item.focus,
+      })) ?? [],
+  };
 }
 
 export function resolveQuerySymbol(query: string): ResolvedQuery {
@@ -574,6 +728,7 @@ export function buildMissingAnalysisBlock(
     revenue,
     insights: buildInsights(null),
     news: [],
+    lens: buildAnalysisLens(null),
     bullPoints: [],
     bearPoints: [],
     verdict: buildVerdict(null),
@@ -611,6 +766,7 @@ export async function buildAnalysisBlockFromBackend(
     revenue,
     insights: buildInsights(score),
     news: buildNews(news),
+    lens: buildAnalysisLens(score),
     bullPoints: buildScenarioPoints(score, "positives"),
     bearPoints: buildScenarioPoints(score, "negatives"),
     verdict: buildVerdict(score),

@@ -53,6 +53,14 @@ class AnalysisRouteTests(unittest.TestCase):
                 "marketCap": 1_000_000,
                 "coverage": 1.0,
             },
+            "analysisMetadata": {
+                "factCoverage": 0.88,
+                "factFieldCount": 8,
+                "factFieldTotal": 9,
+                "inferredFactCount": 0,
+                "conflictingFactCount": 0,
+                "weakFactFields": [],
+            },
         }
 
         response = self.client.get("/score/AAPL")
@@ -74,6 +82,14 @@ class AnalysisRouteTests(unittest.TestCase):
             "growth": {"coverage": 0.0},
             "stability": {"coverage": 0.0},
             "valuation": {"coverage": 0.0},
+            "analysisMetadata": {
+                "factCoverage": 0.0,
+                "factFieldCount": 0,
+                "factFieldTotal": 9,
+                "inferredFactCount": 0,
+                "conflictingFactCount": 0,
+                "weakFactFields": [],
+            },
         }
 
         response = self.client.get("/score/AAPL?refresh=true")

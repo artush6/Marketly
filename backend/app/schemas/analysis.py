@@ -38,6 +38,100 @@ class StabilityResponse(BaseModel):
     coverage: float = 0.0
 
 
+class AnalysisMetadataResponse(BaseModel):
+    factCoverage: float = 0.0
+    factFieldCount: int = 0
+    factFieldTotal: int = 0
+    inferredFactCount: int = 0
+    conflictingFactCount: int = 0
+    weakFactFields: List[str] = Field(default_factory=list)
+
+
+class BusinessModelResponse(BaseModel):
+    primaryModel: Optional[str] = None
+    secondaryModels: List[str] = Field(default_factory=list)
+    confidence: float = 0.0
+    evidence: List[str] = Field(default_factory=list)
+    frameworkFocus: List[str] = Field(default_factory=list)
+    revenueVolatility: Optional[float] = None
+
+
+class InterpretationFactorResponse(BaseModel):
+    label: Optional[str] = None
+    detail: Optional[str] = None
+
+
+class InterpretationResponse(BaseModel):
+    summary: Optional[str] = None
+    marginQuality: Optional[InterpretationFactorResponse] = None
+    growthDurability: Optional[InterpretationFactorResponse] = None
+    balanceSheetRisk: Optional[InterpretationFactorResponse] = None
+    valuationDependency: Optional[InterpretationFactorResponse] = None
+    criticalUnknowns: List[str] = Field(default_factory=list)
+    strengths: List[str] = Field(default_factory=list)
+    risks: List[str] = Field(default_factory=list)
+
+
+class CatalystItemResponse(BaseModel):
+    title: str
+    type: str
+    tone: str
+    importance: str
+    rationale: str
+
+
+class LifecycleModelResponse(BaseModel):
+    pattern: Optional[str] = None
+    focus: Optional[str] = None
+
+
+class EventCatalystResponse(BaseModel):
+    keyCatalysts: List[CatalystItemResponse] = Field(default_factory=list)
+    lifecycleModel: Optional[LifecycleModelResponse] = None
+    retentionRisk: Optional[str] = None
+    monetizationDurability: Optional[str] = None
+    interpretationLink: Optional[str] = None
+
+
+class HistoryContextResponse(BaseModel):
+    trendSummary: Optional[str] = None
+    analogTemplates: List[str] = Field(default_factory=list)
+    dataGaps: List[str] = Field(default_factory=list)
+    hasUsefulHistory: bool = False
+
+
+class ScenarioCaseResponse(BaseModel):
+    name: str
+    probability: float
+    confidence: str
+    thesis: str
+    mustGoRight: List[str] = Field(default_factory=list)
+    breaksIf: List[str] = Field(default_factory=list)
+
+
+class ScenarioResponse(BaseModel):
+    asymmetry: Optional[str] = None
+    historicalContextNeeded: List[str] = Field(default_factory=list)
+    cases: List[ScenarioCaseResponse] = Field(default_factory=list)
+
+
+class HorizonOutlookResponse(BaseModel):
+    horizon: str
+    outlook: str
+    drivers: List[str] = Field(default_factory=list)
+    risks: List[str] = Field(default_factory=list)
+    focus: str
+
+
+class TrajectoryResponse(BaseModel):
+    pastDrivers: List[str] = Field(default_factory=list)
+    upcomingDrivers: List[str] = Field(default_factory=list)
+    horizons: List[HorizonOutlookResponse] = Field(default_factory=list)
+    growthLens: Optional[str] = None
+    valuationLens: Optional[str] = None
+    historyLink: Optional[str] = None
+
+
 class TickerScoreResponse(BaseModel):
     symbol: str
     score: Optional[int] = None
@@ -49,3 +143,11 @@ class TickerScoreResponse(BaseModel):
     growth: GrowthResponse
     stability: StabilityResponse
     valuation: ValuationResponse
+    analysisMetadata: Optional[AnalysisMetadataResponse] = None
+    businessModel: Optional[BusinessModelResponse] = None
+    interpretation: Optional[InterpretationResponse] = None
+    eventCatalysts: Optional[EventCatalystResponse] = None
+    historyContext: Optional[HistoryContextResponse] = None
+    scenarios: Optional[ScenarioResponse] = None
+    trajectory: Optional[TrajectoryResponse] = None
+    analysisSource: Optional[str] = None

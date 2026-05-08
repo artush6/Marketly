@@ -28,6 +28,13 @@ def score_ticker(
     news_data: Union[dict, list],
     economic_data: dict,
     scoring_metrics: Optional[dict[str, Any]] = None,
+    fact_graph: Optional[dict[str, Any]] = None,
+    business_model: Optional[dict[str, Any]] = None,
+    interpretation: Optional[dict[str, Any]] = None,
+    event_layer: Optional[dict[str, Any]] = None,
+    history_context: Optional[dict[str, Any]] = None,
+    scenarios: Optional[dict[str, Any]] = None,
+    trajectory: Optional[dict[str, Any]] = None,
 ) -> dict:
     """
     Evaluate a ticker using financial, macroeconomic, and news data via GPT model.
@@ -64,6 +71,13 @@ def score_ticker(
             "cash_flow": financials.cash_flow,
         },
         "analyst_data": ticker_data.analyst_data,
+        "fact_graph": fact_graph or {},
+        "business_model": business_model or {},
+        "interpretation": interpretation or {},
+        "event_layer": event_layer or {},
+        "history_context": history_context or {},
+        "scenarios": scenarios or {},
+        "trajectory": trajectory or {},
         # limit for safety
         "news_data": news_data[:20] if isinstance(news_data, list) else news_data,
         "economic_data": economic_data,
@@ -82,10 +96,19 @@ def score_ticker(
                     "content": (
                         """You are a world-class equity analyst and quant strategist.
                         Evaluate the investment quality of a ticker from 0 to 100 using 
-                        fundamentals, macroeconomic data, and recent news.
+                        fundamentals, macroeconomic data, recent news, business-model context,
+                        catalysts, scenario structure, and multi-horizon business trajectory.
 
                         Use the provided precomputed metric blocks directly when available.
                         Treat raw financial statements as fallback context, not the primary source.
+                        Use the business model, interpretation, event layer, history context,
+                        scenarios, and trajectory layer as the main reasoning scaffold.
+
+                        Rules:
+                        - Do not treat all companies with the same framework.
+                        - Distinguish between observed facts and inference-backed interpretation.
+                        - Never reduce the answer to "data missing" if structured inference exists.
+                        - Express a clear view on asymmetry, what must go right, and what could make the business meaningfully different over 6 months to 10 years.
 
                         Follow this rubric strictly:
 
@@ -188,13 +211,16 @@ def answer_follow_up(
                     "content": (
                         """You are a buy-side equity research assistant.
                         Answer follow-up questions using the supplied scoring output,
-                        financial data, and recent news. Stay grounded in the provided data.
+                        financial data, structured business-model/context layers, and recent news.
+                        Stay grounded in the provided data, but reason from the structured
+                        interpretation and scenarios when direct fields are sparse.
 
                         Rules:
-                        - Do not invent metrics or events not present in the payload.
+                        - Do not invent direct metrics or external events not present in the payload.
                         - Reference the scoring output as the primary interpretation layer.
+                        - Use business model and scenario context to answer decisively.
                         - Keep the answer concise but specific.
-                        - If the needed data is missing, say that clearly.
+                        - If the needed data is missing, state that clearly and then reason from the available structured evidence.
 
                         JSON schema:
                         {

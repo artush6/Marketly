@@ -17,6 +17,12 @@ export function FinalVerdict({ verdict }: FinalVerdictProps) {
       <div>
         <h3 className="text-[11px] uppercase tracking-[0.24em] text-[#9FB3C8]">AI Verdict</h3>
         <p className="mt-4 max-w-[760px] text-sm leading-7 text-[#DDE7F0]">{verdict.summary}</p>
+        <div className="mt-4 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.22em] text-[#8EA0B8]">
+          {verdict.businessModel ? <span className="rounded-full border border-white/8 px-3 py-1">{verdict.businessModel}</span> : null}
+          {verdict.confidence ? <span className="rounded-full border border-white/8 px-3 py-1">Confidence {verdict.confidence}</span> : null}
+          {verdict.asymmetry ? <span className="rounded-full border border-white/8 px-3 py-1">{verdict.asymmetry}</span> : null}
+          {verdict.source ? <span className="rounded-full border border-white/8 px-3 py-1">{verdict.source}</span> : null}
+        </div>
       </div>
 
       <div className="flex flex-col justify-between border-t border-white/8 pt-4 lg:border-t-0 lg:border-l lg:pl-5 lg:pt-0">

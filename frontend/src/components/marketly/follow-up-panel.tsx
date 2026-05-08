@@ -23,7 +23,7 @@ export function FollowUpPanel({ item }: FollowUpPanelProps) {
         <p className="text-[11px] uppercase tracking-[0.24em] text-[#9FB3C8]">Backend AI Reply</p>
         <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[#DDE7F0]">
           {item.status === "loading"
-            ? "Thinking through the existing scoring output, financials, and news."
+            ? "Thinking through the structured score, business model, catalysts, and scenarios."
             : item.status === "error"
               ? "Follow-up data is missing."
               : item.answer}

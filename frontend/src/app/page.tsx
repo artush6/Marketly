@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, BarChart3 } from "lucide-react";
 import {
   AIInsights,
+  AnalysisLens,
   AnalysisBlockSkeleton,
   BullBear,
   ChatInput,
@@ -500,6 +501,7 @@ export default function Page() {
                           />
                           <RevenueTrend {...block.revenue} />
                           <AIInsights insights={block.insights} />
+                          <AnalysisLens lens={block.lens} />
                           <NewsSection news={block.news} />
                           <BullBear
                             bullPoints={block.bullPoints}

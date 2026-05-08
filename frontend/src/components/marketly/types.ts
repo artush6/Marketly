@@ -25,6 +25,8 @@ export type InsightData = {
   strengths: string[];
   risks: string[];
   sourceLabel: string;
+  evidence?: string[];
+  criticalUnknowns?: string[];
 };
 
 export type NewsItem = {
@@ -41,6 +43,49 @@ export type VerdictData = {
   summary: string;
   score: string;
   label: string;
+  businessModel?: string;
+  confidence?: string;
+  asymmetry?: string;
+  source?: string;
+};
+
+export type LensItem = {
+  label: string;
+  value: string;
+  tone?: "positive" | "negative" | "neutral";
+  detail?: string;
+};
+
+export type CatalystData = {
+  title: string;
+  type: string;
+  tone: "positive" | "negative" | "neutral";
+  importance: string;
+  rationale: string;
+};
+
+export type HorizonData = {
+  horizon: string;
+  outlook: string;
+  drivers: string[];
+  risks: string[];
+  focus: string;
+};
+
+export type AnalysisLensData = {
+  businessModel: string;
+  businessConfidence: string;
+  factCoverage: string;
+  asymmetry: string;
+  analysisSource: string;
+  lenses: LensItem[];
+  catalysts: CatalystData[];
+  lifecyclePattern?: string;
+  lifecycleFocus?: string;
+  historicalContext: string[];
+  pastDrivers: string[];
+  upcomingDrivers: string[];
+  horizons: HorizonData[];
 };
 
 export type FinancialMiniChartData = {
@@ -71,6 +116,7 @@ export type AnalysisBlock = {
   revenue: RevenueTrendData;
   insights: InsightData;
   news: NewsItem[];
+  lens: AnalysisLensData;
   bullPoints: string[];
   bearPoints: string[];
   verdict: VerdictData;

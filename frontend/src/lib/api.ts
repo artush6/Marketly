@@ -90,6 +90,98 @@ export type BackendFollowUpResponse = {
   answer: string;
 };
 
+export type BackendAnalysisMetadata = {
+  factCoverage?: number;
+  factFieldCount?: number;
+  factFieldTotal?: number;
+  inferredFactCount?: number;
+  conflictingFactCount?: number;
+  weakFactFields?: string[];
+};
+
+export type BackendBusinessModel = {
+  primaryModel?: string | null;
+  secondaryModels?: string[];
+  confidence?: number;
+  evidence?: string[];
+  frameworkFocus?: string[];
+  revenueVolatility?: number | null;
+};
+
+export type BackendInterpretationFactor = {
+  label?: string | null;
+  detail?: string | null;
+};
+
+export type BackendInterpretation = {
+  summary?: string | null;
+  marginQuality?: BackendInterpretationFactor | null;
+  growthDurability?: BackendInterpretationFactor | null;
+  balanceSheetRisk?: BackendInterpretationFactor | null;
+  valuationDependency?: BackendInterpretationFactor | null;
+  criticalUnknowns?: string[];
+  strengths?: string[];
+  risks?: string[];
+};
+
+export type BackendCatalystItem = {
+  title: string;
+  type: string;
+  tone: string;
+  importance: string;
+  rationale: string;
+};
+
+export type BackendEventCatalysts = {
+  keyCatalysts?: BackendCatalystItem[];
+  lifecycleModel?: {
+    pattern?: string | null;
+    focus?: string | null;
+  } | null;
+  retentionRisk?: string | null;
+  monetizationDurability?: string | null;
+  interpretationLink?: string | null;
+};
+
+export type BackendHistoryContext = {
+  trendSummary?: string | null;
+  analogTemplates?: string[];
+  dataGaps?: string[];
+  hasUsefulHistory?: boolean;
+};
+
+export type BackendScenarioCase = {
+  name: string;
+  probability: number;
+  confidence: string;
+  thesis: string;
+  mustGoRight?: string[];
+  breaksIf?: string[];
+};
+
+export type BackendScenarios = {
+  asymmetry?: string | null;
+  historicalContextNeeded?: string[];
+  cases?: BackendScenarioCase[];
+};
+
+export type BackendTrajectoryHorizon = {
+  horizon: string;
+  outlook: string;
+  drivers?: string[];
+  risks?: string[];
+  focus: string;
+};
+
+export type BackendTrajectory = {
+  pastDrivers?: string[];
+  upcomingDrivers?: string[];
+  horizons?: BackendTrajectoryHorizon[];
+  growthLens?: string | null;
+  valuationLens?: string | null;
+  historyLink?: string | null;
+};
+
 export type BackendScoreResponse = {
   symbol: string;
   score?: number | null;
@@ -129,6 +221,14 @@ export type BackendScoreResponse = {
     marketCap?: number | null;
     coverage?: number;
   };
+  analysisMetadata?: BackendAnalysisMetadata | null;
+  businessModel?: BackendBusinessModel | null;
+  interpretation?: BackendInterpretation | null;
+  eventCatalysts?: BackendEventCatalysts | null;
+  historyContext?: BackendHistoryContext | null;
+  scenarios?: BackendScenarios | null;
+  trajectory?: BackendTrajectory | null;
+  analysisSource?: string | null;
 };
 
 function getBaseUrl() {

@@ -50,6 +50,32 @@ export function AIInsights({ insights }: AIInsightsProps) {
           )}
         </div>
       </div>
+
+      {insights.evidence && insights.evidence.length > 0 ? (
+        <div className="mt-6 border-t border-white/6 pt-5">
+          <h4 className="text-[11px] uppercase tracking-[0.24em] text-[#9FB3C8]">Evidence</h4>
+          <ul className="mt-4 space-y-3">
+            {insights.evidence.map((item) => (
+              <li key={item} className="text-sm leading-6 text-[#D1D5DB]">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {insights.criticalUnknowns && insights.criticalUnknowns.length > 0 ? (
+        <div className="mt-6 border-t border-white/6 pt-5">
+          <h4 className="text-[11px] uppercase tracking-[0.24em] text-[#F59E0B]">Critical Unknowns</h4>
+          <ul className="mt-4 space-y-3">
+            {insights.criticalUnknowns.map((item) => (
+              <li key={item} className="text-sm leading-6 text-[#D1D5DB]">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }
