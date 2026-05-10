@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from app.models import TickerData
 from app.services.classification.service import classify_business_model
@@ -48,6 +49,132 @@ class AnalysisLayersTests(unittest.TestCase):
 
         self.assertEqual(business_model["primaryModel"], "ip_driven")
         self.assertEqual(events["lifecycleModel"]["pattern"], "launch -> hype -> peak -> decay -> stabilization")
+        self.assertEqual(len(scenarios["cases"]), 3)
+        self.assertEqual(scenarios["cases"][0]["name"], "bull")
+        self.assertIn("probabilityRationale", scenarios["cases"][0])
+        self.assertIn("keyEvidence", scenarios["cases"][0])
+        self.assertIn("watchlistTriggers", scenarios["cases"][0])
+
+    @patch("app.services.scenarios.service.generate_scenarios")
+    def test_scenarios_use_valid_gpt_output_and_normalize_probabilities(self, mock_generate_scenarios):
+        ticker_data = TickerData.from_raw(
+            {
+                "symbol": "MOMO",
+                "info": {
+                    "shortName": "Momentum Example",
+                    "sector": "Technology",
+                    "industry": "Software",
+                    "beta": 1.6,
+                    "trailingPE": 45,
+                },
+                "financials": {},
+            }
+        )
+        mock_generate_scenarios.return_value = {
+            "asymmetry": "upside can overshoot before fundamentals catch up",
+            "cases": [
+                {
+                    "name": "momentum melt-up",
+                    "probability": 60,
+                    "confidence": "medium",
+                    "thesis": "Risk-on demand keeps pulling valuation higher despite thin fundamental confirmation.",
+                    "mustGoRight": ["Positive catalysts keep arriving."],
+                    "breaksIf": ["Growth evidence fails to follow the price move."],
+                    "probabilityRationale": "Narrative momentum has the highest near-term weight.",
+                    "keyEvidence": ["Positive catalysts are visible."],
+                    "watchlistTriggers": ["Analyst tone changes."],
+                },
+                {
+                    "name": "fundamentals catch up",
+                    "probability": 30,
+                    "confidence": "medium",
+                    "thesis": "Revenue growth improves enough to justify the premium multiple.",
+                    "mustGoRight": ["Growth acceleration appears in reported data."],
+                    "breaksIf": ["Margins weaken as growth returns."],
+                    "probabilityRationale": "The setup needs fundamentals to validate the multiple.",
+                    "keyEvidence": ["Current growth evidence is weak."],
+                    "watchlistTriggers": ["Revenue growth inflects."],
+                },
+                {
+                    "name": "valuation air pocket",
+                    "probability": 10,
+                    "confidence": "low",
+                    "thesis": "The stock derates when narrative momentum fades.",
+                    "mustGoRight": ["Investors keep tolerating rich valuation."],
+                    "breaksIf": ["Negative news resets expectations."],
+                    "probabilityRationale": "Lower probability but material if sentiment reverses.",
+                    "keyEvidence": ["Valuation is rich."],
+                    "watchlistTriggers": ["Multiple compression begins."],
+                },
+            ],
+        }
+
+        scenarios = build_scenarios(
+            {"primaryModel": "saas", "secondaryModels": []},
+            {
+                "growthDurability": {"label": "weak"},
+                "marginQuality": {"label": "mixed"},
+                "valuationDependency": {"label": "high"},
+                "balanceSheetRisk": {"label": "moderate"},
+            },
+            {
+                "keyCatalysts": [
+                    {"tone": "positive"},
+                    {"tone": "positive"},
+                ],
+                "retentionRisk": "medium",
+            },
+            {"analogTemplates": ["high multiple momentum"]},
+            ticker_data=ticker_data,
+            scoring_metrics={
+                "growth": {"revenueGrowthYoY": -0.02},
+                "profitability": {},
+                "stability": {},
+                "valuation": {"trailingPE": 45},
+            },
+            news_data=[{"headline": "Shares surge after analyst upgrade"}],
+            market_context={"equityRiskSentiment": "risk_on"},
+        )
+
+        self.assertEqual(scenarios["source"], "openai")
+        self.assertEqual(scenarios["cases"][0]["name"], "momentum melt-up")
+        self.assertEqual(
+            scenarios["cases"][0]["probabilityRationale"],
+            "Narrative momentum has the highest near-term weight.",
+        )
+        self.assertEqual(scenarios["cases"][0]["keyEvidence"], ["Positive catalysts are visible."])
+        self.assertAlmostEqual(
+            sum(case["probability"] for case in scenarios["cases"]),
+            1.0,
+            places=4,
+        )
+        self.assertIn(
+            "bullish market can extend valuation beyond fundamental support",
+            scenarios["anomalyFlags"],
+        )
+
+    @patch("app.services.scenarios.service.generate_scenarios")
+    def test_scenarios_fall_back_when_gpt_output_is_invalid(self, mock_generate_scenarios):
+        mock_generate_scenarios.return_value = {"cases": []}
+        ticker_data = TickerData.from_raw(
+            {
+                "symbol": "AAPL",
+                "info": {"shortName": "Apple Inc."},
+                "financials": {},
+            }
+        )
+
+        scenarios = build_scenarios(
+            {"primaryModel": "hardware_ecosystem"},
+            {"valuationDependency": {"label": "moderate"}},
+            {"keyCatalysts": [], "retentionRisk": "low"},
+            {"analogTemplates": ["premium ecosystem"]},
+            ticker_data=ticker_data,
+            scoring_metrics={},
+            news_data=[],
+        )
+
+        self.assertEqual(scenarios["source"], "deterministic_fallback")
         self.assertEqual(len(scenarios["cases"]), 3)
         self.assertEqual(scenarios["cases"][0]["name"], "bull")
 

@@ -21,10 +21,16 @@ class AnalysisServiceTests(unittest.TestCase):
         validator_patcher = patch(
             "app.services.analysis_service.validate_financials_configuration"
         )
+        scenarios_patcher = patch(
+            "app.services.scenarios.service.generate_scenarios",
+            return_value={"error": "skip network in unit tests"},
+        )
         self.addCleanup(settings_patcher.stop)
         self.addCleanup(validator_patcher.stop)
+        self.addCleanup(scenarios_patcher.stop)
         settings_patcher.start()
         validator_patcher.start()
+        scenarios_patcher.start()
 
     @patch("app.services.analysis_service.score_ticker")
     @patch("app.services.analysis_service.get_news")
@@ -58,16 +64,25 @@ class AnalysisServiceTests(unittest.TestCase):
         mock_get_news.assert_called_once_with("AAPL")
         self.assertEqual(result["symbol"], "AAPL")
         self.assertEqual(result["score"], 80)
+        self.assertIn("analysisId", result)
+        self.assertIn("analysisVersion", result)
+        self.assertIn("dataTimestamp", result)
         self.assertIn("profitability", result)
         self.assertIn("growth", result)
         self.assertIn("stability", result)
         self.assertIn("valuation", result)
         self.assertIn("analysisMetadata", result)
         self.assertIn("factCoverage", result["analysisMetadata"])
+        self.assertIn("dataQualityScore", result["analysisMetadata"])
+        self.assertIn("confidenceLevel", result["analysisMetadata"])
+        self.assertIn("provenance", result["analysisMetadata"])
+        self.assertIn("refreshPolicy", result["analysisMetadata"])
+        self.assertIn("inputPartitions", result["analysisMetadata"])
         self.assertIn("businessModel", result)
         self.assertIn("interpretation", result)
         self.assertIn("eventCatalysts", result)
         self.assertIn("historyContext", result)
+        self.assertIn("marketContext", result)
         self.assertIn("scenarios", result)
         self.assertEqual(result["analysisSource"], "openai")
 

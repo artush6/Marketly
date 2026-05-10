@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 from functools import lru_cache
@@ -35,6 +37,8 @@ def score_ticker(
     history_context: Optional[dict[str, Any]] = None,
     scenarios: Optional[dict[str, Any]] = None,
     trajectory: Optional[dict[str, Any]] = None,
+    market_context: Optional[dict[str, Any]] = None,
+    data_quality: Optional[dict[str, Any]] = None,
 ) -> dict:
     """
     Evaluate a ticker using financial, macroeconomic, and news data via GPT model.
@@ -78,6 +82,8 @@ def score_ticker(
         "history_context": history_context or {},
         "scenarios": scenarios or {},
         "trajectory": trajectory or {},
+        "market_context": market_context or {},
+        "data_quality": data_quality or {},
         # limit for safety
         "news_data": news_data[:20] if isinstance(news_data, list) else news_data,
         "economic_data": economic_data,
@@ -179,6 +185,174 @@ def score_ticker(
     except Exception as e:
         logger.exception("GPT scoring failed")
         return {"error": str(e)}
+
+
+def generate_scenarios(
+    ticker_data: TickerData,
+    scoring_metrics: dict[str, Any],
+    business_model: dict[str, Any],
+    interpretation: dict[str, Any],
+    event_layer: dict[str, Any],
+    history_context: dict[str, Any],
+    signal_summary: dict[str, Any],
+    news_data: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """
+    Generate ticker-specific scenarios from deterministic signals and context.
+
+    The caller is responsible for validation and deterministic fallback. This
+    function intentionally returns an error payload instead of raising for normal
+    model/API failures so scenario generation cannot break the whole score.
+    """
+
+    news_data = news_data or []
+    info = ticker_data.info
+    payload = {
+        "company": {
+            "symbol": ticker_data.symbol,
+            "name": info.shortName,
+            "sector": info.sector,
+            "industry": info.industry,
+            "market_cap": info.marketCap,
+            "beta": info.beta,
+        },
+        "scoring_metrics": scoring_metrics,
+        "business_model": business_model,
+        "interpretation": interpretation,
+        "event_layer": event_layer,
+        "history_context": history_context,
+        "scenario_signals": signal_summary,
+        "news_data": news_data[:12],
+    }
+    payload_json = json.dumps(sanitize(payload), ensure_ascii=False)[:16000]
+
+    try:
+        client = _get_client()
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        """You are an equity scenario analyst.
+                        Create dynamic, ticker-specific investment scenarios using the supplied
+                        fundamentals, catalyst layer, valuation signals, business model, news,
+                        market-regime hints, and anomaly flags.
+
+                        Requirements:
+                        - Do not reuse generic bull/base/bear boilerplate.
+                        - Create 3 to 5 named scenarios. They may be bull/base/bear, but should use
+                          more specific names when the facts justify it, e.g. "momentum melt-up",
+                          "fundamentals catch up", "valuation air pocket", or "launch spike fades".
+                        - Probabilities should be decimals and sum approximately to 1.0.
+                        - Let bullish-market anomalies matter when supported by the supplied signals:
+                          a stretched stock can keep rising in a risk-on tape, but the scenario must
+                          explain what evidence sustains that overshoot and what breaks it.
+                        - Anchor every scenario in the provided data. Do not invent external facts,
+                          exact dates, unprovided guidance, or precise financial metrics.
+                        - Include what must go right and what would break each scenario.
+                        - Include a brief probability rationale, the strongest evidence, and
+                          watchlist triggers that would cause the probability to change.
+                        - Keep each thesis concise and specific.
+
+                        JSON schema:
+                        {
+                            "asymmetry": string,
+                            "historicalContextNeeded": [string],
+                            "cases": [
+                                {
+                                    "name": string,
+                                    "probability": number,
+                                    "confidence": "low" | "medium" | "high",
+                                    "thesis": string,
+                                    "mustGoRight": [string],
+                                    "breaksIf": [string],
+                                    "probabilityRationale": string,
+                                    "keyEvidence": [string],
+                                    "watchlistTriggers": [string]
+                                }
+                            ]
+                        }
+                        """
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Scenario generation payload: {payload_json}",
+                },
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "ticker_scenarios",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "asymmetry": {"type": "string"},
+                            "historicalContextNeeded": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "cases": {
+                                "type": "array",
+                                "minItems": 3,
+                                "maxItems": 5,
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "probability": {"type": "number"},
+                                        "confidence": {
+                                            "type": "string",
+                                            "enum": ["low", "medium", "high"],
+                                        },
+                                        "thesis": {"type": "string"},
+                                        "mustGoRight": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                        "breaksIf": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                        "probabilityRationale": {"type": "string"},
+                                        "keyEvidence": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                        "watchlistTriggers": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                    },
+                                    "required": [
+                                        "name",
+                                        "probability",
+                                        "confidence",
+                                        "thesis",
+                                        "mustGoRight",
+                                        "breaksIf",
+                                        "probabilityRationale",
+                                        "keyEvidence",
+                                        "watchlistTriggers",
+                                    ],
+                                },
+                            },
+                        },
+                        "required": ["asymmetry", "cases"],
+                    },
+                },
+            },
+        )
+
+        content = response.choices[0].message.content
+        return sanitize(json.loads(content))
+    except MisconfigurationError:
+        logger.info("Skipping GPT scenario generation because OpenAI is not configured")
+        return {"error": "OpenAI is not configured"}
+    except Exception as exc:
+        logger.exception("GPT scenario generation failed")
+        return {"error": str(exc)}
 
 
 def answer_follow_up(

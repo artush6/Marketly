@@ -1,5 +1,6 @@
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 
 class ValuationResponse(BaseModel):
@@ -39,12 +40,23 @@ class StabilityResponse(BaseModel):
 
 
 class AnalysisMetadataResponse(BaseModel):
+    analysisId: Optional[str] = None
+    analysisVersion: Optional[str] = None
+    dataTimestamp: Optional[str] = None
     factCoverage: float = 0.0
     factFieldCount: int = 0
     factFieldTotal: int = 0
     inferredFactCount: int = 0
     conflictingFactCount: int = 0
     weakFactFields: List[str] = Field(default_factory=list)
+    dataQualityScore: Optional[float] = None
+    confidenceLevel: Optional[str] = None
+    missingCriticalFields: List[str] = Field(default_factory=list)
+    analysisLimitations: List[str] = Field(default_factory=list)
+    coverageBreakdown: Dict[str, float] = Field(default_factory=dict)
+    provenance: Dict[str, Any] = Field(default_factory=dict)
+    refreshPolicy: Dict[str, Any] = Field(default_factory=dict)
+    inputPartitions: Dict[str, List[str]] = Field(default_factory=dict)
 
 
 class BusinessModelResponse(BaseModel):
@@ -107,12 +119,31 @@ class ScenarioCaseResponse(BaseModel):
     thesis: str
     mustGoRight: List[str] = Field(default_factory=list)
     breaksIf: List[str] = Field(default_factory=list)
+    probabilityRationale: Optional[str] = None
+    keyEvidence: List[str] = Field(default_factory=list)
+    watchlistTriggers: List[str] = Field(default_factory=list)
 
 
 class ScenarioResponse(BaseModel):
+    source: Optional[str] = None
     asymmetry: Optional[str] = None
     historicalContextNeeded: List[str] = Field(default_factory=list)
+    signalSummary: Dict[str, Any] = Field(default_factory=dict)
+    anomalyFlags: List[str] = Field(default_factory=list)
     cases: List[ScenarioCaseResponse] = Field(default_factory=list)
+
+
+class MarketContextResponse(BaseModel):
+    equityRiskSentiment: Optional[str] = None
+    liquidityFlag: Optional[str] = None
+    indexTrend: Optional[str] = None
+    rateDirection: Optional[str] = None
+    treasuryYieldDirection: Optional[str] = None
+    inflationDirection: Optional[str] = None
+    companyNewsSentiment: Optional[str] = None
+    betaSensitivity: Optional[str] = None
+    riskOnScore: int = 0
+    sector: Optional[str] = None
 
 
 class HorizonOutlookResponse(BaseModel):
@@ -133,6 +164,9 @@ class TrajectoryResponse(BaseModel):
 
 
 class TickerScoreResponse(BaseModel):
+    analysisId: Optional[str] = None
+    analysisVersion: Optional[str] = None
+    dataTimestamp: Optional[str] = None
     symbol: str
     score: Optional[int] = None
     summary: Optional[str] = None
@@ -148,6 +182,7 @@ class TickerScoreResponse(BaseModel):
     interpretation: Optional[InterpretationResponse] = None
     eventCatalysts: Optional[EventCatalystResponse] = None
     historyContext: Optional[HistoryContextResponse] = None
+    marketContext: Optional[MarketContextResponse] = None
     scenarios: Optional[ScenarioResponse] = None
     trajectory: Optional[TrajectoryResponse] = None
     analysisSource: Optional[str] = None
