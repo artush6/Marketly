@@ -215,14 +215,22 @@ create index if not exists historical_analogs_analog_type_idx on public.historic
 
 create table if not exists public.analysis_snapshots (
   id uuid primary key default gen_random_uuid(),
+  analysis_id text not null unique,
   company_id uuid not null references public.companies(id) on delete cascade,
   fact_snapshot_id uuid references public.fact_snapshots(id) on delete set null,
   run_type text not null default 'deep_research',
+  analysis_version text not null,
+  data_timestamp timestamptz not null,
   analysis_source text not null default 'openai',
   score integer,
+  score_method text,
+  raw_score integer,
+  confidence_adjustment integer not null default 0,
+  gpt_score integer,
   summary text,
   positives text[] not null default '{}',
   negatives text[] not null default '{}',
+  score_breakdown jsonb not null default '{}'::jsonb,
   profitability jsonb not null default '{}'::jsonb,
   growth jsonb not null default '{}'::jsonb,
   stability jsonb not null default '{}'::jsonb,
@@ -231,15 +239,36 @@ create table if not exists public.analysis_snapshots (
   interpretation jsonb not null default '{}'::jsonb,
   event_catalysts jsonb not null default '{}'::jsonb,
   history_context jsonb not null default '{}'::jsonb,
+  market_context jsonb not null default '{}'::jsonb,
   scenarios jsonb not null default '{}'::jsonb,
   trajectory jsonb not null default '{}'::jsonb,
+  analysis_metadata jsonb not null default '{}'::jsonb,
+  provenance jsonb not null default '{}'::jsonb,
+  refresh_policy jsonb not null default '{}'::jsonb,
   full_payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default timezone('utc', now())
 );
 
 create index if not exists analysis_snapshots_company_id_idx on public.analysis_snapshots (company_id);
 create index if not exists analysis_snapshots_company_created_at_idx on public.analysis_snapshots (company_id, created_at desc);
+create index if not exists analysis_snapshots_company_data_ts_idx on public.analysis_snapshots (company_id, data_timestamp desc);
+create index if not exists analysis_snapshots_analysis_version_idx on public.analysis_snapshots (analysis_version);
 create index if not exists analysis_snapshots_run_type_idx on public.analysis_snapshots (run_type);
+
+
+create table if not exists public.computed_metrics (
+  id uuid primary key default gen_random_uuid(),
+  analysis_snapshot_id uuid not null references public.analysis_snapshots(id) on delete cascade,
+  company_id uuid not null references public.companies(id) on delete cascade,
+  metric_category text not null,
+  payload jsonb not null default '{}'::jsonb,
+  coverage numeric(5,4),
+  created_at timestamptz not null default timezone('utc', now()),
+  unique (analysis_snapshot_id, metric_category)
+);
+
+create index if not exists computed_metrics_analysis_snapshot_id_idx on public.computed_metrics (analysis_snapshot_id);
+create index if not exists computed_metrics_company_category_idx on public.computed_metrics (company_id, metric_category);
 
 
 create table if not exists public.analysis_scenarios (
@@ -252,6 +281,9 @@ create table if not exists public.analysis_scenarios (
   thesis text not null,
   must_go_right text[] not null default '{}',
   breaks_if text[] not null default '{}',
+  probability_rationale text,
+  key_evidence text[] not null default '{}',
+  watchlist_triggers text[] not null default '{}',
   created_at timestamptz not null default timezone('utc', now()),
   unique (analysis_snapshot_id, case_name)
 );

@@ -1,11 +1,35 @@
+# Environment and secrets
 .env
-.venv
+.env.local
+.env.*.local
+
+# Virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE / OS noise
+.DS_Store
+.idea/workspace.xml
+
+# Local provider exports / generated files
 company_financials.json
 grouped_articles.json
 mixed_articles.json
 single_company_articles.json
-.DS_Store
-# Ignore Python cache
-__pycache__/
-*.py[cod]
-.todo.md
+
+# Database dumps / local data exports
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.sqlite3
+*.db
+exports/
+backups/
+tmp/*.sql
+local/*.sql
