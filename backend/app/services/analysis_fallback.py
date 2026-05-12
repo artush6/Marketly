@@ -9,22 +9,25 @@ def build_fallback_analysis(
     interpretation: dict[str, Any],
     scenarios: dict[str, Any],
     trajectory: dict[str, Any] | None = None,
+    composite_score: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     primary_model = business_model.get("primaryModel", "company").replace("_", " ")
     strengths = interpretation.get("strengths", [])[:4]
     risks = interpretation.get("risks", [])[:4]
     asymmetry = scenarios.get("asymmetry", "balanced")
 
-    score = 58
-    if "strong" in {
-        interpretation.get("marginQuality", {}).get("label"),
-        interpretation.get("growthDurability", {}).get("label"),
-    }:
-        score += 10
-    if interpretation.get("valuationDependency", {}).get("label") == "high":
-        score -= 7
-    if interpretation.get("balanceSheetRisk", {}).get("label") == "high":
-        score -= 6
+    score = (composite_score or {}).get("score")
+    if not isinstance(score, int):
+        score = 58
+        if "strong" in {
+            interpretation.get("marginQuality", {}).get("label"),
+            interpretation.get("growthDurability", {}).get("label"),
+        }:
+            score += 10
+        if interpretation.get("valuationDependency", {}).get("label") == "high":
+            score -= 7
+        if interpretation.get("balanceSheetRisk", {}).get("label") == "high":
+            score -= 6
 
     summary = (
         f"{company or 'This company'} looks most like a {primary_model} business. "

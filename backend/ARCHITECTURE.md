@@ -1051,6 +1051,7 @@ This lets the product answer:
 ## Current Known Weak Spots
 
 - Final numeric score is still GPT-generated.
+- Final numeric score is deterministic and GPT now explains it.
 - Market context is useful but simple.
 - Event intelligence is keyword-based.
 - Scenario probabilities are analyst-style weights, not calibrated odds.

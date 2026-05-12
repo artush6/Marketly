@@ -1,1 +1,32 @@
-.todo.md
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# IDE / OS noise
+.DS_Store
+.idea/workspace.xml
+
+# Local provider exports / generated files
+company_financials.json
+grouped_articles.json
+mixed_articles.json
+single_company_articles.json
+
+# Database dumps / local data exports
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.sqlite3
+*.db
+exports/
+backups/
+tmp/*.sql
+local/*.sql

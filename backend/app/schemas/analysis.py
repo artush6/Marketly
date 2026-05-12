@@ -56,6 +56,7 @@ class AnalysisMetadataResponse(BaseModel):
     coverageBreakdown: Dict[str, float] = Field(default_factory=dict)
     provenance: Dict[str, Any] = Field(default_factory=dict)
     refreshPolicy: Dict[str, Any] = Field(default_factory=dict)
+    gptScore: Optional[int] = None
     inputPartitions: Dict[str, List[str]] = Field(default_factory=dict)
 
 
@@ -146,6 +147,17 @@ class MarketContextResponse(BaseModel):
     sector: Optional[str] = None
 
 
+class ScoreBreakdownResponse(BaseModel):
+    score: int
+    rawScore: int
+    confidenceAdjustment: int = 0
+    subscores: Dict[str, int] = Field(default_factory=dict)
+    maxSubscores: Dict[str, int] = Field(default_factory=dict)
+    bonuses: List[str] = Field(default_factory=list)
+    penalties: List[str] = Field(default_factory=list)
+    method: str
+
+
 class HorizonOutlookResponse(BaseModel):
     horizon: str
     outlook: str
@@ -169,6 +181,7 @@ class TickerScoreResponse(BaseModel):
     dataTimestamp: Optional[str] = None
     symbol: str
     score: Optional[int] = None
+    scoreBreakdown: Optional[ScoreBreakdownResponse] = None
     summary: Optional[str] = None
     positives: List[str] = Field(default_factory=list)
     negatives: List[str] = Field(default_factory=list)

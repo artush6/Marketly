@@ -8,12 +8,13 @@ Scoring metrics answer:
 
 > What does the financial math say?
 
-This layer does not currently own the final numeric investment score. It owns the metric blocks used by interpretation, scenarios, and GPT.
+This layer owns both the metric blocks and the deterministic composite score used by `/score/{symbol}`. GPT explains the score, but the backend now computes the number.
 
 ## Files
 
 ```text
 scoring/
+├── composite.py
 ├── growth.py
 ├── metrics.py
 ├── profitability.py
@@ -82,6 +83,19 @@ growth["coverage"] = filled_growth_fields / total_growth_fields
 
 Coverage is important because a missing metric should reduce confidence, not silently pretend the company is weak.
 
+`composite.py` converts metrics and interpretation labels into category subscores:
+
+```text
+profitability  0-17
+growth         0-17
+valuation      0-17
+balance sheet  0-17
+market/news    0-16
+macro          0-16
+```
+
+It then applies a confidence adjustment from the data-quality layer. This final deterministic result becomes the API's `score`.
+
 Output shape:
 
 ```json
@@ -101,7 +115,7 @@ GPT should not be responsible for calculating revenue growth or P/E when code ca
 
 ## Current Weakness
 
-The app still needs a deterministic composite score. Right now these metrics support GPT scoring, but the final score itself should eventually be computed in code.
+The composite score is deterministic and auditable, but the weights are still heuristic. They should be refined with regression fixtures and user feedback.
 
 ## Tradeoff
 

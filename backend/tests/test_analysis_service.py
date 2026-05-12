@@ -63,7 +63,10 @@ class AnalysisServiceTests(unittest.TestCase):
         mock_fetch_macro_indicators.assert_called_once_with()
         mock_get_news.assert_called_once_with("AAPL")
         self.assertEqual(result["symbol"], "AAPL")
-        self.assertEqual(result["score"], 80)
+        self.assertNotEqual(result["score"], 80)
+        self.assertEqual(result["score"], result["scoreBreakdown"]["score"])
+        self.assertEqual(result["scoreBreakdown"]["method"], "deterministic_v1")
+        self.assertEqual(result["analysisMetadata"]["gptScore"], 80)
         self.assertIn("analysisId", result)
         self.assertIn("analysisVersion", result)
         self.assertIn("dataTimestamp", result)
@@ -117,6 +120,7 @@ class AnalysisServiceTests(unittest.TestCase):
 
         self.assertEqual(result["analysisSource"], "fallback")
         self.assertIsInstance(result["score"], int)
+        self.assertEqual(result["score"], result["scoreBreakdown"]["score"])
 
     @patch("app.services.analysis_service.CacheManager")
     def test_build_ticker_score_returns_cached_score_when_available(self, mock_cache):

@@ -39,6 +39,7 @@ def score_ticker(
     trajectory: Optional[dict[str, Any]] = None,
     market_context: Optional[dict[str, Any]] = None,
     data_quality: Optional[dict[str, Any]] = None,
+    composite_score: Optional[dict[str, Any]] = None,
 ) -> dict:
     """
     Evaluate a ticker using financial, macroeconomic, and news data via GPT model.
@@ -84,6 +85,7 @@ def score_ticker(
         "trajectory": trajectory or {},
         "market_context": market_context or {},
         "data_quality": data_quality or {},
+        "deterministic_score": composite_score or {},
         # limit for safety
         "news_data": news_data[:20] if isinstance(news_data, list) else news_data,
         "economic_data": economic_data,
@@ -109,6 +111,8 @@ def score_ticker(
                         Treat raw financial statements as fallback context, not the primary source.
                         Use the business model, interpretation, event layer, history context,
                         scenarios, and trajectory layer as the main reasoning scaffold.
+                        The numeric score has already been computed deterministically by the backend.
+                        Explain that score; do not override it with a different rating.
 
                         Rules:
                         - Do not treat all companies with the same framework.

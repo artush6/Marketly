@@ -30,6 +30,7 @@ from app.services.metadata import (
     utc_now_iso,
 )
 from app.services.scenarios import build_scenarios
+from app.services.scoring.composite import build_composite_score
 from app.services.scoring.metrics import build_scoring_metrics
 from app.services.trajectory import build_trajectory_layer
 
@@ -103,6 +104,13 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
         scoring_metrics,
         news_data,
     )
+    composite_score = build_composite_score(
+        scoring_metrics,
+        interpretation,
+        market_context,
+        event_layer,
+        data_quality,
+    )
 
     # Step 2: Score the ticker with GPT
     analysis = score_ticker(
@@ -119,6 +127,7 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
         trajectory=trajectory,
         market_context=market_context,
         data_quality=data_quality,
+        composite_score=composite_score,
     )
     if "error" in analysis:
         analysis = build_fallback_analysis(
@@ -127,6 +136,7 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
             interpretation,
             scenarios,
             trajectory,
+            composite_score,
         )
 
     # Step 3: Return structured response (preserve existing output contract)
@@ -149,11 +159,12 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
         "analysisVersion": ANALYSIS_VERSION,
         "dataTimestamp": data_timestamp,
         "symbol": symbol,
-        "score": analysis.get("score"),
+        "score": composite_score["score"],
         "summary": analysis.get("summary"),
         "positives": analysis.get("positives", []),
         "negatives": analysis.get("negatives", []),
         "company": info.shortName,
+        "scoreBreakdown": composite_score,
         "profitability": scoring_metrics["profitability"],
         "growth": scoring_metrics["growth"],
         "stability": scoring_metrics["stability"],
@@ -171,6 +182,7 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
             **data_quality,
             "provenance": provenance,
             "refreshPolicy": build_refresh_policy(),
+            "gptScore": analysis.get("score"),
             "inputPartitions": {
                 "facts": ["financialFacts", "macro", "news"],
                 "computed": [
