@@ -25,12 +25,18 @@ class AnalysisServiceTests(unittest.TestCase):
             "app.services.scenarios.service.generate_scenarios",
             return_value={"error": "skip network in unit tests"},
         )
+        supabase_patcher = patch(
+            "app.integrations.supabase_store.is_configured",
+            return_value=False,
+        )
         self.addCleanup(settings_patcher.stop)
         self.addCleanup(validator_patcher.stop)
         self.addCleanup(scenarios_patcher.stop)
+        self.addCleanup(supabase_patcher.stop)
         settings_patcher.start()
         validator_patcher.start()
         scenarios_patcher.start()
+        supabase_patcher.start()
 
     @patch("app.services.analysis_service.score_ticker")
     @patch("app.services.analysis_service.get_news")
@@ -66,7 +72,8 @@ class AnalysisServiceTests(unittest.TestCase):
         self.assertNotEqual(result["score"], 80)
         self.assertEqual(result["score"], result["scoreBreakdown"]["score"])
         self.assertEqual(result["scoreBreakdown"]["method"], "deterministic_v1")
-        self.assertEqual(result["analysisMetadata"]["gptScore"], 80)
+        self.assertEqual(result["analysisMetadata"]["gptScore"], result["score"])
+        self.assertEqual(result["analysisMetadata"]["modelSuggestedScore"], 80)
         self.assertIn("analysisId", result)
         self.assertIn("analysisVersion", result)
         self.assertIn("dataTimestamp", result)
@@ -75,6 +82,9 @@ class AnalysisServiceTests(unittest.TestCase):
         self.assertIn("stability", result)
         self.assertIn("valuation", result)
         self.assertIn("analysisMetadata", result)
+        self.assertEqual(result["dataSource"], "fresh")
+        self.assertEqual(result["analysisMetadata"]["dataSource"], "fresh")
+        self.assertEqual(result["analysisMetadata"]["dataSources"]["score"], "fresh")
         self.assertIn("factCoverage", result["analysisMetadata"])
         self.assertIn("dataQualityScore", result["analysisMetadata"])
         self.assertIn("confidenceLevel", result["analysisMetadata"])
@@ -88,6 +98,47 @@ class AnalysisServiceTests(unittest.TestCase):
         self.assertIn("marketContext", result)
         self.assertIn("scenarios", result)
         self.assertEqual(result["analysisSource"], "openai")
+
+    @patch("app.services.analysis_service.score_ticker")
+    @patch("app.services.analysis_service.get_news")
+    @patch("app.services.analysis_service.fetch_macro_indicators")
+    @patch("app.services.analysis_service.fetch_ticker_financials")
+    def test_build_ticker_score_reconciles_generated_score_with_backend_score(
+        self,
+        mock_fetch_ticker_financials,
+        mock_fetch_macro_indicators,
+        mock_get_news,
+        mock_score_ticker,
+    ):
+        mock_fetch_ticker_financials.return_value = {
+            "symbol": "TMO",
+            "info": {"shortName": "Thermo Fisher Scientific Inc.", "marketCap": 170_000.0},
+            "financials": {
+                "income_statement": [
+                    {
+                        "revenue": 11_000.0,
+                        "netIncome": 1_600.0,
+                        "period": "Q1",
+                        "acceptedForm": "10-Q",
+                    }
+                ]
+            },
+        }
+        mock_fetch_macro_indicators.return_value = {}
+        mock_get_news.return_value = []
+        mock_score_ticker.return_value = {
+            "score": 78,
+            "summary": "Precomputed score: 78. Strong company, but valuation sensitive.",
+            "positives": [],
+            "negatives": [],
+        }
+
+        result = build_ticker_score("tmo")
+
+        self.assertEqual(result["score"], result["scoreBreakdown"]["score"])
+        self.assertEqual(result["analysisMetadata"]["gptScore"], result["score"])
+        self.assertEqual(result["analysisMetadata"]["modelSuggestedScore"], 78)
+        self.assertNotIn("Precomputed score: 78", result["summary"])
 
     @patch("app.services.analysis_service.fetch_ticker_financials")
     def test_build_ticker_score_raises_on_financials_error(self, mock_fetch_ticker_financials):
@@ -125,12 +176,16 @@ class AnalysisServiceTests(unittest.TestCase):
     @patch("app.services.analysis_service.CacheManager")
     def test_build_ticker_score_returns_cached_score_when_available(self, mock_cache):
         mock_cache.make_key.return_value = "marketly:scores:AAPL"
-        mock_cache.get.return_value = '{"symbol":"AAPL","score":91,"summary":"Cached","positives":[],"negatives":[],"company":"Apple Inc.","profitability":{"coverage":0.0},"growth":{"coverage":0.0},"stability":{"coverage":0.0},"valuation":{"coverage":0.0}}'
+        mock_cache.get_with_source.return_value = (
+            '{"symbol":"AAPL","score":91,"summary":"Cached","positives":[],"negatives":[],"company":"Apple Inc.","profitability":{"coverage":0.0},"growth":{"coverage":0.0},"stability":{"coverage":0.0},"valuation":{"coverage":0.0}}',
+            "cache",
+        )
 
         result = build_ticker_score("aapl")
 
         self.assertEqual(result["score"], 91)
-        mock_cache.get.assert_called_once_with("marketly:scores:AAPL")
+        self.assertEqual(result["dataSource"], "cache")
+        mock_cache.get_with_source.assert_called_once_with("marketly:scores:AAPL")
 
 
 if __name__ == "__main__":
