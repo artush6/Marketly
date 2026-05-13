@@ -57,6 +57,8 @@ class AnalysisMetadataResponse(BaseModel):
     provenance: Dict[str, Any] = Field(default_factory=dict)
     refreshPolicy: Dict[str, Any] = Field(default_factory=dict)
     gptScore: Optional[int] = None
+    dataSource: Optional[str] = None
+    dataSources: Dict[str, str] = Field(default_factory=dict)
     inputPartitions: Dict[str, List[str]] = Field(default_factory=dict)
 
 
@@ -199,3 +201,4 @@ class TickerScoreResponse(BaseModel):
     scenarios: Optional[ScenarioResponse] = None
     trajectory: Optional[TrajectoryResponse] = None
     analysisSource: Optional[str] = None
+    dataSource: Optional[str] = None
