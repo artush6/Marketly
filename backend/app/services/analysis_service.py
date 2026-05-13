@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 import json
+import re
 
 from app.core.cache import CacheManager
 from app.core.config import settings
 from app.core.errors import MisconfigurationError
-from app.integrations.economics import fetch_macro_indicators
+from app.integrations.economics import (
+    fetch_macro_indicators,
+    get_last_data_source as get_last_macro_data_source,
+)
 from app.integrations.financials import (
     fetch_ticker_financials,
     validate_financials_configuration,
 )
 from app.integrations.gpt import score_ticker
+from app.integrations.news import get_last_data_source as get_last_news_data_source
 from app.integrations.news import get_news
+from app.integrations import supabase_store
 from app.models import TickerData
 from app.serialization import sanitize
 from app.services.analysis_fallback import build_fallback_analysis
@@ -35,6 +41,30 @@ from app.services.scoring.metrics import build_scoring_metrics
 from app.services.trajectory import build_trajectory_layer
 
 
+SCORE_PREFIX_RE = re.compile(
+    r"^\s*(backend[- ]determined|deterministic|backend|precomputed)\s+score\s*:\s*\d+\s*\.?\s*",
+    re.IGNORECASE,
+)
+
+
+def _reconcile_analysis_score(
+    analysis: dict,
+    composite_score: dict[str, int],
+) -> tuple[dict, int | None]:
+    backend_score = composite_score["score"]
+    model_suggested_score = analysis.get("score")
+    if not isinstance(model_suggested_score, int):
+        model_suggested_score = None
+
+    reconciled = dict(analysis)
+    reconciled["score"] = backend_score
+    summary = reconciled.get("summary")
+    if isinstance(summary, str):
+        reconciled["summary"] = SCORE_PREFIX_RE.sub("", summary).strip()
+
+    return reconciled, model_suggested_score
+
+
 def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
     """
     Fetch financial, macro, and news data for a ticker symbol,
@@ -46,9 +76,12 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
     cache_key = CacheManager.make_key("scores", symbol)
 
     if not force_refresh:
-        cached = CacheManager.get(cache_key)
+        cached, cache_source = CacheManager.get_with_source(cache_key)
         if cached:
-            return json.loads(cached)
+            payload = json.loads(cached)
+            payload["dataSource"] = cache_source or "cache"
+            payload.setdefault("analysisMetadata", {})["dataSource"] = payload["dataSource"]
+            return payload
 
     if not settings.FRED_API_KEY:
         raise MisconfigurationError("FRED_API_KEY is not configured.")
@@ -68,6 +101,14 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
 
     economic_data = fetch_macro_indicators()
     news_data = get_news(symbol)
+    data_sources = {
+        "score": "fresh",
+        "financials": raw_financials.get("_dataSource", "unknown"),
+        "macro": economic_data.get("_dataSource", get_last_macro_data_source())
+        if isinstance(economic_data, dict)
+        else get_last_macro_data_source(),
+        "news": get_last_news_data_source(),
+    }
     market_context = build_market_context(economic_data, news_data, ticker_data)
     business_model = classify_business_model(ticker_data, fact_graph, news_data)
     interpretation = build_interpretation_layer(
@@ -138,6 +179,7 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
             trajectory,
             composite_score,
         )
+    analysis, model_suggested_score = _reconcile_analysis_score(analysis, composite_score)
 
     # Step 3: Return structured response (preserve existing output contract)
     info = ticker_data.info
@@ -183,6 +225,9 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
             "provenance": provenance,
             "refreshPolicy": build_refresh_policy(),
             "gptScore": analysis.get("score"),
+            "modelSuggestedScore": model_suggested_score,
+            "dataSource": "fresh",
+            "dataSources": data_sources,
             "inputPartitions": {
                 "facts": ["financialFacts", "macro", "news"],
                 "computed": [
@@ -208,6 +253,8 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
         "scenarios": scenarios,
         "trajectory": trajectory,
         "analysisSource": analysis_source,
+        "dataSource": "fresh",
     }
+    supabase_store.save_analysis_run(response)
     CacheManager.set(cache_key, json.dumps(response))
     return response
