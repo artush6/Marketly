@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 FactSource = Literal[
     "finnhub",
     "fmp",
+    "sec_xbrl",
+    "sec",
     "rapidapi",
     "yfinance",
     "derived",
