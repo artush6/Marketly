@@ -7,9 +7,11 @@ from typing import Optional
 from app.core.cache import CacheManager
 from app.core.config import settings
 from app.core.errors import MisconfigurationError
+from app.integrations import supabase_store
 import finnhub
 
 logger = logging.getLogger(__name__)
+LAST_DATA_SOURCE = "unknown"
 
 
 @lru_cache(maxsize=1)
@@ -29,10 +31,20 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
     """
 
     cache_key = CacheManager.make_key("news", f"{symbol}_{days}d")
+    global LAST_DATA_SOURCE
 
     # Try to load from cache
-    if cached := CacheManager.get(cache_key):
+    cached, cache_source = CacheManager.get_with_source(cache_key)
+    if cached:
+        LAST_DATA_SOURCE = cache_source or "cache"
         return json.loads(cached)
+
+    snapshot_key = f"{symbol.strip().upper()}_{days}d_{max_items or 'all'}"
+    snapshot = supabase_store.get_latest_snapshot("news", snapshot_key)
+    if snapshot and isinstance(snapshot.get("payload"), list):
+        LAST_DATA_SOURCE = "supabase"
+        CacheManager.set(cache_key, json.dumps(snapshot["payload"]))
+        return snapshot["payload"]
 
     # Otherwise fetch fresh data
     symbol = symbol.strip().upper()
@@ -47,6 +59,15 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
     if max_items:
         articles = articles[:max_items]
 
+    supabase_store.save_snapshot(
+        "news",
+        snapshot_key,
+        articles,
+        provenance={"provider": "finnhub", "symbol": symbol, "days": days},
+    )
+    supabase_store.save_news_articles(symbol, articles)
+    LAST_DATA_SOURCE = "fresh"
+
     # Cache the new data
     CacheManager.set(cache_key, json.dumps(articles))
 
@@ -58,6 +79,10 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
         logger.debug("Raw response sample for %s: %s", symbol, articles[:2])
 
     return articles
+
+
+def get_last_data_source() -> str:
+    return LAST_DATA_SOURCE
 
 
 def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: Optional[str] = None):
