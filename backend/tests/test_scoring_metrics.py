@@ -95,6 +95,30 @@ class ScoringMetricsTests(unittest.TestCase):
         self.assertEqual(metrics["valuation"]["priceToSales"], 8.0)
         self.assertIsNone(metrics["valuation"]["dividendYield"])
 
+    def test_annualizes_latest_quarterly_revenue_for_price_to_sales_fallback(self):
+        ticker_data = TickerData.from_raw(
+            {
+                "symbol": "TMO",
+                "info": {
+                    "marketCap": 170_000.0,
+                },
+                "financials": {
+                    "income_statement": [
+                        {
+                            "revenue": 11_000.0,
+                            "netIncome": 1_600.0,
+                            "period": "Q1",
+                            "acceptedForm": "10-Q",
+                        }
+                    ]
+                },
+            }
+        )
+
+        metrics = build_scoring_metrics(ticker_data)
+
+        self.assertAlmostEqual(metrics["valuation"]["priceToSales"], 170_000.0 / 44_000.0)
+
     def test_normalizes_percent_like_provider_metrics(self):
         ticker_data = TickerData.from_raw(
             {
