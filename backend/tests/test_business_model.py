@@ -36,6 +36,42 @@ class BusinessModelTests(unittest.TestCase):
         self.assertEqual(business_model["primaryModel"], "ip_driven")
         self.assertIn("release cadence", " ".join(business_model["frameworkFocus"]))
 
+    def test_classifies_life_sciences_tools_apparatus_as_infrastructure_not_biotech(self):
+        ticker_data = TickerData.from_raw(
+            {
+                "symbol": "TMO",
+                "info": {
+                    "shortName": "Thermo Fisher Scientific Inc.",
+                    "sector": "Life Sciences Tools & Services",
+                    "industry": "Measuring & Controlling Devices, NEC",
+                    "grossMargin": 0.41,
+                },
+                "financials": {
+                    "income_statement": [
+                        {"revenue": 44_000},
+                        {"revenue": 43_000},
+                        {"revenue": 40_000},
+                    ]
+                },
+            }
+        )
+        fact_graph = build_fact_graph(ticker_data)
+        business_model = classify_business_model(
+            ticker_data,
+            fact_graph,
+            news_data=[
+                {
+                    "headline": "Thermo Fisher expands cell therapy manufacturing tools",
+                    "summary": "New bioprocessing platform supports lab equipment, instruments, and consumables workflows.",
+                }
+            ],
+        )
+
+        self.assertEqual(business_model["primaryModel"], "life_sciences_tools")
+        self.assertIn("hardware_ecosystem", business_model["secondaryModels"])
+        self.assertNotIn("clinical catalyst path", business_model["frameworkFocus"])
+        self.assertNotIn("binary event risk", business_model["frameworkFocus"])
+
 
 if __name__ == "__main__":
     unittest.main()
