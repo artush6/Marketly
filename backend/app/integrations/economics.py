@@ -8,6 +8,9 @@ from fredapi import Fred
 from app.core.cache import CacheManager
 from app.core.config import settings
 from app.core.errors import MisconfigurationError
+from app.integrations import supabase_store
+
+LAST_DATA_SOURCE = "unknown"
 
 
 @lru_cache(maxsize=1)
@@ -24,12 +27,27 @@ def fetch_macro_indicators(years: int = 20):
     Returns last `years` of data, resampled to monthly (last value).
     """
     cache_key = CacheManager.make_key("macro", f"indicators_{years}")
-    cached = CacheManager.get(cache_key)
+    global LAST_DATA_SOURCE
+    cached, cache_source = CacheManager.get_with_source(cache_key)
 
     logger = logging.getLogger(__name__)
     if cached:
         logger.debug("Loaded macro data from cache")
-        return json.loads(cached)
+        LAST_DATA_SOURCE = cache_source or "cache"
+        payload = json.loads(cached)
+        if isinstance(payload, dict):
+            payload["_dataSource"] = LAST_DATA_SOURCE
+        return payload
+
+    snapshot_key = f"indicators_{years}"
+    snapshot = supabase_store.get_latest_snapshot("macro", snapshot_key)
+    if snapshot and isinstance(snapshot.get("payload"), dict):
+        logger.info("Loaded macro data from Supabase snapshot")
+        LAST_DATA_SOURCE = "supabase"
+        payload = dict(snapshot["payload"])
+        payload["_dataSource"] = LAST_DATA_SOURCE
+        CacheManager.set(cache_key, json.dumps(payload))
+        return payload
 
     logger.info("Fetching macro data from FRED API...")
     fred = _get_fred_client()
@@ -62,5 +80,18 @@ def fetch_macro_indicators(years: int = 20):
             logger.warning("Failed %s: %s", label, exc)
 
     logger.debug("Macro data keys: %s", list(data.keys()))
+    supabase_store.save_snapshot(
+        "macro",
+        snapshot_key,
+        data,
+        provenance={"provider": "fred", "years": years},
+    )
+    supabase_store.save_macro_observations(data)
+    LAST_DATA_SOURCE = "fresh"
+    data["_dataSource"] = LAST_DATA_SOURCE
     CacheManager.set(cache_key, json.dumps(data))
     return data
+
+
+def get_last_data_source() -> str:
+    return LAST_DATA_SOURCE
