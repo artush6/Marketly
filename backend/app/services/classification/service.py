@@ -8,6 +8,13 @@ from app.services.facts.models import CompanyFactGraph
 
 
 MODEL_FRAMEWORKS = {
+    "life_sciences_tools": [
+        "installed base strength",
+        "consumables pull-through",
+        "biotech funding cycle",
+        "instrument replacement cadence",
+        "service and workflow stickiness",
+    ],
     "saas": [
         "recurring revenue durability",
         "gross margin quality",
@@ -90,6 +97,34 @@ SAAS_KEYWORDS = (
     "seat-based",
 )
 
+LIFE_SCIENCES_TOOLS_KEYWORDS = (
+    "life sciences tools",
+    "life science tools",
+    "laboratory",
+    "lab equipment",
+    "instrument",
+    "instruments",
+    "consumables",
+    "diagnostics",
+    "analytical instruments",
+    "bioprocessing",
+    "cell therapy manufacturing",
+    "thermo fisher",
+    "measuring & controlling devices",
+)
+
+CLINICAL_BIOTECH_KEYWORDS = (
+    "clinical trial",
+    "clinical-stage",
+    "phase 1",
+    "phase 2",
+    "phase 3",
+    "fda approval",
+    "drug candidate",
+    "pipeline candidate",
+    "therapeutic candidate",
+)
+
 
 def _normalized_text(*values: Any) -> str:
     return " ".join(str(value).lower() for value in values if value)
@@ -136,6 +171,8 @@ def classify_business_model(
     revenue_volatility = _revenue_volatility(income_statement)
     gaming_signal = any(keyword in text for keyword in GAMING_KEYWORDS)
     saas_signal = any(keyword in text for keyword in SAAS_KEYWORDS)
+    life_sciences_tools_signal = any(keyword in text for keyword in LIFE_SCIENCES_TOOLS_KEYWORDS)
+    clinical_biotech_signal = any(keyword in text for keyword in CLINICAL_BIOTECH_KEYWORDS)
     launch_signal = any(keyword in text for keyword in ("launch", "release", "title", "trailer", "online"))
 
     def add(model: str, weight: float, reason: str) -> None:
@@ -144,6 +181,14 @@ def classify_business_model(
 
     if saas_signal:
         add("saas", 2.0, "Industry and text signals point to software/subscription economics.")
+    if life_sciences_tools_signal:
+        add(
+            "life_sciences_tools",
+            4.2,
+            "Life-sciences tools and laboratory infrastructure language points to equipment, consumables, and services economics.",
+        )
+        add("hardware_ecosystem", 1.8, "Instrumentation and installed-base language suggests hardware ecosystem economics.")
+        add("manufacturing", 1.5, "Bioprocessing/manufacturing language suggests utilization and services leverage.")
     if any(keyword in text for keyword in ("cloud", "azure", "infrastructure", "data center")):
         add("cloud", 2.0, "Company description/news flow points to cloud infrastructure exposure.")
     if any(keyword in text for keyword in ("iphone", "device", "consumer electronics", "wearables", "hardware")):
@@ -158,7 +203,10 @@ def classify_business_model(
         add("live_services", 1.7, "News or description references persistent online/service engagement.")
     if any(keyword in text for keyword in ("platform", "marketplace", "network", "social", "ads")):
         add("consumer_platform", 1.8, "Platform/network language suggests user engagement flywheel economics.")
-    if any(keyword in text for keyword in ("biotech", "clinical", "trial", "fda", "drug")):
+    if clinical_biotech_signal or (
+        any(keyword in text for keyword in ("biotech", "clinical", "trial", "fda", "drug"))
+        and not life_sciences_tools_signal
+    ):
         add("biotech", 2.5, "Clinical/regulatory keywords imply event-driven biotech economics.")
 
     if isinstance(gross_margin, (int, float)) and gross_margin >= 0.65:
@@ -174,6 +222,12 @@ def classify_business_model(
     if gaming_signal and saas_signal:
         scores["saas"] = max(0.0, scores["saas"] - 1.25)
         evidence["ip_driven"].append("Gaming/franchise evidence outweighs generic software wording in the company description.")
+    if life_sciences_tools_signal:
+        scores["saas"] = max(0.0, scores["saas"] - 1.0)
+        scores["biotech"] = max(0.0, scores["biotech"] - 1.75)
+        evidence["life_sciences_tools"].append(
+            "Tools/services evidence outweighs clinical-stage biotech catalyst language."
+        )
 
     if not scores:
         add("cyclical", 1.0, "Default fallback classification due to sparse evidence.")
