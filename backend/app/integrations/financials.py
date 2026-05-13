@@ -10,14 +10,54 @@ import requests
 import yfinance as yf
 from app.core.cache import CacheManager
 from app.core.config import settings
-from app.core.errors import MisconfigurationError
+from app.integrations import supabase_store
 
 logger = logging.getLogger(__name__)
 
 FINNHUB = "https://finnhub.io/api/v1"
 FMP_STABLE = "https://financialmodelingprep.com/stable"
 RAPIDAPI_HOST = "yh-finance.p.rapidapi.com"
+SEC_DATA = "https://data.sec.gov"
+SEC_FILES = "https://www.sec.gov/files"
 FMP_STATEMENT_LIMIT = 4
+SEC_FORMS = {"10-K", "10-Q", "20-F", "40-F"}
+SEC_USER_AGENT = "Marketly backend contact@example.com"
+
+SEC_INCOME_CONCEPTS = {
+    "revenue": (
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "Revenues",
+        "SalesRevenueNet",
+    ),
+    "netIncome": ("NetIncomeLoss", "ProfitLoss"),
+    "operatingIncome": ("OperatingIncomeLoss",),
+    "costOfRevenue": ("CostOfRevenue", "CostOfGoodsAndServicesSold"),
+    "interestExpense": ("InterestExpenseNonOperating", "InterestExpense"),
+    "eps": ("EarningsPerShareDiluted", "EarningsPerShareBasic"),
+}
+SEC_BALANCE_CONCEPTS = {
+    "totalAssets": ("Assets",),
+    "totalStockholdersEquity": (
+        "StockholdersEquity",
+        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    ),
+    "cashAndCashEquivalents": (
+        "CashAndCashEquivalentsAtCarryingValue",
+        "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+    ),
+    "totalDebt": (
+        "LongTermDebtAndFinanceLeaseObligationsCurrent",
+        "LongTermDebtCurrent",
+        "ShortTermBorrowings",
+        "LongTermDebtAndFinanceLeaseObligationsNoncurrent",
+        "LongTermDebtNoncurrent",
+    ),
+    "sharesOutstanding": ("EntityCommonStockSharesOutstanding",),
+}
+SEC_CASH_FLOW_CONCEPTS = {
+    "operatingCashFlow": ("NetCashProvidedByUsedInOperatingActivities",),
+    "capitalExpenditure": ("PaymentsToAcquirePropertyPlantAndEquipment",),
+}
 
 
 def normalize_symbol(symbol: str) -> str:
@@ -40,12 +80,11 @@ def _has_financial_provider_config() -> bool:
 
 
 def validate_financials_configuration() -> None:
-    if _has_financial_provider_config():
-        return
-    raise MisconfigurationError(
-        "Financial data requires at least one provider key: "
-        "FINNHUB_API_KEY, FMP_API_KEY (or legacy FMPSDK_API_KEY), or RAPIDAPI_KEY."
-    )
+    # SEC Company Facts is public and keyless for US issuers, so the
+    # financials pipeline can still produce core statement data without paid
+    # provider credentials. Paid providers enrich the snapshot when present.
+    if not _has_financial_provider_config():
+        logger.info("No paid financial provider keys configured; using public SEC fallback.")
 
 
 def safe_get(
@@ -109,6 +148,267 @@ def _normalize_market_cap(value: Any, source: str | None = None) -> Any:
         return value * 1_000_000
 
     return value
+
+
+def _sec_headers() -> dict[str, str]:
+    return {"User-Agent": SEC_USER_AGENT, "Accept-Encoding": "gzip, deflate"}
+
+
+def _normalize_cik(cik: Any) -> str | None:
+    try:
+        return str(int(cik)).zfill(10)
+    except (TypeError, ValueError):
+        return None
+
+
+def _sec_lookup_cik(symbol: str) -> tuple[str | None, str | None]:
+    tickers = safe_get(
+        f"{SEC_FILES}/company_tickers.json",
+        source_name="SEC company tickers",
+        headers=_sec_headers(),
+    )
+    if not tickers:
+        return None, None
+
+    records = tickers.values() if isinstance(tickers, dict) else tickers
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("ticker", "")).upper() == symbol:
+            return _normalize_cik(record.get("cik_str")), record.get("title")
+
+    return None, None
+
+
+def _sec_company_facts(cik: str) -> dict[str, Any]:
+    return (
+        safe_get(
+            f"{SEC_DATA}/api/xbrl/companyfacts/CIK{cik}.json",
+            source_name="SEC company facts",
+            headers=_sec_headers(),
+        )
+        or {}
+    )
+
+
+def _sec_submissions(cik: str) -> dict[str, Any]:
+    return (
+        safe_get(
+            f"{SEC_DATA}/submissions/CIK{cik}.json",
+            source_name="SEC submissions",
+            headers=_sec_headers(),
+        )
+        or {}
+    )
+
+
+def _sec_fact_candidates(
+    facts: dict[str, Any],
+    concepts: tuple[str, ...],
+    *,
+    units: tuple[str, ...] = ("USD",),
+) -> list[dict[str, Any]]:
+    us_gaap = facts.get("facts", {}).get("us-gaap", {})
+    candidates: list[dict[str, Any]] = []
+
+    for concept in concepts:
+        unit_blocks = us_gaap.get(concept, {}).get("units", {})
+        for unit in units:
+            for item in unit_blocks.get(unit, []):
+                if item.get("val") is None or item.get("form") not in SEC_FORMS:
+                    continue
+                enriched = dict(item)
+                enriched["concept"] = concept
+                enriched["unit"] = unit
+                candidates.append(enriched)
+
+    return candidates
+
+
+def _latest_sec_fact(
+    facts: dict[str, Any],
+    concepts: tuple[str, ...],
+    *,
+    units: tuple[str, ...] = ("USD",),
+) -> dict[str, Any] | None:
+    candidates = _sec_fact_candidates(facts, concepts, units=units)
+
+    if not candidates:
+        return None
+    return max(
+        candidates,
+        key=lambda item: (
+            item.get("filed") or "",
+            item.get("end") or "",
+            item.get("fy") or 0,
+        ),
+    )
+
+
+def _sec_value(
+    facts: dict[str, Any],
+    concepts: tuple[str, ...],
+    *,
+    units: tuple[str, ...] = ("USD",),
+) -> tuple[Any, dict[str, Any] | None]:
+    fact = _latest_sec_fact(facts, concepts, units=units)
+    if not fact:
+        return None, None
+    return fact.get("val"), fact
+
+
+def _sec_total_debt(facts: dict[str, Any]) -> tuple[Any, dict[str, Any] | None]:
+    current_value, current_fact = _sec_value(
+        facts,
+        (
+            "LongTermDebtAndFinanceLeaseObligationsCurrent",
+            "LongTermDebtCurrent",
+            "ShortTermBorrowings",
+        ),
+    )
+    noncurrent_value, noncurrent_fact = _sec_value(
+        facts,
+        (
+            "LongTermDebtAndFinanceLeaseObligationsNoncurrent",
+            "LongTermDebtNoncurrent",
+        ),
+    )
+
+    if current_value is None and noncurrent_value is None:
+        return _sec_value(facts, ("LongTermDebtAndFinanceLeaseObligations", "LongTermDebt"))
+
+    return (current_value or 0) + (noncurrent_value or 0), noncurrent_fact or current_fact
+
+
+def _apply_sec_row_metadata(row: dict[str, Any], fact: dict[str, Any] | None) -> None:
+    if not fact:
+        return
+    safe_update(
+        row,
+        {
+            "date": fact.get("end"),
+            "fiscalDateEnding": fact.get("end"),
+            "filedDate": fact.get("filed"),
+            "period": fact.get("fp"),
+            "calendarYear": fact.get("fy"),
+            "acceptedForm": fact.get("form"),
+        },
+    )
+
+
+def _sec_statement_row(
+    facts: dict[str, Any],
+    concept_map: dict[str, tuple[str, ...]],
+    *,
+    units: tuple[str, ...] = ("USD",),
+) -> dict[str, Any]:
+    row: dict[str, Any] = {}
+    metadata_fact: dict[str, Any] | None = None
+
+    for field_name, concepts in concept_map.items():
+        if field_name == "totalDebt":
+            value, fact = _sec_total_debt(facts)
+        else:
+            value, fact = _sec_value(facts, concepts, units=units)
+        if value is not None:
+            row[field_name] = value
+            metadata_fact = metadata_fact or fact
+
+    _apply_sec_row_metadata(row, metadata_fact)
+    return row
+
+
+def _is_quarterly_sec_fact(fact: dict[str, Any]) -> bool:
+    period = str(fact.get("fp") or "").upper()
+    frame = str(fact.get("frame") or "").upper()
+    return fact.get("form") == "10-Q" and period in {"Q1", "Q2", "Q3", "Q4"} and period in frame
+
+
+def _sec_statement_rows(
+    facts: dict[str, Any],
+    concept_map: dict[str, tuple[str, ...]],
+    *,
+    units: tuple[str, ...] = ("USD",),
+    limit: int = FMP_STATEMENT_LIMIT,
+) -> list[dict[str, Any]]:
+    grouped: dict[tuple[Any, Any, Any, Any], dict[str, Any]] = {}
+    metadata: dict[tuple[Any, Any, Any, Any], dict[str, Any]] = {}
+
+    for field_name, concepts in concept_map.items():
+        if field_name == "totalDebt":
+            continue
+        for fact in _sec_fact_candidates(facts, concepts, units=units):
+            if not _is_quarterly_sec_fact(fact):
+                continue
+            key = (fact.get("fp"), fact.get("form"), fact.get("end"))
+            existing = grouped.setdefault(key, {})
+            current_meta = metadata.get(key)
+            if current_meta and (fact.get("filed") or "") < (current_meta.get("filed") or ""):
+                continue
+            existing[field_name] = fact.get("val")
+            metadata[key] = fact
+
+    rows: list[dict[str, Any]] = []
+    for key, row in grouped.items():
+        _apply_sec_row_metadata(row, metadata.get(key))
+        rows.append(row)
+
+    rows.sort(
+        key=lambda row: (
+            row.get("fiscalDateEnding") or "",
+            row.get("filedDate") or "",
+            row.get("calendarYear") or 0,
+        ),
+        reverse=True,
+    )
+    if rows:
+        latest_period = rows[0].get("period")
+        comparable_rows = [row for row in rows if row.get("period") == latest_period]
+        if len(comparable_rows) >= 2:
+            return comparable_rows[:limit]
+    return rows[:limit]
+
+
+def fetch_sec_payload(symbol: str) -> dict[str, Any]:
+    symbol = normalize_symbol(symbol)
+    cik, title = _sec_lookup_cik(symbol)
+    if not cik:
+        return {}
+
+    facts = _sec_company_facts(cik)
+    if not facts:
+        return {}
+
+    submissions = _sec_submissions(cik)
+    income_rows = _sec_statement_rows(facts, SEC_INCOME_CONCEPTS)
+    income_row = income_rows[0] if income_rows else _sec_statement_row(facts, SEC_INCOME_CONCEPTS)
+    balance_row = _sec_statement_row(facts, SEC_BALANCE_CONCEPTS)
+    cash_flow_row = _sec_statement_row(facts, SEC_CASH_FLOW_CONCEPTS)
+
+    payload = {"info": {}, "quote": {}, "financials": {}, "sources": {}}
+    safe_update(
+        payload["info"],
+        {
+            "shortName": submissions.get("name") or title,
+            "industry": submissions.get("sicDescription"),
+        },
+    )
+
+    if income_rows or income_row:
+        payload["financials"]["income_statement"] = income_rows or [income_row]
+        payload["sources"]["income_statement"] = "sec_xbrl"
+    if balance_row:
+        payload["financials"]["balance_sheet"] = [balance_row]
+        payload["sources"]["balance_sheet"] = "sec_xbrl"
+        if balance_row.get("sharesOutstanding") is not None:
+            payload["quote"]["sharesOutstanding"] = balance_row.get("sharesOutstanding")
+    if cash_flow_row:
+        payload["financials"]["cash_flow"] = [cash_flow_row]
+        payload["sources"]["cash_flow"] = "sec_xbrl"
+    if payload["info"]:
+        payload["sources"]["sec_submissions"] = "sec"
+
+    return payload
 
 
 def fetch_finnhub_payload(symbol: str) -> dict[str, Any]:
@@ -361,6 +661,7 @@ def fetch_yahoo_summary(symbol: str) -> dict[str, Any]:
 def merge_provider_payload(target: dict[str, Any], payload: dict[str, Any]) -> None:
     safe_update(target["info"], payload.get("info", {}))
     safe_update(target["quote"], payload.get("quote", {}))
+    source_updates = dict(payload.get("sources", {}))
 
     analyst_data = payload.get("analyst_data")
     if analyst_data:
@@ -372,9 +673,13 @@ def merge_provider_payload(target: dict[str, Any], payload: dict[str, Any]) -> N
 
     for block_name, block_value in payload.get("financials", {}).items():
         if block_value:
-            target["financials"][block_name] = block_value
+            existing_block = target["financials"].get(block_name)
+            if not existing_block:
+                target["financials"][block_name] = block_value
+            else:
+                source_updates.pop(block_name, None)
 
-    target["sources"].update(payload.get("sources", {}))
+    target["sources"].update(source_updates)
 
 
 def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
@@ -383,13 +688,22 @@ def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
     cache_key = CacheManager.make_key("tickers", symbol)
 
     if not force_refresh:
-        cached = CacheManager.get(cache_key)
+        cached, cache_source = CacheManager.get_with_source(cache_key)
         if cached:
             try:
                 logger.debug("Loaded %s from cache", symbol)
-                return json.loads(cached)
+                payload = json.loads(cached)
+                payload["_dataSource"] = cache_source or "cache"
+                return payload
             except Exception:
                 pass
+        snapshot = supabase_store.get_latest_snapshot("financials", symbol)
+        if snapshot and isinstance(snapshot.get("payload"), dict):
+            logger.info("%s: loaded financial snapshot from Supabase", symbol)
+            payload = dict(snapshot["payload"])
+            payload["_dataSource"] = "supabase"
+            CacheManager.set(cache_key, json.dumps(make_json_safe(payload)))
+            return payload
 
     merged = {
         "symbol": symbol,
@@ -404,6 +718,7 @@ def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
     for provider_payload in (
         fetch_finnhub_payload(symbol),
         fetch_fmp_payload(symbol),
+        fetch_sec_payload(symbol),
         fetch_yfinance_dividends(symbol),
         fetch_yahoo_summary(symbol),
     ):
@@ -414,5 +729,20 @@ def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
     if not merged["financials"]:
         logger.info("%s: no statement history available from configured providers", symbol)
 
+    period_end = None
+    income_statement = merged.get("financials", {}).get("income_statement") or []
+    if income_statement:
+        latest_income = income_statement[0]
+        period_end = latest_income.get("fiscalDateEnding") or latest_income.get("date")
+
+    supabase_store.save_snapshot(
+        "financials",
+        symbol,
+        make_json_safe(merged),
+        provenance=merged.get("sources", {}),
+        period_end=period_end,
+    )
+    supabase_store.save_financial_payload(symbol, make_json_safe(merged))
+    merged["_dataSource"] = "fresh"
     CacheManager.set(cache_key, json.dumps(make_json_safe(merged)))
     return merged
