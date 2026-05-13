@@ -65,6 +65,37 @@ def _normalize_ratio_metric(value: Any) -> Any:
     return value
 
 
+def _period_multiplier(row: dict[str, Any] | None) -> int:
+    if not row:
+        return 1
+
+    form = str(row.get("acceptedForm") or row.get("form") or "").upper()
+    period = str(row.get("period") or row.get("fp") or "").upper()
+
+    if form == "10-Q" or period in {"Q1", "Q2", "Q3", "Q4"}:
+        return 4
+    if period in {"H1", "H2"}:
+        return 2
+    return 1
+
+
+def _ttm_or_annualized_revenue(
+    latest: dict[str, Any] | None,
+    income_statement: list[dict[str, Any]],
+) -> Any:
+    revenues = [
+        _statement_value(row, "revenue", "totalRevenue")
+        for row in income_statement[:4]
+    ]
+    if len(revenues) == 4 and all(isinstance(value, (int, float)) for value in revenues):
+        return sum(revenues)
+
+    revenue = _statement_value(latest, "revenue", "totalRevenue")
+    if isinstance(revenue, (int, float)):
+        return revenue * _period_multiplier(latest)
+    return revenue
+
+
 def _is_plausible_peg_ratio(value: Any) -> bool:
     return isinstance(value, (int, float)) and 0 < value <= 50
 
@@ -149,7 +180,10 @@ def build_scoring_metrics(ticker_data: TickerData | dict) -> dict[str, dict[str,
 
     price_to_sales = _company_value(info, "priceToSalesTrailing12Months", "priceToSales")
     if price_to_sales is None:
-        price_to_sales = calculate_price_to_sales(market_cap, revenue)
+        price_to_sales = calculate_price_to_sales(
+            market_cap,
+            _ttm_or_annualized_revenue(latest, income_statement),
+        )
 
     dividend_yield = _normalize_percent_like(_company_value(info, "dividendYield"))
     if dividend_yield is None:
