@@ -18,7 +18,12 @@ def _candidate(
     if value is None:
         return None
 
-    normalized_source = source if source in {"finnhub", "fmp", "rapidapi", "yfinance", "derived"} else "unknown"
+    normalized_source = (
+        source
+        if source
+        in {"finnhub", "fmp", "sec_xbrl", "sec", "rapidapi", "yfinance", "derived"}
+        else "unknown"
+    )
 
     return FactCandidate(
         key=key,
