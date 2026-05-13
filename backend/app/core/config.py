@@ -22,6 +22,9 @@ class Settings:
     FRED_API_KEY: Optional[str]
     OPENAI_API_KEY: Optional[str]
     OPENAI_MODEL: str
+    SUPABASE_URL: Optional[str]
+    SUPABASE_ANON_KEY: Optional[str]
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str]
 
 
 @lru_cache(maxsize=1)
@@ -37,6 +40,9 @@ def get_settings() -> Settings:
         FRED_API_KEY=os.getenv("FRED_API_KEY"),
         OPENAI_API_KEY=os.getenv("OPENAI_API_KEY"),
         OPENAI_MODEL=os.getenv("OPENAI_MODEL", "gpt-5-nano-2025-08-07"),
+        SUPABASE_URL=os.getenv("SUPABASE_URL"),
+        SUPABASE_ANON_KEY=os.getenv("SUPABASE_ANON_KEY"),
+        SUPABASE_SERVICE_ROLE_KEY=os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
     )
 
 
