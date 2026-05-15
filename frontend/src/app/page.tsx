@@ -4,48 +4,24 @@ import {
   startTransition,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, BarChart3 } from "lucide-react";
 import {
-  AIInsights,
-  AnalysisLens,
-  AnalysisBlockSkeleton,
-  BullBear,
-  ChatInput,
-  EmptyState,
-  FinalVerdict,
-  FollowUpPanel,
-  MarketlyNavbar,
-  MetricsGrid,
-  NewsSection,
-  RevenueTrend,
-  StockHeader,
-  TradingViewChart,
+  CinematicWorkspace,
   type AnalysisBlock,
+  type CinematicPendingBlock,
   type FollowUpAnswer,
 } from "@/components/marketly";
-import {
-  ANALYSIS_LOADING_STEPS,
-  MARKET_TICKERS,
-} from "@/components/marketly/mock-data";
 import { postFollowUp } from "@/lib/api";
 import {
-  buildAnalysisBlockFromBackend,
+  buildAnalysisBlockFromBackendProgressive,
   buildMissingAnalysisBlock,
+  type ProgressiveAnalysisPreview,
   resolveQuerySymbol,
   shouldRunFullAnalysis,
 } from "@/lib/marketly-analysis";
-
-type PendingBlock = {
-  id: string;
-  query: string;
-  stepIndex: number;
-};
 
 type PersistedAnalysisState = {
   analysisBlocks: AnalysisBlock[];
@@ -59,9 +35,16 @@ type PromptCard = {
   detail: string;
 };
 
-const ANALYSIS_STATE_STORAGE_KEY = "marketly.analysis-state";
+const ANALYSIS_STATE_STORAGE_KEY = "marketly.analysis-state.v2";
 const RECENT_QUERIES_STORAGE_KEY = "marketly.recent-queries";
 const MAX_RECENT_QUERIES = 6;
+const ANALYSIS_REVEAL_MIN_MS = 6500;
+
+const STAGE_TO_STEP_INDEX = {
+  financials: 1,
+  news: 2,
+  score: 3,
+} as const;
 
 const QUICK_PROMPTS: PromptCard[] = [
   {
@@ -101,11 +84,10 @@ export default function Page() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [analysisBlocks, setAnalysisBlocks] = useState<AnalysisBlock[]>([]);
-  const [pendingBlocks, setPendingBlocks] = useState<PendingBlock[]>([]);
+  const [pendingBlocks, setPendingBlocks] = useState<CinematicPendingBlock[]>([]);
   const [followUps, setFollowUps] = useState<FollowUpAnswer[]>([]);
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const [isRestoringState, setIsRestoringState] = useState(true);
-  const canvasEndRef = useRef<HTMLDivElement | null>(null);
   const isMountedRef = useRef(true);
   const hasRestoredStateRef = useRef(false);
   const hasBootstrappedUrlQueryRef = useRef(false);
@@ -115,13 +97,6 @@ export default function Page() {
   const currentSymbol =
     analysisBlocks[analysisBlocks.length - 1]?.resolution.symbol ?? null;
   const queryFromUrl = searchParams.get("q")?.trim() ?? "";
-
-  useEffect(() => {
-    canvasEndRef.current?.scrollIntoView({
-      behavior: hasContent ? "smooth" : "auto",
-      block: "end",
-    });
-  }, [analysisBlocks, pendingBlocks, followUps, hasContent]);
 
   useEffect(() => {
     return () => {
@@ -170,6 +145,18 @@ export default function Page() {
     );
   };
 
+  const updatePendingPreview = (
+    id: string,
+    stepIndex: number,
+    preview: ProgressiveAnalysisPreview,
+  ) => {
+    setPendingBlocks((current) =>
+      current.map((block) =>
+        block.id === id ? { ...block, stepIndex, preview } : block,
+      ),
+    );
+  };
+
   const completePendingBlock = useCallback(
     (id: string, block: AnalysisBlock) => {
       if (!isMountedRef.current) {
@@ -186,33 +173,33 @@ export default function Page() {
     (normalizedQuery: string) => {
       const resolved = resolveQuerySymbol(normalizedQuery);
       const id = `analysis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const startedAt = Date.now();
 
       setPendingBlocks((current) => [
         ...current,
-        { id, query: normalizedQuery, stepIndex: 0 },
+        { id, query: normalizedQuery, symbol: resolved.symbol, stepIndex: 0 },
       ]);
 
       void (async () => {
         try {
-          await sleep(250);
+          await sleep(180);
           updatePendingStep(id, 1);
 
-          const blockPromise = buildAnalysisBlockFromBackend(normalizedQuery, id);
-
-          await sleep(360);
-          updatePendingStep(id, 2);
-
-          await sleep(360);
-          updatePendingStep(id, 3);
-
-          const block = await blockPromise;
+          const block = await buildAnalysisBlockFromBackendProgressive(
+            normalizedQuery,
+            id,
+            (update) => {
+              updatePendingPreview(id, STAGE_TO_STEP_INDEX[update.stage], update.preview);
+            },
+          );
 
           await sleep(240);
           updatePendingStep(id, 4);
-          await sleep(180);
+          await sleep(Math.max(180, ANALYSIS_REVEAL_MIN_MS - (Date.now() - startedAt)));
 
           completePendingBlock(id, block);
         } catch {
+          await sleep(Math.max(180, ANALYSIS_REVEAL_MIN_MS - (Date.now() - startedAt)));
           completePendingBlock(
             id,
             buildMissingAnalysisBlock(normalizedQuery, id, resolved),
@@ -405,146 +392,30 @@ export default function Page() {
     ],
   );
 
-  const renderedTickerBar = useMemo(
-    () => (
-      <div className="flex flex-wrap items-center gap-3">
-        {MARKET_TICKERS.map((ticker) => (
-          <div
-            key={ticker.symbol}
-            className="flex min-w-[138px] items-center justify-between rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-[11px] tracking-[0.18em] text-[#8EA0B8] uppercase"
-          >
-            <span>{ticker.symbol}</span>
-            <span
-              className={
-                ticker.change.startsWith("-")
-                  ? "text-[#F36A6A]"
-                  : "text-[#3DD9B3]"
-              }
-            >
-              {ticker.change}
-            </span>
-          </div>
-        ))}
-      </div>
-    ),
-    [],
-  );
+  const handleReset = useCallback(() => {
+    setAnalysisBlocks([]);
+    setPendingBlocks([]);
+    setFollowUps([]);
+    startTransition(() => {
+      router.replace("/", { scroll: false });
+    });
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(ANALYSIS_STATE_STORAGE_KEY);
+    }
+  }, [router]);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(61,217,179,0.08),transparent_38%),linear-gradient(180deg,rgba(10,16,24,0.12),rgba(5,9,14,0.18))]" />
-      <div className="terminal-grid pointer-events-none absolute inset-0 opacity-40" />
-
-      <MarketlyNavbar currentSymbol={currentSymbol} />
-
-      <main className="relative mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 pb-44 pt-[92px] sm:px-6 lg:px-10">
-        <div className="mx-auto w-full max-w-[1080px] space-y-6">
-            {!hasContent && !isRestoringState ? (
-              <EmptyState
-                onSubmit={handleSubmit}
-                tickerBar={renderedTickerBar}
-                recentQueries={recentQueries}
-                quickPrompts={QUICK_PROMPTS}
-              />
-            ) : (
-              <>
-                {currentSymbol ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(12,19,29,0.94),rgba(8,12,18,0.96))] px-5 py-4">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-[#6F8197]">
-                        Active symbol
-                      </p>
-                      <p className="mt-1 text-xl font-medium tracking-[-0.03em] text-[#F3F7FB]">
-                        {currentSymbol}
-                      </p>
-                    </div>
-                    <Link
-                      href={`/financials/${currentSymbol}`}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-[11px] uppercase tracking-[0.22em] text-[#E7EEF5] transition-colors hover:bg-white/[0.04]"
-                    >
-                      <BarChart3 className="h-4 w-4 text-[#3DD9B3]" />
-                      Open financials
-                      <ArrowRight className="h-4 w-4 text-[#6F8197]" />
-                    </Link>
-                  </div>
-                ) : null}
-
-                <div className="space-y-6">
-                    {analysisBlocks.map((block, index) => (
-                      <section
-                        key={block.id}
-                        className="animate-enter rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(15,24,35,0.92),rgba(8,12,18,0.96))] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.01)] backdrop-blur-sm sm:p-6 lg:p-7"
-                        style={{ animationDelay: `${index * 80}ms` }}
-                      >
-                        <div className="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-white/6 pb-4">
-                          <div>
-                            <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#9FB3C8]">
-                              Analysis query
-                            </p>
-                            <h2 className="mt-2 text-lg font-medium tracking-[-0.03em] text-[#F3F7FB]">
-                              {block.query}
-                            </h2>
-                          </div>
-                          <div className="flex flex-wrap gap-2 text-right">
-                            <span className="rounded-full border border-white/8 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-[#8EA0B8]">
-                              {block.resolution.symbol} via {block.resolution.matchedBy}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-5">
-                          <StockHeader stock={block.stock} />
-                          <MetricsGrid metrics={block.metrics} />
-                          <TradingViewChart
-                            symbol={block.stock.ticker}
-                            exchange={block.stock.exchange}
-                          />
-                          <RevenueTrend {...block.revenue} />
-                          <AIInsights insights={block.insights} />
-                          <AnalysisLens lens={block.lens} />
-                          <NewsSection news={block.news} />
-                          <BullBear
-                            bullPoints={block.bullPoints}
-                            bearPoints={block.bearPoints}
-                          />
-                          <FinalVerdict verdict={block.verdict} />
-                        </div>
-                      </section>
-                    ))}
-
-                    {followUps.map((item) => (
-                      <FollowUpPanel key={item.id} item={item} />
-                    ))}
-
-                    {pendingBlocks.map((block) => (
-                      <AnalysisBlockSkeleton
-                        key={block.id}
-                        query={block.query}
-                        stepIndex={Math.min(
-                          block.stepIndex,
-                          ANALYSIS_LOADING_STEPS.length - 1,
-                        )}
-                      />
-                    ))}
-                    <div ref={canvasEndRef} />
-                </div>
-              </>
-            )}
-        </div>
-      </main>
-
-      {hasContent ? (
-        <ChatInput
-          onSubmit={handleSubmit}
-          compact
-          contextLabel={currentSymbol ? `${currentSymbol} follow-up` : "Ask another stock"}
-          hint={
-            currentSymbol
-              ? "Ask one short follow-up or type a new stock to switch."
-              : "Type a stock or company name."
-          }
-        />
-      ) : null}
-    </div>
+    <CinematicWorkspace
+      analysisBlocks={analysisBlocks}
+      pendingBlocks={pendingBlocks}
+      followUps={followUps}
+      recentQueries={recentQueries}
+      quickPrompts={QUICK_PROMPTS}
+      isRestoringState={isRestoringState}
+      currentSymbol={currentSymbol}
+      onSubmit={handleSubmit}
+      onReset={handleReset}
+    />
   );
 }

@@ -3,6 +3,7 @@ export * from "./analysis-lens";
 export * from "./analysis-block-skeleton";
 export * from "./bull-bear";
 export * from "./chat-input";
+export * from "./cinematic-workspace";
 export * from "./empty-state";
 export * from "./financial-mini-chart";
 export * from "./follow-up-panel";

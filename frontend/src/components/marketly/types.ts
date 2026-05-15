@@ -37,6 +37,7 @@ export type NewsItem = {
   url?: string;
   summary?: string;
   category?: string;
+  imageUrl?: string;
 };
 
 export type VerdictData = {
@@ -119,7 +120,36 @@ export type AnalysisBlock = {
   lens: AnalysisLensData;
   bullPoints: string[];
   bearPoints: string[];
+  scenarioCases: Array<{
+    name: string;
+    probability: number;
+    confidence: string;
+    thesis: string;
+    probabilityRationale?: string;
+    keyEvidence: string[];
+    watchlistTriggers: string[];
+  }>;
   verdict: VerdictData;
+  marketContext: {
+    items: LensItem[];
+    riskOnScore: string;
+    sector?: string;
+  };
+  scoreBreakdown: {
+    method: string;
+    subscores: LensItem[];
+    bonuses: string[];
+    penalties: string[];
+  };
+  metadata: {
+    dataTimestamp?: string;
+    dataSource?: string;
+    dataSources: Record<string, string>;
+    confidenceLevel?: string;
+    dataQualityScore?: string;
+    missingCriticalFields: string[];
+    analysisLimitations: string[];
+  };
   resolution: {
     symbol: string;
     matchedBy: string;

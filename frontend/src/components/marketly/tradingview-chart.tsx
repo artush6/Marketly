@@ -5,6 +5,7 @@ import { useEffect, useId } from "react";
 type TradingViewChartProps = {
   symbol: string;
   exchange: string;
+  variant?: "card" | "bare";
 };
 
 declare global {
@@ -18,6 +19,7 @@ declare global {
 export function TradingViewChart({
   symbol,
   exchange,
+  variant = "card",
 }: TradingViewChartProps) {
   const elementId = useId().replace(/:/g, "");
   const marketSymbol = `${exchange}:${symbol}`;
@@ -85,6 +87,14 @@ export function TradingViewChart({
       script.onload = null;
     };
   }, [elementId, marketSymbol]);
+
+  if (variant === "bare") {
+    return (
+      <div className="h-[360px] w-full overflow-hidden rounded-lg border border-border bg-card/60">
+        <div id={elementId} className="h-full w-full overflow-hidden" />
+      </div>
+    );
+  }
 
   return (
     <div className="border border-white/8 bg-[#0F141C] p-5">
