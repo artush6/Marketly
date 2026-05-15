@@ -40,7 +40,7 @@ import type {
   FollowUpAnswer,
   NewsItem,
 } from "./types";
-import {TradingViewChart} from "./tradingview-chart";
+import {BaselineRangeChart} from "./baseline-range-chart";
 
 export type CinematicPendingBlock = {
   id: string;
@@ -132,17 +132,6 @@ const TABS: {id: TabType; label: string}[] = [
   {id: "analysis", label: "Analysis"},
   {id: "technical", label: "Technical"},
 ];
-
-const TIME_RANGES = [
-  {id: "1D", label: "1 day", changeKey: "changePercentLabel"},
-  {id: "5D", label: "5 days", change: "+Data"},
-  {id: "1M", label: "1 month", change: "+Data"},
-  {id: "6M", label: "6 months", change: "+Data"},
-  {id: "YTD", label: "Year to date", change: "+Data"},
-  {id: "1Y", label: "1 year", change: "+Data"},
-  {id: "5Y", label: "5 years", change: "+Data"},
-  {id: "ALL", label: "All time", change: "+Data"},
-] as const;
 
 function parseDisplayNumber(value: string | null | undefined) {
   if (!value || /missing|--/i.test(value)) {
@@ -1373,8 +1362,6 @@ function MetricRow({metrics}: {metrics: MetricRowItem[]}) {
 }
 
 function MarketChart({stockData}: {stockData: StockData}) {
-  const [selectedRange, setSelectedRange] = useState("1D");
-
   return (
     <motion.div
       className="glass-card rounded-xl p-4"
@@ -1388,44 +1375,16 @@ function MarketChart({stockData}: {stockData: StockData}) {
           <span className="text-sm font-medium text-muted-foreground">Live Market Chart</span>
         </div>
         <span className="rounded-md border border-border px-2 py-1 font-mono text-xs text-muted-foreground">
-          TradingView
+          Lightweight
         </span>
       </div>
 
-      <TradingViewChart symbol={stockData.ticker} exchange={stockData.exchange} variant="bare" />
-
-      <div className="mt-4 flex flex-wrap items-center gap-1 border-t border-border pt-4">
-        {TIME_RANGES.map((range) => {
-          const isSelected = selectedRange === range.id;
-          const change =
-            "changeKey" in range ? stockData.changePercentLabel : range.change;
-          const isPositive = change.startsWith("+");
-
-          return (
-            <button
-              key={range.id}
-              onClick={() => setSelectedRange(range.id)}
-              className={cn(
-                "relative rounded-lg px-3 py-2 text-xs transition-colors",
-                isSelected ? "bg-secondary" : "hover:bg-secondary/50",
-              )}
-              type="button"
-            >
-              <div className="font-medium">{range.label}</div>
-              <div className={cn("font-mono", isPositive ? "text-positive" : "text-negative")}>
-                {change}
-              </div>
-              {isSelected && (
-                <motion.div
-                  layoutId="selectedRange"
-                  className="absolute inset-0 rounded-lg border border-primary/50"
-                  transition={{type: "spring", stiffness: 500, damping: 35}}
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <BaselineRangeChart
+        ticker={stockData.ticker}
+        currentPrice={stockData.price}
+        previousClose={stockData.previousClose}
+        sessionChangePercent={stockData.changePercent}
+      />
     </motion.div>
   );
 }

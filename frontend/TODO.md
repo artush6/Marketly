@@ -2,9 +2,9 @@
 
 This list captures the next pass after the new frontend MVP.
 
-1. Fix the main chart.
-   - The chart is currently empty when we do not have usable historical price data.
-   - Prefer TradingView live charts if possible, but skin/embed them so they look almost exactly like the current Marketly chart design.
+1. Replace the quote-derived chart with real market history.
+   - The MVP now uses a Lightweight Charts baseline range switcher so the chart surface is no longer blank.
+   - Next step: feed it true historical/live price data from TradingView or a backend price-history endpoint while keeping the current Marketly chart design.
 
 2. Fix the "Ask about..." flow.
    - Submitting a follow-up currently does not create a useful interaction.

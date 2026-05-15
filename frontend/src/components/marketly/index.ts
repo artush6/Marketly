@@ -1,5 +1,6 @@
 export * from "./ai-insights";
 export * from "./analysis-lens";
+export * from "./baseline-range-chart";
 export * from "./analysis-block-skeleton";
 export * from "./bull-bear";
 export * from "./chat-input";
