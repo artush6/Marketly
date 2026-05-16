@@ -271,6 +271,11 @@
   border: 1px solid oklch(0.18 0.008 260 / 0.6);
 }
 
+.marketly-symbol-overview iframe {
+  border-radius: 0.5rem;
+  filter: saturate(1.08) contrast(1.02);
+}
+
 .terminal-text {
   font-family: var(--font-mono);
   letter-spacing: 0.02em;

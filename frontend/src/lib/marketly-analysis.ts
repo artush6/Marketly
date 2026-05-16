@@ -161,6 +161,16 @@ function sentenceOrTitle(value: string | null | undefined) {
   return titleCase(normalized);
 }
 
+function cleanExternalImageUrl(value: string | null | undefined) {
+  const trimmed = value?.trim();
+
+  if (!trimmed || !/^https?:\/\//i.test(trimmed)) {
+    return undefined;
+  }
+
+  return trimmed;
+}
+
 function formatChartDelta(current: number, previous: number, format: "billions" | "percent") {
   const delta = current - previous;
   const tone = delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral";
@@ -449,7 +459,7 @@ function buildNews(news: BackendNewsItem[] | null): NewsItem[] {
     return [];
   }
 
-  return news.slice(0, 8).map((item, index) => ({
+  return news.slice(0, 16).map((item, index) => ({
     id: String(item.id ?? `${item.datetime ?? "latest"}-${index}`),
     title: item.headline?.trim() || "Untitled article",
     timestamp:
@@ -465,7 +475,7 @@ function buildNews(news: BackendNewsItem[] | null): NewsItem[] {
     url: item.url,
     summary: item.summary?.trim() || undefined,
     category: item.category,
-    imageUrl: item.image?.trim() || undefined,
+    imageUrl: cleanExternalImageUrl(item.image),
   }));
 }
 
@@ -516,6 +526,9 @@ function buildStockHeader(
     company: financials?.info?.shortName || resolved.symbol,
     ticker: resolved.symbol,
     exchange: "NASDAQ",
+    logoUrl: cleanExternalImageUrl(
+      financials?.info?.logo ?? financials?.info?.image ?? financials?.info?.icon,
+    ),
     price: currentPrice != null ? formatPrice(currentPrice) : "Data missing",
     change: rawChange != null ? formatSignedNumber(rawChange) : "Data missing",
     changePercent: rawChangePercent != null ? formatSignedPercent(rawChangePercent) : "Data missing",

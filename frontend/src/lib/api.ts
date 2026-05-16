@@ -29,6 +29,10 @@ export type BackendFinancialsResponse = {
     industry?: string | null;
     country?: string | null;
     currency?: string | null;
+    logo?: string | null;
+    image?: string | null;
+    icon?: string | null;
+    website?: string | null;
     marketCap?: number | null;
     beta?: number | null;
     trailingPE?: number | null;
@@ -345,7 +349,7 @@ export async function getFinancials(symbol: string): Promise<BackendFinancialsRe
 
 export async function getCompanyNews(symbol: string): Promise<BackendNewsItem[]> {
   return requestJson<BackendNewsItem[]>(
-    `/news/${encodeURIComponent(symbol)}?days=5&max_items=12`,
+    `/news/${encodeURIComponent(symbol)}?days=7&max_items=24`,
   );
 }
 

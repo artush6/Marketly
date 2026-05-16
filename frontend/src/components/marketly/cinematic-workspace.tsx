@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import type {FormEvent, ReactNode} from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {AnimatePresence, motion} from "framer-motion";
@@ -13,7 +12,6 @@ import {
   ChevronRight,
   ChevronUp,
   Database,
-  ExternalLink,
   Globe,
   HelpCircle,
   Minus,
@@ -40,7 +38,7 @@ import type {
   FollowUpAnswer,
   NewsItem,
 } from "./types";
-import {BaselineRangeChart} from "./baseline-range-chart";
+import {TradingViewChart} from "./tradingview-chart";
 
 export type CinematicPendingBlock = {
   id: string;
@@ -87,6 +85,7 @@ type StockData = {
   companyName: string;
   exchange: string;
   sector: string;
+  logoUrl?: string;
   price: number;
   priceLabel: string;
   change: number;
@@ -218,6 +217,11 @@ function normalizeVerdict(label: string | undefined): "Bullish" | "Bearish" | "N
   return "Neutral";
 }
 
+function capitalizeFirst(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed.charAt(0).toUpperCase() + trimmed.slice(1) : trimmed;
+}
+
 function buildStockData(block: AnalysisBlock): StockData {
   const price = parseDisplayNumber(block.stock.price) ?? 0;
   const change = parseDisplayNumber(block.stock.change) ?? 0;
@@ -229,6 +233,7 @@ function buildStockData(block: AnalysisBlock): StockData {
     companyName: block.stock.company,
     exchange: block.stock.exchange,
     sector: block.marketContext.sector ?? block.lens.businessModel,
+    logoUrl: block.stock.logoUrl,
     price,
     priceLabel: block.stock.price,
     change,
@@ -323,7 +328,7 @@ function buildGraphData(
   };
 }
 
-function buildPerformanceData(block: AnalysisBlock) {
+function buildPerformanceData(block: AnalysisBlock, period: "annual" | "quarterly" = "annual") {
   const revenue = block.revenue.series;
   const netIncome =
     block.revenue.miniCharts.find((chart) =>
@@ -334,12 +339,25 @@ function buildPerformanceData(block: AnalysisBlock) {
       chart.title.toLowerCase().includes("margin"),
     )?.series ?? [];
 
-  return revenue.slice(-5).map((point, index) => ({
+  const hasQuarterlyLabels = revenue.some((point) => /^Q[1-4]\b/i.test(point.label));
+  const periodRevenue =
+    period === "quarterly" && hasQuarterlyLabels
+      ? revenue.filter((point) => /^Q[1-4]\b/i.test(point.label))
+      : period === "annual" && hasQuarterlyLabels
+        ? revenue.filter((point) => !/^Q[1-4]\b/i.test(point.label))
+        : revenue;
+
+  return periodRevenue.slice(period === "quarterly" ? -4 : -5).map((point) => {
+    const revenueIndex = revenue.findIndex((entry) => entry.label === point.label);
+    const fallbackIndex = revenueIndex >= 0 ? revenueIndex : 0;
+
+    return {
     year: point.label,
     revenue: Number(point.value.toFixed(1)),
-    netIncome: Number((netIncome[index]?.value ?? 0).toFixed(1)),
-    margin: Number((margin[index]?.value ?? 0).toFixed(1)),
-  }));
+      netIncome: Number((netIncome[fallbackIndex]?.value ?? 0).toFixed(1)),
+      margin: Number((margin[fallbackIndex]?.value ?? 0).toFixed(1)),
+    };
+  });
 }
 
 function latestMiniCharts(block: AnalysisBlock) {
@@ -411,7 +429,7 @@ function buildIssues(block: AnalysisBlock) {
   return [
     {
       id: "core",
-      title: issueTitle,
+      title: capitalizeFirst(issueTitle),
       bullish: {
         content:
           block.bullPoints[0] ??
@@ -429,7 +447,7 @@ function buildIssues(block: AnalysisBlock) {
     },
     {
       id: "valuation",
-      title: secondTitle,
+      title: capitalizeFirst(secondTitle),
       bullish: {
         content:
           block.bullPoints[1] ??
@@ -448,7 +466,7 @@ function buildIssues(block: AnalysisBlock) {
     },
     {
       id: "market",
-      title: thirdTitle,
+      title: capitalizeFirst(thirdTitle),
       bullish: {
         content:
           block.lens.catalysts[0]?.rationale ??
@@ -1238,12 +1256,22 @@ function StockHeader({stockData}: {stockData: StockData}) {
     >
       <div className="flex items-center gap-4">
         <motion.div
-          className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-card font-mono text-xl font-bold text-primary"
+          className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-border bg-card font-mono text-xl font-bold text-primary"
           initial={{scale: 0}}
           animate={{scale: 1}}
           transition={{type: "spring", stiffness: 300, damping: 20}}
         >
-          {stockData.ticker.charAt(0)}
+          {stockData.logoUrl ? (
+            // Provider logos arrive as absolute URLs; if absent, we keep the ticker monogram.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={stockData.logoUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            stockData.ticker.charAt(0)
+          )}
         </motion.div>
 
         <div>
@@ -1375,15 +1403,15 @@ function MarketChart({stockData}: {stockData: StockData}) {
           <span className="text-sm font-medium text-muted-foreground">Live Market Chart</span>
         </div>
         <span className="rounded-md border border-border px-2 py-1 font-mono text-xs text-muted-foreground">
-          Lightweight
+          Symbol Overview
         </span>
       </div>
 
-      <BaselineRangeChart
-        ticker={stockData.ticker}
-        currentPrice={stockData.price}
-        previousClose={stockData.previousClose}
-        sessionChangePercent={stockData.changePercent}
+      <TradingViewChart
+        symbol={stockData.ticker}
+        exchange={stockData.exchange}
+        companyName={stockData.companyName}
+        variant="bare"
       />
     </motion.div>
   );
@@ -1538,8 +1566,12 @@ function FinancialsPreview({
   onViewAll?: () => void;
 }) {
   const [activeChart, setActiveChart] = useState<"annual" | "quarterly">("annual");
-  const performanceData = buildPerformanceData(block);
+  const performanceData = buildPerformanceData(block, activeChart);
   const charts = latestMiniCharts(block);
+  const periodNote =
+    activeChart === "quarterly"
+      ? "Latest reported periods"
+      : "Fiscal-year view";
 
   return (
     <motion.div
@@ -1588,6 +1620,9 @@ function FinancialsPreview({
                 </button>
               ))}
             </div>
+          </div>
+          <div className="mb-2 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+            {periodNote}
           </div>
 
           <div className="h-[180px]">
@@ -1681,7 +1716,8 @@ function FinancialsPreview({
   );
 }
 
-function StoryCard({story}: {story: NewsItem}) {
+function StoryCard({story, ticker}: {story: NewsItem; ticker: string}) {
+  const sourceLabel = story.source?.slice(0, 2).toUpperCase() || ticker.slice(0, 2);
   const content = (
     <div className="flex gap-3">
       <div className="min-w-0 flex-1">
@@ -1694,12 +1730,16 @@ function StoryCard({story}: {story: NewsItem}) {
           <span>{story.timestamp}</span>
         </div>
       </div>
-      {story.imageUrl && (
+      {story.imageUrl ? (
         <div
           className="h-16 w-24 flex-shrink-0 rounded-md bg-cover bg-center"
           style={{backgroundImage: `url(${story.imageUrl})`}}
           aria-hidden="true"
         />
+      ) : (
+        <div className="flex h-16 w-24 flex-shrink-0 items-center justify-center rounded-md border border-primary/20 bg-primary/10 font-mono text-sm font-semibold text-primary">
+          {sourceLabel}
+        </div>
       )}
     </div>
   );
@@ -1725,7 +1765,7 @@ function StoryCard({story}: {story: NewsItem}) {
   );
 }
 
-function DevelopmentItem({item}: {item: NewsItem}) {
+function OpinionItem({item}: {item: NewsItem}) {
   const content = (
     <>
       <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
@@ -1758,8 +1798,26 @@ function DevelopmentItem({item}: {item: NewsItem}) {
 }
 
 function NewsSection({block, onViewAll}: {block: AnalysisBlock; onViewAll?: () => void}) {
-  const stories = block.news.slice(0, 4);
-  const developments = block.news.slice(4, 12);
+  const stories = block.news.slice(0, 6);
+  const modelOpinions = [
+    ...block.lens.lenses
+      .filter((item) => item.value !== "Data missing")
+      .slice(0, 4)
+      .map((item, index) => ({
+        id: `lens-${index}-${item.label}`,
+        title: `${item.label}: ${item.value}`,
+        timestamp: "Model view",
+        source: block.lens.analysisSource,
+        summary: item.detail,
+      })),
+    ...block.lens.catalysts.slice(0, 4).map((item, index) => ({
+      id: `catalyst-${index}-${item.title}`,
+      title: item.title,
+      timestamp: item.importance,
+      source: item.type,
+      summary: item.rationale,
+    })),
+  ];
 
   return (
     <motion.div
@@ -1774,15 +1832,15 @@ function NewsSection({block, onViewAll}: {block: AnalysisBlock; onViewAll?: () =
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {(stories.length ? stories : block.news).slice(0, 4).map((story) => (
-            <StoryCard key={story.id} story={story} />
+          {(stories.length ? stories : block.news).slice(0, 6).map((story) => (
+            <StoryCard key={story.id} story={story} ticker={block.stock.ticker} />
           ))}
         </div>
       </div>
 
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-muted-foreground">Latest Developments</h4>
+          <h4 className="text-sm font-semibold text-muted-foreground">Analyst & Model Opinions</h4>
           {onViewAll && (
             <button
               onClick={onViewAll}
@@ -1796,8 +1854,8 @@ function NewsSection({block, onViewAll}: {block: AnalysisBlock; onViewAll?: () =
         </div>
 
         <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
-          {(developments.length ? developments : block.news).slice(0, 8).map((item) => (
-            <DevelopmentItem key={item.id} item={item} />
+          {modelOpinions.slice(0, 8).map((item) => (
+            <OpinionItem key={item.id} item={item} />
           ))}
         </div>
       </div>
@@ -1904,26 +1962,97 @@ function KeyIssues({block}: {block: AnalysisBlock}) {
   );
 }
 
+function AnalysisStackCard({block}: {block: AnalysisBlock}) {
+  return (
+    <motion.div
+      className="glass-card rounded-xl p-5"
+      initial={{opacity: 0, y: 20}}
+      animate={{opacity: 1, y: 0}}
+      transition={{duration: 0.4, delay: 0.25}}
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <Database className="h-4 w-4 text-primary" />
+        <h3 className="text-lg font-semibold">Analysis Stack</h3>
+      </div>
+      <p className="text-sm leading-relaxed text-foreground/80">
+        {block.insights.summary}
+      </p>
+      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-positive">
+            Strengths
+          </h4>
+          <div className="space-y-2">
+            {block.insights.strengths.slice(0, 4).map((item) => (
+              <div key={item} className="rounded-lg border border-positive/20 bg-positive/5 p-3 text-sm text-foreground/80">
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-negative">
+            Risks
+          </h4>
+          <div className="space-y-2">
+            {block.insights.risks.slice(0, 4).map((item) => (
+              <div key={item} className="rounded-lg border border-negative/20 bg-negative/5 p-3 text-sm text-foreground/80">
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function FinancialDetail({block}: {block: AnalysisBlock}) {
   const charts = latestMiniCharts(block);
+  const financialRows = [
+    ...block.metrics.map((metric) => ({
+      label: metric.label,
+      value: metric.value,
+      detail: metric.context,
+    })),
+    ...block.lens.lenses.map((lens) => ({
+      label: lens.label,
+      value: lens.value,
+      detail: lens.detail ?? "Backend analytical lens.",
+    })),
+    ...block.scoreBreakdown.subscores.map((score) => ({
+      label: score.label,
+      value: score.value,
+      detail: "Composite score subcomponent.",
+    })),
+  ];
 
   return (
     <div className="space-y-6">
       <FinancialsPreview block={block} />
       <div className="glass-card rounded-xl p-5">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4">
           <h3 className="text-lg font-semibold">Full Financial Data</h3>
-          <Link
-            href={block.revenue.href}
-            className="flex items-center gap-1 text-sm text-primary transition-colors hover:text-primary/80"
-          >
-            Open statements
-            <ExternalLink className="h-3.5 w-3.5" />
-          </Link>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Statement summaries, score inputs, and model-derived lenses available in the current analysis payload.
+          </p>
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           {charts.map((chart, index) => (
             <MiniMetric key={chart.title} chart={chart} index={index} />
+          ))}
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {financialRows.map((row, index) => (
+            <div key={`${row.label}-${index}`} className="rounded-lg border border-border bg-secondary/20 p-3">
+              <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+                {row.label}
+              </div>
+              <div className="font-mono text-lg font-semibold text-foreground">{row.value}</div>
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                {row.detail}
+              </p>
+            </div>
           ))}
         </div>
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
@@ -1944,41 +2073,7 @@ function AnalysisDetail({
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
-        <div className="glass-card rounded-xl p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <Database className="h-4 w-4 text-primary" />
-            <h3 className="text-lg font-semibold">Analysis Stack</h3>
-          </div>
-          <p className="text-sm leading-relaxed text-foreground/80">
-            {block.insights.summary}
-          </p>
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-positive">
-                Strengths
-              </h4>
-              <div className="space-y-2">
-                {block.insights.strengths.slice(0, 5).map((item) => (
-                  <div key={item} className="rounded-lg border border-positive/20 bg-positive/5 p-3 text-sm text-foreground/80">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-negative">
-                Risks
-              </h4>
-              <div className="space-y-2">
-                {block.insights.risks.slice(0, 5).map((item) => (
-                  <div key={item} className="rounded-lg border border-negative/20 bg-negative/5 p-3 text-sm text-foreground/80">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <AnalysisStackCard block={block} />
 
         <KeyIssues block={block} />
       </div>
@@ -2077,6 +2172,52 @@ function FollowUpCommand({
   );
 }
 
+function FollowUpPanel({
+  block,
+  followUps,
+}: {
+  block: AnalysisBlock;
+  followUps: FollowUpAnswer[];
+}) {
+  const relevantFollowUps = followUps
+    .filter((followUp) => followUp.symbol === block.stock.ticker)
+    .slice(-4)
+    .reverse();
+
+  return (
+    <div className="glass-card mt-3 rounded-xl p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Terminal className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Ask Workspace</h3>
+        </div>
+        <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+          {block.stock.ticker}
+        </span>
+      </div>
+
+      {relevantFollowUps.length > 0 ? (
+        <div className="space-y-3">
+          {relevantFollowUps.map((followUp) => (
+            <div key={followUp.id} className="rounded-lg border border-border bg-secondary/20 p-3">
+              <div className="mb-1 text-xs text-muted-foreground">{followUp.question}</div>
+              <div className="text-sm leading-6 text-foreground/80">
+                {followUp.status === "loading"
+                  ? "Working through the backend..."
+                  : followUp.answer}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm leading-6 text-muted-foreground">
+          Ask a follow-up from the input above and the answer will stay here while you browse the dashboard.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function DashboardLayout({
   block,
   followUps,
@@ -2114,6 +2255,7 @@ function DashboardLayout({
       <div className="mx-auto max-w-7xl px-4 py-8 pt-16">
         <StockHeader stockData={stockData} />
         <FollowUpCommand block={block} onSubmit={onSubmit} />
+        <FollowUpPanel block={block} followUps={followUps} />
 
         <div className="mt-6">
           <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
@@ -2139,6 +2281,7 @@ function DashboardLayout({
               </div>
 
               <FinancialsPreview block={block} onViewAll={() => setActiveTab("financials")} />
+              <AnalysisStackCard block={block} />
               <KeyIssues block={block} />
               <NewsSection block={block} onViewAll={() => setActiveTab("news")} />
             </motion.div>

@@ -2,6 +2,7 @@ export type StockHeaderData = {
   company: string;
   ticker: string;
   exchange: string;
+  logoUrl?: string;
   price: string;
   change: string;
   changePercent: string;

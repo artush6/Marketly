@@ -2,35 +2,40 @@
 
 This list captures the next pass after the new frontend MVP.
 
-1. Replace the quote-derived chart with real market history.
-   - The MVP now uses a Lightweight Charts baseline range switcher so the chart surface is no longer blank.
-   - Next step: feed it true historical/live price data from TradingView or a backend price-history endpoint while keeping the current Marketly chart design.
+1. Keep refining the TradingView Symbol Overview chart.
+   - Replaced the quote-derived local chart with TradingView's live Symbol Overview embed.
+   - Remaining polish is mostly visual because the iframe limits deep styling.
 
-2. Fix the "Ask about..." flow.
-   - Submitting a follow-up currently does not create a useful interaction.
-   - Explore a small right-side chat panel, a compact chat icon/window, or a bottom chat bar that feels native to the dashboard.
+2. Keep improving the "Ask about..." workspace.
+   - Follow-up answers now stay visible in a dashboard Ask Workspace panel.
+   - Next pass: make the panel dockable/collapsible once the interaction pattern settles.
 
 3. Make the Annual / Quarterly financials switcher real.
-   - The control is visual only right now.
-   - It should switch the chart inputs and labels between annual and quarterly backend data.
+   - The frontend switch now changes chart period mode when quarterly labels are present.
+   - Backend currently returns annual statement rows for the tested AAPL payload, so true quarterly charts still depend on quarterly statement data.
 
-4. Replace "Open statements" with a full financials experience.
-   - The current link opens the old Marketly design and can show missing data even though the backend stores useful financial data.
-   - The Financials tab should become a dense, large financials workspace with everything we fetch, compute, and store, mixing numbers and graphs where appropriate.
+4. Expand the full financials workspace.
+   - Removed the old "Open statements" action from the dashboard tab.
+   - The Financials tab now shows statement summaries, metric cards, score inputs, and model-derived lenses from the analysis payload.
 
-5. Fix news images.
-   - The current story images are not necessarily the actual images from the article.
-   - Use article images only when the provider returns a real article image; otherwise show a clean source/ticker visual instead of misleading media.
+5. Keep news media honest.
+   - News cards now use article image URLs only when the provider returns a valid external URL.
+   - Otherwise they fall back to a clean source/ticker visual.
 
-6. Remove unrelated "Latest Developments".
-   - Some items are not linked to the stock.
-   - Replace the section with analyst opinions / rating commentary if we fetch that data.
+6. Improve analyst opinions.
+   - Removed the unrelated "Latest Developments" bucket.
+   - Replaced it with analyst/model opinions derived from analysis lenses and catalysts until richer analyst commentary is exposed.
 
-7. Move the Analysis Stack onto the overview page.
-   - The strengths, risks, and thesis are useful enough to be visible upfront, not hidden behind the Analysis tab.
+7. Improve Analysis Stack placement.
+   - Analysis Stack is now visible on the overview page.
 
 8. Show more stock-related news in the News section.
-   - If we fetch more valid stock-specific articles, expose them with a good browsing layout.
+   - Frontend now requests a larger 7-day news window and renders more stories.
+   - Further filtering/ranking should happen once provider quality is reviewed.
 
 9. Capitalize Key Issues titles.
-   - The first letter should always be capitalized, including scenario-derived titles.
+   - Implemented title capitalization for scenario-derived issue titles.
+
+10. Add company logos when backend returns them.
+   - The frontend now supports `info.logo`, `info.image`, or `info.icon`.
+   - Render's current AAPL `/financials` response does not include a company logo/image field, so backend enrichment is still needed.

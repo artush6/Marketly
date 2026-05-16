@@ -1,31 +1,81 @@
 "use client";
 
-import { useEffect, useId } from "react";
+import {memo, useEffect, useMemo, useRef} from "react";
 
 type TradingViewChartProps = {
   symbol: string;
   exchange: string;
+  companyName?: string;
   variant?: "card" | "bare";
 };
 
-declare global {
-  interface Window {
-    TradingView?: {
-      widget: new (config: Record<string, unknown>) => unknown;
-    };
+const WIDGET_SRC =
+  "https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js";
+
+function normalizeExchange(exchange: string) {
+  const normalized = exchange.trim().toUpperCase();
+
+  if (!normalized || normalized === "NASDAQ STOCK MARKET") {
+    return "NASDAQ";
   }
+
+  return normalized.replace(/\s+/g, "");
 }
 
-export function TradingViewChart({
+function TradingViewChartComponent({
   symbol,
   exchange,
+  companyName,
   variant = "card",
 }: TradingViewChartProps) {
-  const elementId = useId().replace(/:/g, "");
-  const marketSymbol = `${exchange}:${symbol}`;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const marketSymbol = `${normalizeExchange(exchange)}:${symbol.toUpperCase()}`;
+  const displayName = companyName?.trim() || symbol.toUpperCase();
+
+  const widgetConfig = useMemo(
+    () => ({
+      lineWidth: 2,
+      lineType: 0,
+      chartType: "area",
+      fontColor: "rgba(209, 213, 219, 0.72)",
+      gridLineColor: "rgba(148, 163, 184, 0.08)",
+      volumeUpColor: "rgba(61, 217, 179, 0.34)",
+      volumeDownColor: "rgba(248, 113, 113, 0.34)",
+      backgroundColor: "#0A0F16",
+      widgetFontColor: "#E7EEF5",
+      upColor: "#3DD9B3",
+      downColor: "#F87171",
+      borderUpColor: "#3DD9B3",
+      borderDownColor: "#F87171",
+      wickUpColor: "#3DD9B3",
+      wickDownColor: "#F87171",
+      colorTheme: "dark",
+      isTransparent: true,
+      locale: "en",
+      chartOnly: false,
+      scalePosition: "right",
+      scaleMode: "Normal",
+      fontFamily:
+        "IBM Plex Mono, JetBrains Mono, SFMono-Regular, Cascadia Code, Roboto Mono, monospace",
+      valuesTracking: "1",
+      changeMode: "price-and-percent",
+      symbols: [[displayName, `${marketSymbol}|1D`]],
+      dateRanges: ["1d|1", "1m|30", "3m|60", "12m|1D", "60m|1W", "all|1M"],
+      fontSize: "11",
+      headerFontSize: "medium",
+      autosize: true,
+      width: "100%",
+      height: "100%",
+      noTimeScale: false,
+      hideDateRanges: false,
+      hideMarketStatus: false,
+      hideSymbolLogo: false,
+    }),
+    [displayName, marketSymbol],
+  );
 
   useEffect(() => {
-    const container = document.getElementById(elementId);
+    const container = containerRef.current;
 
     if (!container) {
       return;
@@ -33,67 +83,30 @@ export function TradingViewChart({
 
     container.innerHTML = "";
 
-    const renderWidget = () => {
-      if (!window.TradingView || !container) {
-        return;
-      }
-
-      // TradingView hosts the live market chart and handles real-time updates.
-      new window.TradingView.widget({
-        autosize: true,
-        symbol: marketSymbol,
-        interval: "30",
-        timezone: "Etc/UTC",
-        theme: "dark",
-        style: "1",
-        locale: "en",
-        enable_publishing: false,
-        hide_top_toolbar: true,
-        hide_legend: false,
-        save_image: false,
-        container_id: elementId,
-        withdateranges: true,
-        backgroundColor: "#0F141C",
-        gridColor: "rgba(255,255,255,0.04)",
-        studies: [],
-        toolbar_bg: "#0F141C",
-        details: false,
-        hotlist: false,
-        calendar: false,
-      });
-    };
-
-    if (window.TradingView) {
-      renderWidget();
-      return;
-    }
-
-    const existingScript = document.querySelector<HTMLScriptElement>(
-      'script[src="https://s3.tradingview.com/tv.js"]',
-    );
-
-    if (existingScript) {
-      existingScript.addEventListener("load", renderWidget, { once: true });
-      return () => existingScript.removeEventListener("load", renderWidget);
-    }
+    const widget = document.createElement("div");
+    widget.className = "tradingview-widget-container__widget h-full w-full";
+    container.appendChild(widget);
 
     const script = document.createElement("script");
-    script.src = "https://s3.tradingview.com/tv.js";
+    script.src = WIDGET_SRC;
+    script.type = "text/javascript";
     script.async = true;
-    script.onload = renderWidget;
-    document.body.appendChild(script);
+    script.textContent = JSON.stringify(widgetConfig);
+    container.appendChild(script);
 
     return () => {
-      script.onload = null;
+      container.innerHTML = "";
     };
-  }, [elementId, marketSymbol]);
+  }, [widgetConfig]);
+
+  const chart = (
+    <div className="marketly-symbol-overview h-[420px] w-full overflow-hidden rounded-lg border border-border bg-[#0A0F16]/85">
+      <div ref={containerRef} className="tradingview-widget-container h-full w-full" />
+    </div>
+  );
 
   if (variant === "bare") {
-    return (
-      <div className="h-[360px] w-full overflow-hidden rounded-lg border border-border bg-card/60">
-        <div id={elementId} className="h-full w-full overflow-hidden" />
-      </div>
-    );
+    return chart;
   }
 
   return (
@@ -104,14 +117,16 @@ export function TradingViewChart({
             Live Market Chart
           </p>
           <p className="mt-2 text-sm text-[#D1D5DB]">
-            Real-time TradingView stream for {marketSymbol}
+            TradingView Symbol Overview for {marketSymbol}
           </p>
         </div>
         <span className="rounded-full border border-white/8 px-2.5 py-1 text-[11px] uppercase tracking-[0.2em] text-[#6B7280]">
-          30m
+          live
         </span>
       </div>
-      <div id={elementId} className="h-[360px] w-full overflow-hidden" />
+      {chart}
     </div>
   );
 }
+
+export const TradingViewChart = memo(TradingViewChartComponent);
