@@ -273,7 +273,13 @@
 
 .marketly-symbol-overview iframe {
   border-radius: 0.5rem;
-  filter: saturate(1.08) contrast(1.02);
+  filter: saturate(1.1) contrast(1.02);
+}
+
+.marketly-symbol-overview .tradingview-widget-container,
+.marketly-symbol-overview .tradingview-widget-container__widget {
+  position: relative;
+  z-index: 1;
 }
 
 .terminal-text {

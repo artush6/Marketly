@@ -11,6 +11,8 @@ class CompanyInfo(BaseModel):
     industry: Optional[str] = None
     country: Optional[str] = None
     currency: Optional[str] = None
+    logo: Optional[str] = None
+    website: Optional[str] = None
     marketCap: Optional[float] = None
     beta: Optional[float] = None
     trailingPE: Optional[float] = None

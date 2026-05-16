@@ -1411,6 +1411,10 @@ function MarketChart({stockData}: {stockData: StockData}) {
         symbol={stockData.ticker}
         exchange={stockData.exchange}
         companyName={stockData.companyName}
+        priceLabel={stockData.priceLabel}
+        changeLabel={stockData.changeLabel}
+        changePercentLabel={stockData.changePercentLabel}
+        changePercent={stockData.changePercent}
         variant="bare"
       />
     </motion.div>

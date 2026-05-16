@@ -446,6 +446,8 @@ def fetch_finnhub_payload(symbol: str) -> dict[str, Any]:
                 "sector": profile.get("finnhubIndustry"),
                 "country": profile.get("country"),
                 "currency": profile.get("currency"),
+                "logo": profile.get("logo"),
+                "website": profile.get("weburl"),
             },
         )
         payload["sources"]["profile"] = "finnhub"
@@ -475,6 +477,28 @@ def fetch_finnhub_payload(symbol: str) -> dict[str, Any]:
         payload["analyst_data"] = recs
         payload["sources"]["analyst_data"] = "finnhub"
 
+    return payload
+
+
+def enrich_cached_profile(symbol: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Patch old cached snapshots with Finnhub profile fields added later."""
+    if not settings.FINNHUB_API_KEY:
+        return payload
+
+    info = payload.setdefault("info", {})
+    if info.get("logo"):
+        return payload
+
+    profile_payload = fetch_finnhub_payload(symbol)
+    profile_info = profile_payload.get("info", {})
+    if not profile_info.get("logo"):
+        return payload
+
+    safe_update(info, {
+        "logo": profile_info.get("logo"),
+        "website": profile_info.get("website"),
+    })
+    payload.setdefault("sources", {}).update({"profile": "finnhub"})
     return payload
 
 
@@ -693,7 +717,9 @@ def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
             try:
                 logger.debug("Loaded %s from cache", symbol)
                 payload = json.loads(cached)
+                payload = enrich_cached_profile(symbol, payload)
                 payload["_dataSource"] = cache_source or "cache"
+                CacheManager.set(cache_key, json.dumps(make_json_safe(payload)))
                 return payload
             except Exception:
                 pass
@@ -701,6 +727,7 @@ def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
         if snapshot and isinstance(snapshot.get("payload"), dict):
             logger.info("%s: loaded financial snapshot from Supabase", symbol)
             payload = dict(snapshot["payload"])
+            payload = enrich_cached_profile(symbol, payload)
             payload["_dataSource"] = "supabase"
             CacheManager.set(cache_key, json.dumps(make_json_safe(payload)))
             return payload
