@@ -308,12 +308,13 @@ def save_analysis_run(payload: dict[str, Any]) -> None:
     analysis_id = payload.get("analysisId")
     if not analysis_id:
         return
+    metadata = payload.get("analysisMetadata") if isinstance(payload.get("analysisMetadata"), dict) else {}
     row = {
         "analysis_id": analysis_id,
         "symbol": payload.get("symbol"),
         "analysis_version": payload.get("analysisVersion"),
         "score": payload.get("score"),
         "payload": payload,
-        "data_sources": payload.get("analysisMetadata", {}).get("dataSources", {}),
+        "data_sources": metadata.get("dataSources", {}),
     }
     _upsert_rows("analysis_runs", [row], on_conflict="analysis_id")

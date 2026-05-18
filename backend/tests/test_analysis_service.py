@@ -128,7 +128,7 @@ class AnalysisServiceTests(unittest.TestCase):
         mock_get_news.return_value = []
         mock_score_ticker.return_value = {
             "score": 78,
-            "summary": "Precomputed score: 78. Strong company, but valuation sensitive.",
+            "summary": "Strong company with a precomputed composite score of 78, but valuation sensitive.",
             "positives": [],
             "negatives": [],
         }
@@ -138,7 +138,11 @@ class AnalysisServiceTests(unittest.TestCase):
         self.assertEqual(result["score"], result["scoreBreakdown"]["score"])
         self.assertEqual(result["analysisMetadata"]["gptScore"], result["score"])
         self.assertEqual(result["analysisMetadata"]["modelSuggestedScore"], 78)
-        self.assertNotIn("Precomputed score: 78", result["summary"])
+        self.assertIn(
+            f"backend deterministic score of {result['score']}",
+            result["summary"],
+        )
+        self.assertNotIn("score of 78", result["summary"])
 
     @patch("app.services.analysis_service.fetch_ticker_financials")
     def test_build_ticker_score_raises_on_financials_error(self, mock_fetch_ticker_financials):
@@ -173,11 +177,16 @@ class AnalysisServiceTests(unittest.TestCase):
         self.assertIsInstance(result["score"], int)
         self.assertEqual(result["score"], result["scoreBreakdown"]["score"])
 
+    @patch("app.services.analysis_service.supabase_store.save_analysis_run")
     @patch("app.services.analysis_service.CacheManager")
-    def test_build_ticker_score_returns_cached_score_when_available(self, mock_cache):
+    def test_build_ticker_score_returns_cached_score_when_available(
+        self,
+        mock_cache,
+        mock_save_analysis_run,
+    ):
         mock_cache.make_key.return_value = "marketly:scores:AAPL"
         mock_cache.get_with_source.return_value = (
-            '{"symbol":"AAPL","score":91,"summary":"Cached","positives":[],"negatives":[],"company":"Apple Inc.","profitability":{"coverage":0.0},"growth":{"coverage":0.0},"stability":{"coverage":0.0},"valuation":{"coverage":0.0}}',
+            '{"symbol":"AAPL","score":91,"summary":"Cached with a composite score of 72","positives":[],"negatives":[],"company":"Apple Inc.","profitability":{"coverage":0.0},"growth":{"coverage":0.0},"stability":{"coverage":0.0},"valuation":{"coverage":0.0}}',
             "cache",
         )
 
@@ -185,7 +194,9 @@ class AnalysisServiceTests(unittest.TestCase):
 
         self.assertEqual(result["score"], 91)
         self.assertEqual(result["dataSource"], "cache")
+        self.assertIn("backend deterministic score of 91", result["summary"])
         mock_cache.get_with_source.assert_called_once_with("marketly:scores:AAPL")
+        mock_save_analysis_run.assert_called_once()
 
 
 if __name__ == "__main__":

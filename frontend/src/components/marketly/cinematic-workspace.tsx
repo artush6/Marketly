@@ -247,7 +247,6 @@ function buildStockData(block: AnalysisBlock): StockData {
 function buildMetricRows(block: AnalysisBlock): MetricRowItem[] {
   const marketCap =
     getMetric(block, "Market Cap")?.value ??
-    getMetric(block, "Revenue Growth")?.value ??
     "Data missing";
   const revenue = getMetric(block, "Revenue");
   const netIncome = getMetric(block, "Net Income");
@@ -898,10 +897,14 @@ function DynamicNodeGraph({
   ticker,
   companyName,
   graphData,
+  completedStages = [],
+  stepIndex = 0,
 }: {
   ticker: string;
   companyName: string;
   graphData: GraphData;
+  completedStages?: NonNullable<CinematicPendingBlock["preview"]>["completedStages"];
+  stepIndex?: number;
 }) {
   const [phase, setPhase] = useState(0);
   const [showSynthesis, setShowSynthesis] = useState(false);
@@ -909,19 +912,35 @@ function DynamicNodeGraph({
   useEffect(() => {
     setPhase(0);
     setShowSynthesis(false);
-
-    const timings = [0, 500, 1500, 2500, 3500, 4500, 5500, 6500];
-    const timers = timings.map((timing, index) =>
-      window.setTimeout(() => {
-        setPhase(index);
-        if (index === 5) {
-          setShowSynthesis(true);
-        }
-      }, timing),
-    );
-
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [ticker]);
+
+  useEffect(() => {
+    const hasFinancials = completedStages.includes("financials");
+    const hasNews = completedStages.includes("news");
+    const hasScore = completedStages.includes("score");
+    const completedPhase = hasScore ? 5 : hasNews ? 2 : hasFinancials ? 1 : 0;
+    const activePhase = Math.min(stepIndex, 5);
+    const nextPhase = Math.max(completedPhase, activePhase);
+
+    setPhase((current) => Math.max(current, nextPhase));
+
+    if (!hasScore && stepIndex < 5) {
+      setShowSynthesis(false);
+      return;
+    }
+
+    setShowSynthesis(true);
+
+    if (!hasScore) {
+      return;
+    }
+
+    const completeTimer = window.setTimeout(() => {
+      setPhase((current) => Math.max(current, 6));
+    }, 900);
+
+    return () => window.clearTimeout(completeTimer);
+  }, [completedStages, stepIndex]);
 
   const nodes: DataNode[] = useMemo(
     () => [
@@ -1020,6 +1039,17 @@ function DynamicNodeGraph({
           if (!fromNode || !toNode) {
             return null;
           }
+          const shouldShowConnection =
+            (toNode.branch === "center" && phase >= 0) ||
+            (toNode.branch === "financials" && phase >= 1) ||
+            (toNode.branch === "news" && phase >= 2) ||
+            (toNode.branch === "technical" && phase >= 5) ||
+            (toNode.branch === "institutional" && phase >= 5) ||
+            (toNode.branch === "synthesis" && phase >= 5);
+
+          if (!shouldShowConnection) {
+            return null;
+          }
 
           return (
             <motion.line
@@ -1046,8 +1076,8 @@ function DynamicNodeGraph({
             (node.branch === "center" && phase >= 0) ||
             (node.branch === "financials" && phase >= 1) ||
             (node.branch === "news" && phase >= 2) ||
-            (node.branch === "technical" && phase >= 3) ||
-            (node.branch === "institutional" && phase >= 4) ||
+            (node.branch === "technical" && phase >= 5) ||
+            (node.branch === "institutional" && phase >= 5) ||
             (node.branch === "synthesis" && phase >= 5);
 
           if (!shouldShow) {
@@ -1182,19 +1212,19 @@ function DynamicNodeGraph({
       <AnimatePresence>
         {showSynthesis && phase >= 6 && (
           <motion.div
-            className="absolute inset-0 flex items-center justify-center"
+            className="absolute inset-0 z-30 flex items-center justify-center"
             initial={{opacity: 0}}
             animate={{opacity: 1}}
             exit={{opacity: 0}}
           >
             <motion.div
-              className="text-center"
+              className="rounded-2xl border border-primary/25 bg-background/80 px-8 py-6 text-center shadow-[0_0_70px_oklch(0.78_0.20_145_/_0.35)] backdrop-blur-md"
               initial={{scale: 0.8, opacity: 0}}
               animate={{scale: 1, opacity: 1}}
               transition={{delay: 0.3}}
             >
               <div className="mb-2 font-mono text-sm text-primary">ANALYSIS COMPLETE</div>
-              <div className="text-2xl font-semibold text-foreground">{companyName}</div>
+              <div className="text-2xl font-semibold text-foreground drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">{companyName}</div>
               <motion.div
                 className="mx-auto mt-4 h-1 w-48 overflow-hidden rounded-full bg-primary/30"
                 initial={{opacity: 0}}
@@ -1246,6 +1276,7 @@ function TabNavigation({activeTab, onTabChange}: {activeTab: TabType; onTabChang
 
 function StockHeader({stockData}: {stockData: StockData}) {
   const isPositive = stockData.change >= 0;
+  const [logoFailed, setLogoFailed] = useState(false);
 
   return (
     <motion.div
@@ -1261,13 +1292,14 @@ function StockHeader({stockData}: {stockData: StockData}) {
           animate={{scale: 1}}
           transition={{type: "spring", stiffness: 300, damping: 20}}
         >
-          {stockData.logoUrl ? (
+          {stockData.logoUrl && !logoFailed ? (
             // Provider logos arrive as absolute URLs; if absent, we keep the ticker monogram.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={stockData.logoUrl}
               alt=""
-              className="h-full w-full object-cover"
+              className="h-full w-full bg-white object-contain p-1"
+              onError={() => setLogoFailed(true)}
             />
           ) : (
             stockData.ticker.charAt(0)
@@ -2434,7 +2466,13 @@ export function CinematicWorkspace({
             </motion.div>
 
             <div className="h-screen w-full p-8 pt-20">
-              <DynamicNodeGraph ticker={symbol} companyName={companyName} graphData={graphData} />
+              <DynamicNodeGraph
+                ticker={symbol}
+                companyName={companyName}
+                graphData={graphData}
+                completedStages={pending?.preview?.completedStages}
+                stepIndex={pending?.stepIndex}
+              />
             </div>
           </motion.div>
         )}

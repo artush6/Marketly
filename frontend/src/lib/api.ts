@@ -291,7 +291,7 @@ function getBaseUrl() {
 }
 
 const CLIENT_CACHE_TTL_MS = 60_000;
-const CLIENT_REQUEST_TIMEOUT_MS = 18_000;
+const CLIENT_REQUEST_TIMEOUT_MS = 90_000;
 const clientResponseCache = new Map<string, { expiresAt: number; value: unknown }>();
 const clientInFlightRequests = new Map<string, Promise<unknown>>();
 

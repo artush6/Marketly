@@ -66,6 +66,61 @@ class SupabaseStoreTests(unittest.TestCase):
         self.assertEqual(kwargs["json"]["payload"], {"GDP": []})
         self.assertIn("expires_at", kwargs["json"])
 
+    @patch(
+        "app.integrations.supabase_store.settings",
+        SimpleNamespace(
+            SUPABASE_URL="https://project.supabase.co",
+            SUPABASE_SERVICE_ROLE_KEY="service-key",
+            SUPABASE_ANON_KEY=None,
+        ),
+    )
+    @patch("app.integrations.supabase_store.requests.post")
+    def test_save_financial_payload_uses_live_companies_name_column(self, mock_post):
+        mock_post.return_value.raise_for_status.return_value = None
+
+        supabase_store.save_financial_payload(
+            "AAPL",
+            {
+                "info": {"shortName": "Apple Inc.", "currency": "USD"},
+                "sources": {},
+                "financials": {},
+            },
+        )
+
+        company_call = mock_post.call_args_list[0]
+        self.assertEqual(
+            company_call.args[0],
+            "https://project.supabase.co/rest/v1/companies",
+        )
+        self.assertEqual(company_call.kwargs["json"][0]["name"], "Apple Inc.")
+        self.assertNotIn("company_name", company_call.kwargs["json"][0])
+
+    @patch(
+        "app.integrations.supabase_store.settings",
+        SimpleNamespace(
+            SUPABASE_URL="https://project.supabase.co",
+            SUPABASE_SERVICE_ROLE_KEY="service-key",
+            SUPABASE_ANON_KEY=None,
+        ),
+    )
+    @patch("app.integrations.supabase_store.requests.post")
+    def test_save_analysis_run_handles_missing_metadata(self, mock_post):
+        mock_post.return_value.raise_for_status.return_value = None
+
+        supabase_store.save_analysis_run(
+            {
+                "analysisId": "analysis-aapl",
+                "symbol": "AAPL",
+                "analysisVersion": "v1",
+                "score": 72,
+                "analysisMetadata": None,
+            },
+        )
+
+        args, kwargs = mock_post.call_args
+        self.assertEqual(args[0], "https://project.supabase.co/rest/v1/analysis_runs")
+        self.assertEqual(kwargs["json"][0]["data_sources"], {})
+
 
 class CacheManagerPersistentFallbackTests(unittest.TestCase):
     @patch("app.core.cache.r", None)
@@ -90,6 +145,7 @@ class CacheManagerPersistentFallbackTests(unittest.TestCase):
 class SnapshotFirstIntegrationTests(unittest.TestCase):
     @patch("app.integrations.financials.CacheManager.get_with_source", return_value=(None, None))
     @patch("app.integrations.financials.CacheManager.set")
+    @patch("app.integrations.financials.supabase_store.save_financial_payload")
     @patch(
         "app.integrations.financials.supabase_store.get_latest_snapshot",
         return_value={"payload": {"symbol": "TMO", "info": {"shortName": "Thermo"}}},
@@ -101,6 +157,7 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
         mock_validate,
         mock_finnhub,
         mock_snapshot,
+        mock_save_financial_payload,
         mock_cache_set,
         mock_cache_get,
     ):
@@ -109,6 +166,33 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
         self.assertEqual(payload["symbol"], "TMO")
         self.assertEqual(payload["_dataSource"], "supabase")
         mock_snapshot.assert_called_once_with("financials", "TMO")
+        mock_save_financial_payload.assert_called_once()
+        mock_finnhub.assert_not_called()
+
+    @patch(
+        "app.integrations.financials.CacheManager.get_with_source",
+        return_value=('{"symbol":"TSLA","info":{"shortName":"Tesla"},"financials":{}}', "cache"),
+    )
+    @patch("app.integrations.financials.CacheManager.set")
+    @patch("app.integrations.financials.supabase_store.save_financial_payload")
+    @patch("app.integrations.financials.supabase_store.get_latest_snapshot")
+    @patch("app.integrations.financials.fetch_finnhub_payload")
+    @patch("app.integrations.financials.validate_financials_configuration")
+    def test_financials_cache_hit_materializes_supabase_rows(
+        self,
+        mock_validate,
+        mock_finnhub,
+        mock_snapshot,
+        mock_save_financial_payload,
+        mock_cache_set,
+        mock_cache_get,
+    ):
+        payload = fetch_ticker_financials("TSLA")
+
+        self.assertEqual(payload["symbol"], "TSLA")
+        self.assertEqual(payload["_dataSource"], "cache")
+        mock_save_financial_payload.assert_called_once()
+        mock_snapshot.assert_not_called()
         mock_finnhub.assert_not_called()
 
     @patch("app.integrations.economics.CacheManager.get_with_source", return_value=(None, None))
@@ -134,6 +218,7 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
 
     @patch("app.integrations.news.CacheManager.get_with_source", return_value=(None, None))
     @patch("app.integrations.news.CacheManager.set")
+    @patch("app.integrations.news.supabase_store.save_news_articles")
     @patch(
         "app.integrations.news.supabase_store.get_latest_snapshot",
         return_value={"payload": [{"headline": "cached"}]},
@@ -143,6 +228,7 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
         self,
         mock_client,
         mock_snapshot,
+        mock_save_news_articles,
         mock_cache_set,
         mock_cache_get,
     ):
@@ -150,6 +236,7 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
 
         self.assertEqual(payload, [{"headline": "cached"}])
         mock_snapshot.assert_called_once_with("news", "TMO_3d_8")
+        mock_save_news_articles.assert_called_once_with("TMO", [{"headline": "cached"}])
         mock_client.assert_not_called()
 
 

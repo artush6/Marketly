@@ -30,24 +30,28 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
     Optionally saves results to a JSON file.
     """
 
+    symbol = symbol.strip().upper()
     cache_key = CacheManager.make_key("news", f"{symbol}_{days}d")
     global LAST_DATA_SOURCE
 
     # Try to load from cache
     cached, cache_source = CacheManager.get_with_source(cache_key)
     if cached:
+        articles = json.loads(cached)
+        if isinstance(articles, list):
+            supabase_store.save_news_articles(symbol, articles)
         LAST_DATA_SOURCE = cache_source or "cache"
-        return json.loads(cached)
+        return articles
 
-    snapshot_key = f"{symbol.strip().upper()}_{days}d_{max_items or 'all'}"
+    snapshot_key = f"{symbol}_{days}d_{max_items or 'all'}"
     snapshot = supabase_store.get_latest_snapshot("news", snapshot_key)
     if snapshot and isinstance(snapshot.get("payload"), list):
         LAST_DATA_SOURCE = "supabase"
         CacheManager.set(cache_key, json.dumps(snapshot["payload"]))
+        supabase_store.save_news_articles(symbol, snapshot["payload"])
         return snapshot["payload"]
 
     # Otherwise fetch fresh data
-    symbol = symbol.strip().upper()
     date_start = (datetime.date.today() -
                   datetime.timedelta(days=days)).isoformat()
     date_end = datetime.date.today().isoformat()

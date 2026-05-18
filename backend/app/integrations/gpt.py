@@ -87,12 +87,12 @@ def score_ticker(
         "data_quality": data_quality or {},
         "deterministic_score": composite_score or {},
         # limit for safety
-        "news_data": news_data[:20] if isinstance(news_data, list) else news_data,
+        "news_data": news_data[:8] if isinstance(news_data, list) else news_data,
         "economic_data": economic_data,
     }
 
     # --- Truncate for token safety ---
-    safe_payload_json = json.dumps(safe_payload, ensure_ascii=False)[:20000]
+    safe_payload_json = json.dumps(safe_payload, ensure_ascii=False)[:8000]
 
     try:
         client = _get_client()
@@ -152,6 +152,7 @@ def score_ticker(
                     "content": f"Ticker data (financials, macro, news): {safe_payload_json}"
                 }
             ],
+            max_completion_tokens=700,
             response_format={
                 "type": "json_schema",
                 "json_schema": {

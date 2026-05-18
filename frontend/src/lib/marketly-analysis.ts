@@ -45,6 +45,7 @@ export type ProgressiveAnalysisPreview = {
 export type ProgressiveAnalysisUpdate = {
   stage: "financials" | "news" | "score";
   preview: ProgressiveAnalysisPreview;
+  block: AnalysisBlock;
 };
 
 function toNumber(value: unknown): number | null {
@@ -169,6 +170,21 @@ function cleanExternalImageUrl(value: string | null | undefined) {
   }
 
   return trimmed;
+}
+
+function buildLogoFallbackUrl(symbol: string, website: unknown) {
+  if (typeof website === "string" && website.trim()) {
+    try {
+      const hostname = new URL(website).hostname;
+      if (hostname) {
+        return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=128`;
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  return `https://financialmodelingprep.com/image-stock/${encodeURIComponent(symbol.toUpperCase())}.png`;
 }
 
 function formatChartDelta(current: number, previous: number, format: "billions" | "percent") {
@@ -407,7 +423,7 @@ function buildMetricCards(
   const revenueGrowth = score?.growth?.revenueGrowthYoY ?? null;
   const operatingMargin = score?.profitability?.operatingMargin ?? null;
 
-  return [
+  const cards: MetricCardData[] = [
     {
       label: "Revenue",
       value: revenue != null ? formatBillions(revenue) : "Data missing",
@@ -436,22 +452,30 @@ function buildMetricCards(
       href: `/financials/${symbol}`,
     },
     {
-      label: revenueGrowth != null ? "Revenue Growth" : "Market Cap",
+      label: "Revenue Growth",
       value:
         revenueGrowth != null
             ? formatPercentRatio(revenueGrowth)
-          : marketCap != null
-            ? formatCurrencyCompact(normalizeMarketCap(marketCap))
             : "Data missing",
       context:
         revenueGrowth != null
           ? "YoY growth supplied by `/score/{symbol}`."
-          : marketCap != null
-            ? "Market capitalization merged from provider quote and profile data."
-            : "Backend valuation data is unavailable.",
+          : "Growth metrics are unavailable from the backend.",
       href: `/financials/${symbol}`,
     },
   ];
+
+  cards.push({
+    label: "Market Cap",
+    value: marketCap != null ? formatCurrencyCompact(normalizeMarketCap(marketCap)) : "Data missing",
+    context:
+      marketCap != null
+        ? "Market capitalization merged from provider quote and profile data."
+        : "Backend valuation data is unavailable.",
+    href: `/financials/${symbol}`,
+  });
+
+  return cards;
 }
 
 function buildNews(news: BackendNewsItem[] | null): NewsItem[] {
@@ -528,7 +552,7 @@ function buildStockHeader(
     exchange: "NASDAQ",
     logoUrl: cleanExternalImageUrl(
       financials?.info?.logo ?? financials?.info?.image ?? financials?.info?.icon,
-    ),
+    ) ?? buildLogoFallbackUrl(resolved.symbol, financials?.info?.website),
     price: currentPrice != null ? formatPrice(currentPrice) : "Data missing",
     change: rawChange != null ? formatSignedNumber(rawChange) : "Data missing",
     changePercent: rawChangePercent != null ? formatSignedPercent(rawChangePercent) : "Data missing",
@@ -959,41 +983,44 @@ export async function buildAnalysisBlockFromBackendProgressive(
   let score: BackendScoreResponse | null = null;
   const completedStages: ProgressiveAnalysisPreview["completedStages"] = [];
 
-  try {
-    financials = await getFinancials(resolved.symbol);
-  } catch {
-    financials = null;
-  } finally {
-    completedStages.push("financials");
-    onProgress({
-      stage: "financials",
-      preview: buildProgressPreview(resolved, financials, news, score, [...completedStages]),
-    });
-  }
+  const publish = (stage: ProgressiveAnalysisUpdate["stage"]) => {
+    if (!completedStages.includes(stage)) {
+      completedStages.push(stage);
+    }
 
-  try {
-    news = await getCompanyNews(resolved.symbol);
-  } catch {
-    news = null;
-  } finally {
-    completedStages.push("news");
     onProgress({
-      stage: "news",
+      stage,
       preview: buildProgressPreview(resolved, financials, news, score, [...completedStages]),
+      block: buildAnalysisBlockFromParts(query, id, resolved, financials, news, score),
     });
-  }
+  };
 
-  try {
-    score = await getTickerScore(resolved.symbol);
-  } catch {
-    score = null;
-  } finally {
-    completedStages.push("score");
-    onProgress({
-      stage: "score",
-      preview: buildProgressPreview(resolved, financials, news, score, [...completedStages]),
-    });
-  }
+  await Promise.all([
+    getFinancials(resolved.symbol)
+      .then((value) => {
+        financials = value;
+      })
+      .catch(() => {
+        financials = null;
+      })
+      .finally(() => publish("financials")),
+    getCompanyNews(resolved.symbol)
+      .then((value) => {
+        news = value;
+      })
+      .catch(() => {
+        news = null;
+      })
+      .finally(() => publish("news")),
+    getTickerScore(resolved.symbol)
+      .then((value) => {
+        score = value;
+      })
+      .catch(() => {
+        score = null;
+      })
+      .finally(() => publish("score")),
+  ]);
 
   return buildAnalysisBlockFromParts(query, id, resolved, financials, news, score);
 }

@@ -26,6 +26,8 @@ type ChartTheme = {
     negativeVolume: string;
     positiveAreaTop: string;
     positiveAreaBottom: string;
+    negativeAreaTop: string;
+    negativeAreaBottom: string;
 };
 
 function normalizeExchange(exchange: string) {
@@ -101,6 +103,8 @@ function TradingViewChartComponent({
         negativeVolume: withAlpha(FALLBACK_NEGATIVE, 0.24),
         positiveAreaTop: withAlpha(FALLBACK_POSITIVE, 0.16),
         positiveAreaBottom: withAlpha(FALLBACK_POSITIVE, 0),
+        negativeAreaTop: withAlpha(FALLBACK_NEGATIVE, 0.16),
+        negativeAreaBottom: withAlpha(FALLBACK_NEGATIVE, 0),
     }));
     const marketSymbol = `${normalizeExchange(exchange)}:${symbol.toUpperCase()}`;
     const displayName = companyName?.trim() || symbol.toUpperCase();
@@ -116,8 +120,17 @@ function TradingViewChartComponent({
             negativeVolume: withAlpha(negative, 0.24),
             positiveAreaTop: withAlpha(positive, 0.16),
             positiveAreaBottom: withAlpha(positive, 0),
+            negativeAreaTop: withAlpha(negative, 0.16),
+            negativeAreaBottom: withAlpha(negative, 0),
         });
     }, []);
+
+    const isPositive = changePercent >= 0;
+    const activeLineColor = isPositive ? chartTheme.positive : chartTheme.negative;
+    const activeAreaTopColor = isPositive ? chartTheme.positiveAreaTop : chartTheme.negativeAreaTop;
+    const activeAreaBottomColor = isPositive
+        ? chartTheme.positiveAreaBottom
+        : chartTheme.negativeAreaBottom;
 
     const widgetConfig = useMemo(
         () => ({
@@ -130,9 +143,9 @@ function TradingViewChartComponent({
             volumeDownColor: chartTheme.negativeVolume,
             backgroundColor: "#000000",
             widgetFontColor: "#EAF7F1",
-            lineColor: chartTheme.positive,
-            topColor: chartTheme.positiveAreaTop,
-            bottomColor: chartTheme.positiveAreaBottom,
+            lineColor: activeLineColor,
+            topColor: activeAreaTopColor,
+            bottomColor: activeAreaBottomColor,
             upColor: chartTheme.positive,
             downColor: chartTheme.negative,
             borderUpColor: chartTheme.positive,
@@ -161,7 +174,7 @@ function TradingViewChartComponent({
             hideMarketStatus: false,
             hideSymbolLogo: false,
         }),
-        [chartTheme, displayName, marketSymbol],
+        [activeAreaBottomColor, activeAreaTopColor, activeLineColor, chartTheme, displayName, marketSymbol],
     );
 
     useEffect(() => {
@@ -189,7 +202,6 @@ function TradingViewChartComponent({
         };
     }, [widgetConfig]);
 
-    const isPositive = changePercent >= 0;
     const moveTone = isPositive ? "text-positive" : "text-negative";
 
     const chart = (

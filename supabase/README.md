@@ -11,6 +11,15 @@ The schema is designed around one core idea:
 ## Main Tables
 
 ```text
+market_data_cache
+  durable fallback cache used when Redis is unavailable
+
+market_data_snapshots
+  latest provider payload snapshots read before paid/free provider fetches
+
+financial_statement_rows / financial_metrics / news_articles / analysis_runs
+  operational persistence written by the current backend endpoints
+
 companies
   stable company registry keyed by symbol
 
@@ -87,3 +96,5 @@ When backend persistence is added, prefer this write order:
 7. insert `analysis_horizons`
 
 The backend can still return the full API response immediately. Supabase persistence should be additive and should not block the response unless explicitly required.
+
+The current backend already writes operational cache/snapshot tables first. The deeper evidence tables above are the long-term research memory model.

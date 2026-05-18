@@ -45,6 +45,10 @@ SCORE_PREFIX_RE = re.compile(
     r"^\s*(backend[- ]determined|deterministic|backend|precomputed)\s+score\s*:\s*\d+\s*\.?\s*",
     re.IGNORECASE,
 )
+SCORE_MENTION_RE = re.compile(
+    r"\b((?:precomputed|backend|deterministic)\s+)?(?:composite\s+)?score\s+of\s+\d+\b",
+    re.IGNORECASE,
+)
 
 
 def _reconcile_analysis_score(
@@ -60,7 +64,11 @@ def _reconcile_analysis_score(
     reconciled["score"] = backend_score
     summary = reconciled.get("summary")
     if isinstance(summary, str):
-        reconciled["summary"] = SCORE_PREFIX_RE.sub("", summary).strip()
+        summary = SCORE_PREFIX_RE.sub("", summary).strip()
+        reconciled["summary"] = SCORE_MENTION_RE.sub(
+            f"backend deterministic score of {backend_score}",
+            summary,
+        )
 
     return reconciled, model_suggested_score
 
@@ -79,8 +87,19 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
         cached, cache_source = CacheManager.get_with_source(cache_key)
         if cached:
             payload = json.loads(cached)
+            cached_symbol = str(payload.get("symbol", symbol)).upper()
+            if cached_symbol != symbol:
+                raise ValueError(f"Cached score payload symbol mismatch: expected {symbol}, got {cached_symbol}")
             payload["dataSource"] = cache_source or "cache"
-            payload.setdefault("analysisMetadata", {})["dataSource"] = payload["dataSource"]
+            if not isinstance(payload.get("analysisMetadata"), dict):
+                payload["analysisMetadata"] = {}
+            payload["analysisMetadata"]["dataSource"] = payload["dataSource"]
+            if isinstance(payload.get("summary"), str) and isinstance(payload.get("score"), int):
+                payload["summary"] = SCORE_MENTION_RE.sub(
+                    f"backend deterministic score of {payload['score']}",
+                    payload["summary"],
+                )
+            supabase_store.save_analysis_run(payload)
             return payload
 
     if not settings.FRED_API_KEY:

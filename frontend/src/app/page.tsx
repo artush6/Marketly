@@ -43,7 +43,7 @@ const ANALYSIS_REVEAL_MIN_MS = 6500;
 const STAGE_TO_STEP_INDEX = {
   financials: 1,
   news: 2,
-  score: 3,
+  score: 5,
 } as const;
 
 const QUICK_PROMPTS: PromptCard[] = [
@@ -176,11 +176,18 @@ export default function Page() {
       const startedAt = Date.now();
 
       setPendingBlocks((current) => [
-        ...current,
+        ...current.filter((block) => block.symbol !== resolved.symbol),
         { id, query: normalizedQuery, symbol: resolved.symbol, stepIndex: 0 },
       ]);
 
       void (async () => {
+        const progressTimers = [
+          window.setTimeout(() => updatePendingStep(id, 1), 250),
+          window.setTimeout(() => updatePendingStep(id, 2), 1800),
+          window.setTimeout(() => updatePendingStep(id, 3), 3400),
+          window.setTimeout(() => updatePendingStep(id, 4), 5200),
+        ];
+
         try {
           await sleep(180);
           updatePendingStep(id, 1);
@@ -194,7 +201,7 @@ export default function Page() {
           );
 
           await sleep(240);
-          updatePendingStep(id, 4);
+          updatePendingStep(id, 6);
           await sleep(Math.max(180, ANALYSIS_REVEAL_MIN_MS - (Date.now() - startedAt)));
 
           completePendingBlock(id, block);
@@ -204,6 +211,8 @@ export default function Page() {
             id,
             buildMissingAnalysisBlock(normalizedQuery, id, resolved),
           );
+        } finally {
+          progressTimers.forEach((timer) => window.clearTimeout(timer));
         }
       })();
     },
