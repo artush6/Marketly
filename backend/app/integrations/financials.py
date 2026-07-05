@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+from concurrent.futures import Future
+from copy import deepcopy
 from datetime import datetime
+from threading import Lock
 from typing import Any, Optional
 
 import pandas as pd
@@ -11,6 +14,7 @@ import yfinance as yf
 from app.core.cache import CacheManager
 from app.core.config import settings
 from app.integrations import supabase_store
+from app.services.financial_quality import attach_financial_quality
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +25,10 @@ SEC_DATA = "https://data.sec.gov"
 SEC_FILES = "https://www.sec.gov/files"
 FMP_STATEMENT_LIMIT = 4
 SEC_FORMS = {"10-K", "10-Q", "20-F", "40-F"}
-SEC_USER_AGENT = "Marketly backend contact@example.com"
+DEFAULT_SEC_USER_AGENT = "Marketly/1.0 (contact: support@marketly.app)"
+FINANCIAL_SNAPSHOT_MAX_AGE_SECONDS = 86400
+_inflight_lock = Lock()
+_inflight_financials: dict[str, Future] = {}
 
 SEC_INCOME_CONCEPTS = {
     "revenue": (
@@ -94,7 +101,7 @@ def safe_get(
     headers: Optional[dict[str, str]] = None,
 ):
     try:
-        response = requests.get(url, params=params or {}, headers=headers, timeout=10)
+        response = requests.get(url, params=params or {}, headers=headers, timeout=8)
         response.raise_for_status()
         data = response.json()
         if isinstance(data, dict) and data.get("status") == "error":
@@ -102,7 +109,7 @@ def safe_get(
             return None
         return data
     except Exception as exc:
-        logger.warning("%s failed: %s", source_name, exc)
+        logger.warning("%s failed (%s)", source_name, type(exc).__name__)
         return None
 
 
@@ -132,6 +139,13 @@ def _pick_latest_statement(data: list[dict[str, Any]]) -> dict[str, Any]:
     return data[0] if data else {}
 
 
+def _first_not_none(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
 def _extract_quote_value(quote: dict[str, Any], *keys: str) -> Any:
     for key in keys:
         value = quote.get(key)
@@ -151,7 +165,11 @@ def _normalize_market_cap(value: Any, source: str | None = None) -> Any:
 
 
 def _sec_headers() -> dict[str, str]:
-    return {"User-Agent": SEC_USER_AGENT, "Accept-Encoding": "gzip, deflate"}
+    return {
+        "User-Agent": getattr(settings, "SEC_USER_AGENT", None)
+        or DEFAULT_SEC_USER_AGENT,
+        "Accept-Encoding": "gzip, deflate",
+    }
 
 
 def _normalize_cik(cik: Any) -> str | None:
@@ -535,16 +553,26 @@ def fetch_fmp_payload(symbol: str) -> dict[str, Any]:
         safe_update(
             payload["info"],
             {
-                "priceToSales": latest_ratios.get("priceToSalesRatioTTM")
-                or latest_ratios.get("priceToSalesRatio"),
-                "debtToEquity": latest_ratios.get("debtEquityRatioTTM")
-                or latest_ratios.get("debtEquityRatio"),
-                "dividendYield": latest_ratios.get("dividendYieldTTM")
-                or latest_ratios.get("dividendYield"),
-                "roe": latest_ratios.get("returnOnEquityTTM")
-                or latest_ratios.get("returnOnEquity"),
-                "grossMargin": latest_ratios.get("grossProfitMarginTTM")
-                or latest_ratios.get("grossProfitMargin"),
+                "priceToSales": _first_not_none(
+                    latest_ratios.get("priceToSalesRatioTTM"),
+                    latest_ratios.get("priceToSalesRatio"),
+                ),
+                "debtToEquity": _first_not_none(
+                    latest_ratios.get("debtEquityRatioTTM"),
+                    latest_ratios.get("debtEquityRatio"),
+                ),
+                "dividendYield": _first_not_none(
+                    latest_ratios.get("dividendYieldTTM"),
+                    latest_ratios.get("dividendYield"),
+                ),
+                "roe": _first_not_none(
+                    latest_ratios.get("returnOnEquityTTM"),
+                    latest_ratios.get("returnOnEquity"),
+                ),
+                "grossMargin": _first_not_none(
+                    latest_ratios.get("grossProfitMarginTTM"),
+                    latest_ratios.get("grossProfitMargin"),
+                ),
             },
         )
         payload["sources"]["ratios"] = "fmp"
@@ -669,6 +697,53 @@ def fetch_yahoo_summary(symbol: str) -> dict[str, Any]:
         return {}
 
 
+def _statement_row_key(row: dict[str, Any]) -> tuple[str, str] | None:
+    period_end = row.get("fiscalDateEnding") or row.get("date")
+    if not period_end:
+        return None
+    return str(period_end), str(row.get("period") or row.get("fp") or "")
+
+
+def _reconcile_statement_rows(
+    existing_rows: list[dict[str, Any]],
+    incoming_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    reconciled = [dict(row) for row in existing_rows if isinstance(row, dict)]
+    keyed_rows = {
+        key: row
+        for row in reconciled
+        if (key := _statement_row_key(row)) is not None
+    }
+
+    for incoming in incoming_rows:
+        if not isinstance(incoming, dict):
+            continue
+        key = _statement_row_key(incoming)
+        current = keyed_rows.get(key) if key is not None else None
+        if current is None:
+            new_row = dict(incoming)
+            reconciled.append(new_row)
+            if key is not None:
+                keyed_rows[key] = new_row
+            continue
+        for field_name, value in incoming.items():
+            if value is not None and current.get(field_name) is None:
+                current[field_name] = value
+
+    return reconciled
+
+
+def _merge_source(existing: Any, incoming: Any) -> Any:
+    if existing is None:
+        return incoming
+    if incoming is None or incoming == existing:
+        return existing
+    providers = [part for part in str(existing).split("+") if part]
+    if str(incoming) not in providers:
+        providers.append(str(incoming))
+    return "+".join(providers)
+
+
 def merge_provider_payload(target: dict[str, Any], payload: dict[str, Any]) -> None:
     safe_update(target["info"], payload.get("info", {}))
     safe_update(target["quote"], payload.get("quote", {}))
@@ -687,13 +762,22 @@ def merge_provider_payload(target: dict[str, Any], payload: dict[str, Any]) -> N
             existing_block = target["financials"].get(block_name)
             if not existing_block:
                 target["financials"][block_name] = block_value
+            elif isinstance(existing_block, list) and isinstance(block_value, list):
+                target["financials"][block_name] = _reconcile_statement_rows(
+                    existing_block,
+                    block_value,
+                )
+                source_updates[block_name] = _merge_source(
+                    target["sources"].get(block_name),
+                    source_updates.get(block_name),
+                )
             else:
                 source_updates.pop(block_name, None)
 
     target["sources"].update(source_updates)
 
 
-def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
+def _fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
     validate_financials_configuration()
     symbol = normalize_symbol(symbol)
     cache_key = CacheManager.make_key("tickers", symbol)
@@ -713,6 +797,13 @@ def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
                     )
                     raise ValueError("cached symbol mismatch")
                 payload = enrich_cached_profile(symbol, payload)
+                attach_financial_quality(
+                    payload,
+                    fetched_at=payload.get("_fetchedAt"),
+                    max_age_seconds=FINANCIAL_SNAPSHOT_MAX_AGE_SECONDS,
+                )
+                if not payload["dataQuality"]["cacheEligible"]:
+                    raise ValueError("cached financial payload is not reusable")
                 payload["_dataSource"] = cache_source or "cache"
                 CacheManager.set(cache_key, json.dumps(make_json_safe(payload)))
                 supabase_store.save_financial_payload(symbol, make_json_safe(payload))
@@ -735,6 +826,14 @@ def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
                 pass
             else:
                 payload = enrich_cached_profile(symbol, payload)
+                attach_financial_quality(
+                    payload,
+                    fetched_at=snapshot.get("fetched_at"),
+                    max_age_seconds=FINANCIAL_SNAPSHOT_MAX_AGE_SECONDS,
+                )
+                if not payload["dataQuality"]["cacheEligible"]:
+                    payload = {}
+            if payload:
                 payload["_dataSource"] = "supabase"
                 CacheManager.set(cache_key, json.dumps(make_json_safe(payload)))
                 supabase_store.save_financial_payload(symbol, make_json_safe(payload))
@@ -770,14 +869,41 @@ def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
         latest_income = income_statement[0]
         period_end = latest_income.get("fiscalDateEnding") or latest_income.get("date")
 
-    supabase_store.save_snapshot(
-        "financials",
-        symbol,
-        make_json_safe(merged),
-        provenance=merged.get("sources", {}),
-        period_end=period_end,
-    )
-    supabase_store.save_financial_payload(symbol, make_json_safe(merged))
     merged["_dataSource"] = "fresh"
-    CacheManager.set(cache_key, json.dumps(make_json_safe(merged)))
+    attach_financial_quality(merged)
+    if merged["dataQuality"]["cacheEligible"]:
+        supabase_store.save_snapshot(
+            "financials",
+            symbol,
+            make_json_safe(merged),
+            provenance=merged.get("sources", {}),
+            period_end=period_end,
+        )
+        supabase_store.save_financial_payload(symbol, make_json_safe(merged))
+        CacheManager.set(cache_key, json.dumps(make_json_safe(merged)))
     return merged
+
+
+def fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
+    normalized = normalize_symbol(symbol)
+    with _inflight_lock:
+        future = _inflight_financials.get(normalized)
+        owner = future is None
+        if owner:
+            future = Future()
+            _inflight_financials[normalized] = future
+
+    if not owner:
+        return deepcopy(future.result())
+
+    try:
+        result = _fetch_ticker_financials(normalized, force_refresh=force_refresh)
+        future.set_result(deepcopy(result))
+        return result
+    except Exception as exc:
+        future.set_exception(exc)
+        raise
+    finally:
+        with _inflight_lock:
+            if _inflight_financials.get(normalized) is future:
+                _inflight_financials.pop(normalized, None)

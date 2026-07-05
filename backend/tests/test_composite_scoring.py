@@ -68,6 +68,24 @@ class CompositeScoringTests(unittest.TestCase):
         self.assertEqual(result["confidenceAdjustment"], -5)
         self.assertEqual(result["score"], result["rawScore"] - 5)
 
+    def test_zero_financial_coverage_has_no_score(self):
+        result = build_composite_score(
+            {"profitability": {}, "growth": {}, "valuation": {}, "stability": {}},
+            {},
+            {},
+            {},
+            {
+                "confidenceLevel": "low",
+                "financialQuality": {
+                    "status": "insufficient",
+                    "scoreEligible": False,
+                },
+            },
+        )
+
+        self.assertIsNone(result["score"])
+        self.assertEqual(result["reason"], "insufficient_financial_data")
+
 
 if __name__ == "__main__":
     unittest.main()

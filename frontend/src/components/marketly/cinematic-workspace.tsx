@@ -376,6 +376,13 @@ function latestMiniCharts(block: AnalysisBlock) {
 }
 
 function confidenceValue(block: AnalysisBlock) {
+  if (
+    block.dataStatus.financials === "insufficient" ||
+    block.dataStatus.financials === "stale" ||
+    block.dataStatus.financials === "missing"
+  ) {
+    return Math.round((block.metadata.financialQuality?.coverage ?? 0) * 100);
+  }
   const confidence =
     parsePercent(block.verdict.confidence) ??
     parsePercent(block.lens.businessConfidence) ??
@@ -384,29 +391,23 @@ function confidenceValue(block: AnalysisBlock) {
   return Math.max(0, Math.min(100, Math.round(confidence ?? 50)));
 }
 
-function scenarioBars(block: AnalysisBlock, currentPrice: number) {
+function scenarioBars(block: AnalysisBlock) {
   const cases = block.scenarioCases.slice(0, 3);
 
   if (cases.length) {
-    return cases.map((item, index) => {
+    return cases.map((item) => {
       const probability = Math.round(
         item.probability <= 1 ? item.probability * 100 : item.probability,
       );
-      const targetMultiplier = index === 0 ? 1.18 : index === 1 ? 1 : 0.82;
-
       return {
-        name: index === 0 ? "Bull" : index === 1 ? "Base" : "Bear",
+        name: capitalizeFirst(item.name),
         probability: Math.max(0, Math.min(100, probability)),
-        target: currentPrice ? `$${(currentPrice * targetMultiplier).toFixed(0)}` : `${probability}%`,
+        target: capitalizeFirst(item.confidence),
       };
     });
   }
 
-  return [
-    {name: "Bull", probability: 35, target: currentPrice ? `$${(currentPrice * 1.18).toFixed(0)}` : "35%"},
-    {name: "Base", probability: 45, target: currentPrice ? `$${currentPrice.toFixed(0)}` : "45%"},
-    {name: "Bear", probability: 20, target: currentPrice ? `$${(currentPrice * 0.82).toFixed(0)}` : "20%"},
-  ];
+  return [];
 }
 
 function buildIssues(block: AnalysisBlock) {
@@ -1456,7 +1457,7 @@ function MarketChart({stockData}: {stockData: StockData}) {
 function AIVerdict({block, stockData}: {block: AnalysisBlock; stockData: StockData}) {
   const verdict = normalizeVerdict(block.verdict.label);
   const confidence = confidenceValue(block);
-  const scenarios = scenarioBars(block, stockData.price);
+  const scenarios = scenarioBars(block);
 
   const verdictConfig = {
     Bullish: {
@@ -1525,7 +1526,7 @@ function AIVerdict({block, stockData}: {block: AnalysisBlock; stockData: StockDa
         <div className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Scenario Engine
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        {scenarios.length > 0 ? <div className="grid grid-cols-3 gap-3">
           {scenarios.map((scenario, index) => {
             const colorClass =
               index === 0
@@ -1554,7 +1555,7 @@ function AIVerdict({block, stockData}: {block: AnalysisBlock; stockData: StockDa
               </div>
             );
           })}
-        </div>
+        </div> : <p className="text-xs text-muted-foreground">Scenario evidence is unavailable.</p>}
       </div>
     </motion.div>
   );
@@ -2289,6 +2290,23 @@ function DashboardLayout({
       </motion.button>
 
       <div className="mx-auto max-w-7xl px-4 py-8 pt-16">
+        {block.dataStatus.financials !== "complete" && (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
+            <div>
+              <p className="text-sm font-semibold">Financial data is {block.dataStatus.financials}.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Marketly is showing available context without treating missing evidence as a normal score.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onSubmit(block.stock.ticker)}
+              className="rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-secondary/50"
+            >
+              Retry financials
+            </button>
+          </div>
+        )}
         <StockHeader stockData={stockData} />
         <FollowUpCommand block={block} onSubmit={onSubmit} />
         <FollowUpPanel block={block} followUps={followUps} />

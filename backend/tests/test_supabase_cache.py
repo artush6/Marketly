@@ -148,7 +148,21 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
     @patch("app.integrations.financials.supabase_store.save_financial_payload")
     @patch(
         "app.integrations.financials.supabase_store.get_latest_snapshot",
-        return_value={"payload": {"symbol": "TMO", "info": {"shortName": "Thermo"}}},
+        return_value={
+            "fetched_at": "2026-07-05T00:00:00+00:00",
+            "payload": {
+                "symbol": "TMO",
+                "info": {"shortName": "Thermo", "marketCap": 1_000_000},
+                "quote": {"currentPrice": 10},
+                "financials": {
+                    "income_statement": [
+                        {"date": "2026-03-31", "revenue": 100, "netIncome": 20},
+                        {"date": "2025-03-31", "revenue": 90, "netIncome": 18},
+                    ]
+                },
+                "sources": {"income_statement": "sec_xbrl"},
+            },
+        },
     )
     @patch("app.integrations.financials.fetch_finnhub_payload")
     @patch("app.integrations.financials.validate_financials_configuration")
@@ -171,7 +185,14 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
 
     @patch(
         "app.integrations.financials.CacheManager.get_with_source",
-        return_value=('{"symbol":"TSLA","info":{"shortName":"Tesla"},"financials":{}}', "cache"),
+        return_value=(
+            '{"symbol":"TSLA","info":{"shortName":"Tesla","marketCap":1000000},'
+            '"quote":{"currentPrice":10},"financials":{"income_statement":['
+            '{"date":"2026-03-31","revenue":100,"netIncome":20},'
+            '{"date":"2025-03-31","revenue":90,"netIncome":18}]},'
+            '"sources":{"income_statement":"sec_xbrl"}}',
+            "cache",
+        ),
     )
     @patch("app.integrations.financials.CacheManager.set")
     @patch("app.integrations.financials.supabase_store.save_financial_payload")

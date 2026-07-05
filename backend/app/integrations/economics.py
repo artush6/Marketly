@@ -1,5 +1,6 @@
 import json
 import logging
+from contextvars import ContextVar
 from datetime import datetime, timedelta
 from functools import lru_cache
 
@@ -10,7 +11,7 @@ from app.core.config import settings
 from app.core.errors import MisconfigurationError
 from app.integrations import supabase_store
 
-LAST_DATA_SOURCE = "unknown"
+LAST_DATA_SOURCE: ContextVar[str] = ContextVar("macro_data_source", default="unknown")
 
 
 @lru_cache(maxsize=1)
@@ -27,25 +28,24 @@ def fetch_macro_indicators(years: int = 20):
     Returns last `years` of data, resampled to monthly (last value).
     """
     cache_key = CacheManager.make_key("macro", f"indicators_{years}")
-    global LAST_DATA_SOURCE
     cached, cache_source = CacheManager.get_with_source(cache_key)
 
     logger = logging.getLogger(__name__)
     if cached:
         logger.debug("Loaded macro data from cache")
-        LAST_DATA_SOURCE = cache_source or "cache"
+        LAST_DATA_SOURCE.set(cache_source or "cache")
         payload = json.loads(cached)
         if isinstance(payload, dict):
-            payload["_dataSource"] = LAST_DATA_SOURCE
+            payload["_dataSource"] = LAST_DATA_SOURCE.get()
         return payload
 
     snapshot_key = f"indicators_{years}"
     snapshot = supabase_store.get_latest_snapshot("macro", snapshot_key)
     if snapshot and isinstance(snapshot.get("payload"), dict):
         logger.info("Loaded macro data from Supabase snapshot")
-        LAST_DATA_SOURCE = "supabase"
+        LAST_DATA_SOURCE.set("supabase")
         payload = dict(snapshot["payload"])
-        payload["_dataSource"] = LAST_DATA_SOURCE
+        payload["_dataSource"] = LAST_DATA_SOURCE.get()
         CacheManager.set(cache_key, json.dumps(payload))
         return payload
 
@@ -87,11 +87,11 @@ def fetch_macro_indicators(years: int = 20):
         provenance={"provider": "fred", "years": years},
     )
     supabase_store.save_macro_observations(data)
-    LAST_DATA_SOURCE = "fresh"
-    data["_dataSource"] = LAST_DATA_SOURCE
+    LAST_DATA_SOURCE.set("fresh")
+    data["_dataSource"] = LAST_DATA_SOURCE.get()
     CacheManager.set(cache_key, json.dumps(data))
     return data
 
 
 def get_last_data_source() -> str:
-    return LAST_DATA_SOURCE
+    return LAST_DATA_SOURCE.get()

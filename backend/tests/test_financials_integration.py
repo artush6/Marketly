@@ -13,6 +13,41 @@ from app.services.scoring.metrics import build_scoring_metrics
 
 
 class FinancialsIntegrationTests(unittest.TestCase):
+    def test_merge_reconciles_statement_rows_instead_of_first_nonempty_wins(self):
+        target = {
+            "info": {},
+            "quote": {},
+            "financials": {
+                "income_statement": [
+                    {"date": "2026-03-31", "netIncome": 20}
+                ]
+            },
+            "sources": {"income_statement": "fmp"},
+        }
+        payload = {
+            "info": {},
+            "quote": {},
+            "financials": {
+                "income_statement": [
+                    {"date": "2026-03-31", "revenue": 100},
+                    {"date": "2025-03-31", "revenue": 90, "netIncome": 18},
+                ]
+            },
+            "sources": {"income_statement": "sec_xbrl"},
+        }
+
+        merge_provider_payload(target, payload)
+
+        self.assertEqual(
+            target["financials"]["income_statement"][0],
+            {"date": "2026-03-31", "netIncome": 20, "revenue": 100},
+        )
+        self.assertEqual(len(target["financials"]["income_statement"]), 2)
+        self.assertEqual(
+            target["sources"]["income_statement"],
+            "fmp+sec_xbrl",
+        )
+
     @patch(
         "app.integrations.financials.settings",
         SimpleNamespace(
@@ -270,6 +305,35 @@ class FinancialsIntegrationTests(unittest.TestCase):
         self.assertEqual(payload["sources"]["income_statement"], "fmp")
         self.assertEqual(payload["sources"]["balance_sheet"], "fmp")
         self.assertEqual(payload["sources"]["cash_flow"], "fmp")
+
+    @patch("app.integrations.financials.safe_get")
+    @patch(
+        "app.integrations.financials.settings",
+        SimpleNamespace(FMP_API_KEY="fmp-key", FMPSDK_API_KEY=None),
+    )
+    def test_fetch_fmp_payload_preserves_valid_zero_ratios(self, mock_safe_get):
+        def side_effect(url, params=None, source_name="", headers=None):
+            if url.endswith("/ratios-ttm"):
+                return [
+                    {
+                        "priceToSalesRatioTTM": 0,
+                        "debtEquityRatioTTM": 0,
+                        "dividendYieldTTM": 0,
+                        "returnOnEquityTTM": 0,
+                        "grossProfitMarginTTM": 0,
+                    }
+                ]
+            return []
+
+        mock_safe_get.side_effect = side_effect
+
+        payload = fetch_fmp_payload("CASH")
+
+        self.assertEqual(payload["info"]["priceToSales"], 0)
+        self.assertEqual(payload["info"]["debtToEquity"], 0)
+        self.assertEqual(payload["info"]["dividendYield"], 0)
+        self.assertEqual(payload["info"]["roe"], 0)
+        self.assertEqual(payload["info"]["grossMargin"], 0)
 
     def test_merge_provider_payload_merges_financial_blocks_without_overwriting_with_none(self):
         target = {

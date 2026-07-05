@@ -3,7 +3,7 @@ from app.routes import analysis, assistant, econ_situation, financials, news
 from rich.traceback import install
 
 # Make all tracebacks pretty in the console
-install(show_locals=True)
+install(show_locals=False)
 
 app = FastAPI(title="Marketly Backend 🚀")
 

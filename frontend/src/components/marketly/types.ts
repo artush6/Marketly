@@ -150,13 +150,18 @@ export type AnalysisBlock = {
     dataQualityScore?: string;
     missingCriticalFields: string[];
     analysisLimitations: string[];
+    financialQuality?: {
+      status: "complete" | "partial" | "insufficient" | "stale";
+      coverage: number;
+      reason?: string | null;
+    };
   };
   resolution: {
     symbol: string;
     matchedBy: string;
   };
   dataStatus: {
-    financials: "backend" | "missing";
+    financials: "complete" | "partial" | "insufficient" | "stale" | "missing";
     news: "backend" | "missing";
     analysis: "backend" | "missing";
   };

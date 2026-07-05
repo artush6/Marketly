@@ -144,6 +144,7 @@ OPENAI_MODEL=gpt-5-nano-2025-08-07
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+SEC_USER_AGENT=Marketly/1.0 (contact: your-real-email@example.com)
 ```
 
 ### Frontend

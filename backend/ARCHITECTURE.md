@@ -193,6 +193,8 @@ This layer fetches raw inputs:
 
 Provider integrations should not decide whether a stock is attractive. They should fetch, normalize enough for code to consume, and preserve source information.
 
+Financial payloads are quality-gated before reuse. Empty responses are not durable-cache eligible, stale snapshots are bypassed, and concurrent cold requests for the same symbol share one provider run.
+
 Example:
 
 ```python

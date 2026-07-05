@@ -1,6 +1,7 @@
 import json
 import datetime
 import logging
+from contextvars import ContextVar
 from functools import lru_cache
 from typing import Optional
 
@@ -11,7 +12,7 @@ from app.integrations import supabase_store
 import finnhub
 
 logger = logging.getLogger(__name__)
-LAST_DATA_SOURCE = "unknown"
+LAST_DATA_SOURCE: ContextVar[str] = ContextVar("news_data_source", default="unknown")
 
 
 @lru_cache(maxsize=1)
@@ -31,22 +32,23 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
     """
 
     symbol = symbol.strip().upper()
-    cache_key = CacheManager.make_key("news", f"{symbol}_{days}d")
-    global LAST_DATA_SOURCE
-
+    cache_key = CacheManager.make_key(
+        "news",
+        f"{symbol}_{days}d_{max_items or 'all'}",
+    )
     # Try to load from cache
     cached, cache_source = CacheManager.get_with_source(cache_key)
     if cached:
         articles = json.loads(cached)
         if isinstance(articles, list):
             supabase_store.save_news_articles(symbol, articles)
-        LAST_DATA_SOURCE = cache_source or "cache"
+        LAST_DATA_SOURCE.set(cache_source or "cache")
         return articles
 
     snapshot_key = f"{symbol}_{days}d_{max_items or 'all'}"
     snapshot = supabase_store.get_latest_snapshot("news", snapshot_key)
     if snapshot and isinstance(snapshot.get("payload"), list):
-        LAST_DATA_SOURCE = "supabase"
+        LAST_DATA_SOURCE.set("supabase")
         CacheManager.set(cache_key, json.dumps(snapshot["payload"]))
         supabase_store.save_news_articles(symbol, snapshot["payload"])
         return snapshot["payload"]
@@ -70,7 +72,7 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
         provenance={"provider": "finnhub", "symbol": symbol, "days": days},
     )
     supabase_store.save_news_articles(symbol, articles)
-    LAST_DATA_SOURCE = "fresh"
+    LAST_DATA_SOURCE.set("fresh")
 
     # Cache the new data
     CacheManager.set(cache_key, json.dumps(articles))
@@ -86,7 +88,7 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
 
 
 def get_last_data_source() -> str:
-    return LAST_DATA_SOURCE
+    return LAST_DATA_SOURCE.get()
 
 
 def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: Optional[str] = None):

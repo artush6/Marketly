@@ -25,6 +25,7 @@ class Settings:
     SUPABASE_URL: Optional[str]
     SUPABASE_ANON_KEY: Optional[str]
     SUPABASE_SERVICE_ROLE_KEY: Optional[str]
+    SEC_USER_AGENT: Optional[str]
 
 
 @lru_cache(maxsize=1)
@@ -43,6 +44,7 @@ def get_settings() -> Settings:
         SUPABASE_URL=os.getenv("SUPABASE_URL"),
         SUPABASE_ANON_KEY=os.getenv("SUPABASE_ANON_KEY"),
         SUPABASE_SERVICE_ROLE_KEY=os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        SEC_USER_AGENT=os.getenv("SEC_USER_AGENT"),
     )
 
 

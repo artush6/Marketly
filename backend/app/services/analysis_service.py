@@ -21,6 +21,7 @@ from app.integrations import supabase_store
 from app.models import TickerData
 from app.serialization import sanitize
 from app.services.analysis_fallback import build_fallback_analysis
+from app.services.financial_quality import attach_financial_quality
 from app.services.classification import classify_business_model
 from app.services.data_quality import build_data_quality
 from app.services.events import build_event_catalyst_layer
@@ -53,7 +54,7 @@ SCORE_MENTION_RE = re.compile(
 
 def _reconcile_analysis_score(
     analysis: dict,
-    composite_score: dict[str, int],
+    composite_score: dict,
 ) -> tuple[dict, int | None]:
     backend_score = composite_score["score"]
     model_suggested_score = analysis.get("score")
@@ -90,6 +91,17 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
             cached_symbol = str(payload.get("symbol", symbol)).upper()
             if cached_symbol != symbol:
                 raise ValueError(f"Cached score payload symbol mismatch: expected {symbol}, got {cached_symbol}")
+            cached_metadata = payload.get("analysisMetadata")
+            cached_quality = (
+                cached_metadata.get("financialQuality")
+                if isinstance(cached_metadata, dict)
+                else None
+            )
+            if not isinstance(cached_quality, dict) or not cached_quality.get(
+                "scoreEligible", False
+            ):
+                logger.info("Ignoring score cache for %s without eligible financial evidence", symbol)
+                return build_ticker_score(symbol, force_refresh=True)
             payload["dataSource"] = cache_source or "cache"
             if not isinstance(payload.get("analysisMetadata"), dict):
                 payload["analysisMetadata"] = {}
@@ -102,24 +114,29 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
             supabase_store.save_analysis_run(payload)
             return payload
 
-    if not settings.FRED_API_KEY:
-        raise MisconfigurationError("FRED_API_KEY is not configured.")
-    if not settings.FINNHUB_API_KEY:
-        raise MisconfigurationError("FINNHUB_API_KEY is not configured.")
-    if not settings.OPENAI_API_KEY:
-        raise MisconfigurationError("OPENAI_API_KEY is not configured.")
     validate_financials_configuration()
 
     # Step 1: Fetch all raw data
     raw_financials = fetch_ticker_financials(symbol, force_refresh=force_refresh)
     if "error" in raw_financials:
         raise ValueError(raw_financials["error"])
+    if not isinstance(raw_financials.get("dataQuality"), dict):
+        attach_financial_quality(raw_financials)
+    financial_quality = raw_financials["dataQuality"]
     ticker_data = TickerData.from_raw(raw_financials)
     fact_graph = build_fact_graph(ticker_data)
     scoring_metrics = build_scoring_metrics(ticker_data)
 
-    economic_data = fetch_macro_indicators()
-    news_data = get_news(symbol)
+    try:
+        economic_data = fetch_macro_indicators()
+    except MisconfigurationError:
+        logger.info("Macro context unavailable because FRED is not configured")
+        economic_data = {}
+    try:
+        news_data = get_news(symbol)
+    except MisconfigurationError:
+        logger.info("News context unavailable because Finnhub is not configured")
+        news_data = []
     data_sources = {
         "score": "fresh",
         "financials": raw_financials.get("_dataSource", "unknown"),
@@ -142,6 +159,7 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
         scoring_metrics,
         interpretation,
     )
+    data_quality["financialQuality"] = financial_quality
     history_context = build_history_context(ticker_data, business_model)
     event_layer = build_event_catalyst_layer(business_model, interpretation, news_data)
     scenarios = build_scenarios(
@@ -173,32 +191,59 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
     )
 
     # Step 2: Score the ticker with GPT
-    analysis = score_ticker(
-        ticker_data,
-        news_data,
-        economic_data,
-        scoring_metrics=scoring_metrics,
-        fact_graph=sanitize(fact_graph.model_dump() if hasattr(fact_graph, "model_dump") else fact_graph.dict()),
-        business_model=business_model,
-        interpretation=interpretation,
-        event_layer=event_layer,
-        history_context=history_context,
-        scenarios=scenarios,
-        trajectory=trajectory,
-        market_context=market_context,
-        data_quality=data_quality,
-        composite_score=composite_score,
-    )
-    if "error" in analysis:
+    if composite_score["score"] is None:
+        analysis = {
+            "score": None,
+            "summary": (
+                "Financial statement coverage is currently insufficient for a "
+                "reliable investment score. Available company and market context "
+                "is shown without a rating."
+            ),
+            "positives": interpretation.get("strengths", []),
+            "negatives": data_quality.get("analysisLimitations", []),
+            "source": "degraded",
+        }
+        model_suggested_score = None
+    elif not settings.OPENAI_API_KEY:
         analysis = build_fallback_analysis(
-            info.shortName if (info := ticker_data.info) else None,
+            ticker_data.info.shortName,
             business_model,
             interpretation,
             scenarios,
             trajectory,
             composite_score,
         )
-    analysis, model_suggested_score = _reconcile_analysis_score(analysis, composite_score)
+        analysis, model_suggested_score = _reconcile_analysis_score(
+            analysis,
+            composite_score,
+        )
+    else:
+        analysis = score_ticker(
+            ticker_data,
+            news_data,
+            economic_data,
+            scoring_metrics=scoring_metrics,
+            fact_graph=sanitize(fact_graph.model_dump() if hasattr(fact_graph, "model_dump") else fact_graph.dict()),
+            business_model=business_model,
+            interpretation=interpretation,
+            event_layer=event_layer,
+            history_context=history_context,
+            scenarios=scenarios,
+            trajectory=trajectory,
+            market_context=market_context,
+            data_quality=data_quality,
+            composite_score=composite_score,
+        )
+        if "error" in analysis:
+            analysis = build_fallback_analysis(
+                info.shortName if (info := ticker_data.info) else None,
+                business_model,
+                interpretation,
+                scenarios,
+                trajectory,
+                composite_score,
+            )
+        analysis, model_suggested_score = _reconcile_analysis_score(analysis, composite_score)
 
     # Step 3: Return structured response (preserve existing output contract)
     info = ticker_data.info
@@ -241,9 +286,10 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
             "conflictingFactCount": fact_graph.coverage.conflict_fields,
             "weakFactFields": fact_graph.coverage.weak_fields,
             **data_quality,
+            "financialQuality": financial_quality,
             "provenance": provenance,
             "refreshPolicy": build_refresh_policy(),
-            "gptScore": analysis.get("score"),
+            "gptScore": model_suggested_score,
             "modelSuggestedScore": model_suggested_score,
             "dataSource": "fresh",
             "dataSources": data_sources,
@@ -275,5 +321,6 @@ def build_ticker_score(symbol: str, force_refresh: bool = False) -> dict:
         "dataSource": "fresh",
     }
     supabase_store.save_analysis_run(response)
-    CacheManager.set(cache_key, json.dumps(response))
+    if response["score"] is not None:
+        CacheManager.set(cache_key, json.dumps(response))
     return response

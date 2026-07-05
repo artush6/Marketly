@@ -245,6 +245,15 @@ function extractIncomeStatements(financials?: BackendFinancialsResponse["financi
   return Array.isArray(financials?.income_statement) ? [...financials.income_statement].reverse() : [];
 }
 
+function financialStatus(
+  financials: BackendFinancialsResponse | null,
+): AnalysisBlock["dataStatus"]["financials"] {
+  if (!financials) return "missing";
+  if (financials.dataQuality?.status) return financials.dataQuality.status;
+  const statements = extractIncomeStatements(financials.financials);
+  return statements.length >= 2 ? "partial" : "insufficient";
+}
+
 function extractSeries(
   statements: BackendFinancialStatement[],
   pickValue: (row: BackendFinancialStatement) => number | null,
@@ -618,7 +627,12 @@ function buildVerdict(score: BackendScoreResponse | null): VerdictData {
         ? formatPercentWhole(score.businessModel.confidence)
         : undefined,
     asymmetry: sentenceOrTitle(score.scenarios?.asymmetry),
-    source: score.analysisSource === "fallback" ? "Fallback" : "OpenAI",
+    source:
+      score.analysisSource === "degraded"
+        ? "Insufficient financial data"
+        : score.analysisSource === "fallback"
+          ? "Fallback"
+          : "OpenAI",
   };
 }
 
@@ -822,6 +836,13 @@ function buildMetadata(score: BackendScoreResponse | null): AnalysisBlock["metad
         : undefined,
     missingCriticalFields: metadata?.missingCriticalFields ?? [],
     analysisLimitations: metadata?.analysisLimitations ?? [],
+    financialQuality: metadata?.financialQuality
+      ? {
+          status: metadata.financialQuality.status,
+          coverage: metadata.financialQuality.coverage,
+          reason: metadata.financialQuality.reason,
+        }
+      : undefined,
   };
 }
 
@@ -884,7 +905,7 @@ function buildAnalysisBlockFromParts(
     metadata: buildMetadata(score),
     resolution: resolved,
     dataStatus: {
-      financials: financials ? "backend" : "missing",
+      financials: financialStatus(financials),
       news: news && news.length > 0 ? "backend" : "missing",
       analysis: score ? "backend" : "missing",
     },
@@ -938,7 +959,7 @@ export function shouldRunFullAnalysis(query: string, currentSymbol?: string | nu
   const includesKnownAlias = Object.keys(QUERY_ALIASES).some((alias) => normalized.includes(alias));
 
   if (exactTicker || inlineTicker || includesKnownAlias) {
-    return resolved.symbol !== currentSymbol;
+    return exactTicker ? true : resolved.symbol !== currentSymbol;
   }
 
   return false;
@@ -1021,6 +1042,15 @@ export async function buildAnalysisBlockFromBackendProgressive(
       })
       .finally(() => publish("score")),
   ]);
+
+  if (!financials && score) {
+    try {
+      financials = await getFinancials(resolved.symbol, true);
+      publish("financials");
+    } catch {
+      financials = null;
+    }
+  }
 
   return buildAnalysisBlockFromParts(query, id, resolved, financials, news, score);
 }

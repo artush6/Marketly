@@ -89,6 +89,7 @@ export default function Page() {
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const [isRestoringState, setIsRestoringState] = useState(true);
   const isMountedRef = useRef(true);
+  const activeAnalysisIdsRef = useRef(new Set<string>());
   const hasRestoredStateRef = useRef(false);
   const hasBootstrappedUrlQueryRef = useRef(false);
 
@@ -99,8 +100,11 @@ export default function Page() {
   const queryFromUrl = searchParams.get("q")?.trim() ?? "";
 
   useEffect(() => {
+    isMountedRef.current = true;
+    const activeAnalysisIds = activeAnalysisIdsRef.current;
     return () => {
       isMountedRef.current = false;
+      activeAnalysisIds.clear();
     };
   }, []);
 
@@ -159,10 +163,11 @@ export default function Page() {
 
   const completePendingBlock = useCallback(
     (id: string, block: AnalysisBlock) => {
-      if (!isMountedRef.current) {
+      if (!isMountedRef.current || !activeAnalysisIdsRef.current.has(id)) {
         return;
       }
 
+      activeAnalysisIdsRef.current.delete(id);
       setPendingBlocks((current) => current.filter((item) => item.id !== id));
       setAnalysisBlocks((current) => [...current, block]);
     },
@@ -174,6 +179,7 @@ export default function Page() {
       const resolved = resolveQuerySymbol(normalizedQuery);
       const id = `analysis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const startedAt = Date.now();
+      activeAnalysisIdsRef.current.add(id);
 
       setPendingBlocks((current) => [
         ...current.filter((block) => block.symbol !== resolved.symbol),
@@ -402,6 +408,7 @@ export default function Page() {
   );
 
   const handleReset = useCallback(() => {
+    activeAnalysisIdsRef.current.clear();
     setAnalysisBlocks([]);
     setPendingBlocks([]);
     setFollowUps([]);

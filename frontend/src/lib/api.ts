@@ -74,6 +74,18 @@ export type BackendFinancialsResponse = {
     [key: string]: unknown;
   };
   sources?: Record<string, string>;
+  dataQuality?: BackendFinancialQuality;
+};
+
+export type BackendFinancialQuality = {
+  status: "complete" | "partial" | "insufficient" | "stale";
+  coverage: number;
+  statementCoverage: number;
+  missingCriticalFields: string[];
+  fetchedAt: string;
+  cacheEligible: boolean;
+  scoreEligible: boolean;
+  reason?: string | null;
 };
 
 export type BackendNewsItem = {
@@ -112,6 +124,8 @@ export type BackendAnalysisMetadata = {
   provenance?: Record<string, unknown>;
   refreshPolicy?: Record<string, unknown>;
   gptScore?: number | null;
+  modelSuggestedScore?: number | null;
+  financialQuality?: BackendFinancialQuality;
   dataSource?: string | null;
   dataSources?: Record<string, string>;
   inputPartitions?: Record<string, string[]>;
@@ -291,7 +305,7 @@ function getBaseUrl() {
 }
 
 const CLIENT_CACHE_TTL_MS = 60_000;
-const CLIENT_REQUEST_TIMEOUT_MS = 90_000;
+const CLIENT_REQUEST_TIMEOUT_MS = 120_000;
 const clientResponseCache = new Map<string, { expiresAt: number; value: unknown }>();
 const clientInFlightRequests = new Map<string, Promise<unknown>>();
 
@@ -322,10 +336,18 @@ async function requestJson<T>(path: string): Promise<T> {
       const value = (await res.json()) as T;
 
       if (typeof window !== "undefined") {
-        clientResponseCache.set(url, {
-          expiresAt: Date.now() + CLIENT_CACHE_TTL_MS,
-          value,
-        });
+        const record = value as Record<string, unknown>;
+        const quality = record?.dataQuality as BackendFinancialQuality | undefined;
+        const degraded =
+          quality?.status === "insufficient" ||
+          quality?.status === "stale" ||
+          ("score" in (record ?? {}) && record.score == null);
+        if (!degraded) {
+          clientResponseCache.set(url, {
+            expiresAt: Date.now() + CLIENT_CACHE_TTL_MS,
+            value,
+          });
+        }
       }
 
       return value;
@@ -343,8 +365,12 @@ async function requestJson<T>(path: string): Promise<T> {
   return request;
 }
 
-export async function getFinancials(symbol: string): Promise<BackendFinancialsResponse> {
-  return requestJson<BackendFinancialsResponse>(`/financials/${encodeURIComponent(symbol)}`);
+export async function getFinancials(
+  symbol: string,
+  refresh = false,
+): Promise<BackendFinancialsResponse> {
+  const query = refresh ? "?refresh=true" : "";
+  return requestJson<BackendFinancialsResponse>(`/financials/${encodeURIComponent(symbol)}${query}`);
 }
 
 export async function getCompanyNews(symbol: string): Promise<BackendNewsItem[]> {

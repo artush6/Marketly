@@ -17,7 +17,7 @@ def _score_ratio(
     missing_points: float | None = None,
 ) -> float:
     if not isinstance(value, (int, float)):
-        return max_points * 0.45 if missing_points is None else missing_points
+        return 0.0 if missing_points is None else missing_points
     ratio = _clamp((value - low) / (high - low), 0.0, 1.0)
     if reverse:
         ratio = 1.0 - ratio
@@ -236,10 +236,17 @@ def build_composite_score(
     elif confidence_level == "medium":
         confidence_adjustment = -2
 
-    final_score = round(_clamp(raw_score + confidence_adjustment, 0, 100))
+    financial_quality = data_quality.get("financialQuality", {})
+    score_eligible = financial_quality.get("scoreEligible", True)
+    final_score = (
+        round(_clamp(raw_score + confidence_adjustment, 0, 100))
+        if score_eligible
+        else None
+    )
 
     return {
         "score": final_score,
+        "reason": None if score_eligible else "insufficient_financial_data",
         "rawScore": raw_score,
         "confidenceAdjustment": confidence_adjustment,
         "subscores": {

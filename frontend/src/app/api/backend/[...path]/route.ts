@@ -1,7 +1,7 @@
 import {NextRequest, NextResponse} from "next/server";
 
 const DEFAULT_BACKEND_URL = "https://marketly-sxn7.onrender.com";
-const REQUEST_TIMEOUT_MS = 100_000;
+const REQUEST_TIMEOUT_MS = 115_000;
 
 function getBackendBaseUrl() {
     return (process.env.BACKEND_API_URL || DEFAULT_BACKEND_URL).replace(/\/$/, "");
@@ -55,7 +55,6 @@ async function proxy(request: NextRequest, path: string[]) {
             {
                 error: "Backend connection failed",
                 detail: message,
-                backendUrl: getBackendBaseUrl(),
             },
             {status: 502},
         );

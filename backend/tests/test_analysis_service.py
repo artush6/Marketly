@@ -5,6 +5,21 @@ from unittest.mock import patch
 from app.services.analysis_service import build_ticker_score
 
 
+def sufficient_financial_payload(symbol="AAPL", name="Apple Inc."):
+    return {
+        "symbol": symbol,
+        "info": {"shortName": name, "marketCap": 1_000_000},
+        "quote": {"currentPrice": 10},
+        "financials": {
+            "income_statement": [
+                {"date": "2026-03-31", "revenue": 100, "netIncome": 20},
+                {"date": "2025-03-31", "revenue": 90, "netIncome": 18},
+            ]
+        },
+        "sources": {"income_statement": "test"},
+    }
+
+
 class AnalysisServiceTests(unittest.TestCase):
     def setUp(self):
         settings_patcher = patch(
@@ -49,11 +64,7 @@ class AnalysisServiceTests(unittest.TestCase):
         mock_get_news,
         mock_score_ticker,
     ):
-        mock_fetch_ticker_financials.return_value = {
-            "symbol": "AAPL",
-            "info": {"shortName": "Apple Inc."},
-            "financials": {},
-        }
+        mock_fetch_ticker_financials.return_value = sufficient_financial_payload()
         mock_fetch_macro_indicators.return_value = {"GDP (Real)": []}
         mock_get_news.return_value = []
         mock_score_ticker.return_value = {
@@ -72,7 +83,7 @@ class AnalysisServiceTests(unittest.TestCase):
         self.assertNotEqual(result["score"], 80)
         self.assertEqual(result["score"], result["scoreBreakdown"]["score"])
         self.assertEqual(result["scoreBreakdown"]["method"], "deterministic_v1")
-        self.assertEqual(result["analysisMetadata"]["gptScore"], result["score"])
+        self.assertEqual(result["analysisMetadata"]["gptScore"], 80)
         self.assertEqual(result["analysisMetadata"]["modelSuggestedScore"], 80)
         self.assertIn("analysisId", result)
         self.assertIn("analysisVersion", result)
@@ -120,9 +131,16 @@ class AnalysisServiceTests(unittest.TestCase):
                         "netIncome": 1_600.0,
                         "period": "Q1",
                         "acceptedForm": "10-Q",
-                    }
+                    },
+                    {
+                        "revenue": 10_000.0,
+                        "netIncome": 1_400.0,
+                        "period": "Q1",
+                        "acceptedForm": "10-Q",
+                    },
                 ]
             },
+            "sources": {"income_statement": "test"},
         }
         mock_fetch_macro_indicators.return_value = {}
         mock_get_news.return_value = []
@@ -136,7 +154,7 @@ class AnalysisServiceTests(unittest.TestCase):
         result = build_ticker_score("tmo")
 
         self.assertEqual(result["score"], result["scoreBreakdown"]["score"])
-        self.assertEqual(result["analysisMetadata"]["gptScore"], result["score"])
+        self.assertEqual(result["analysisMetadata"]["gptScore"], 78)
         self.assertEqual(result["analysisMetadata"]["modelSuggestedScore"], 78)
         self.assertIn(
             f"backend deterministic score of {result['score']}",
@@ -152,6 +170,33 @@ class AnalysisServiceTests(unittest.TestCase):
             build_ticker_score("aapl")
 
     @patch("app.services.analysis_service.score_ticker")
+    @patch("app.services.analysis_service.get_news", return_value=[])
+    @patch("app.services.analysis_service.fetch_macro_indicators", return_value={})
+    @patch("app.services.analysis_service.fetch_ticker_financials")
+    def test_insufficient_financials_return_degraded_result_without_gpt(
+        self,
+        fetch_financials,
+        _macro,
+        _news,
+        score_ticker,
+    ):
+        fetch_financials.return_value = {
+            "symbol": "AAPL",
+            "info": {"shortName": "Apple Inc."},
+            "financials": {},
+        }
+
+        result = build_ticker_score("aapl")
+
+        self.assertIsNone(result["score"])
+        self.assertEqual(result["analysisSource"], "degraded")
+        self.assertEqual(
+            result["analysisMetadata"]["financialQuality"]["status"],
+            "insufficient",
+        )
+        score_ticker.assert_not_called()
+
+    @patch("app.services.analysis_service.score_ticker")
     @patch("app.services.analysis_service.get_news")
     @patch("app.services.analysis_service.fetch_macro_indicators")
     @patch("app.services.analysis_service.fetch_ticker_financials")
@@ -162,11 +207,7 @@ class AnalysisServiceTests(unittest.TestCase):
         mock_get_news,
         mock_score_ticker,
     ):
-        mock_fetch_ticker_financials.return_value = {
-            "symbol": "AAPL",
-            "info": {"shortName": "Apple Inc."},
-            "financials": {},
-        }
+        mock_fetch_ticker_financials.return_value = sufficient_financial_payload()
         mock_fetch_macro_indicators.return_value = {}
         mock_get_news.return_value = []
         mock_score_ticker.return_value = {"error": "openai timeout"}
@@ -186,7 +227,11 @@ class AnalysisServiceTests(unittest.TestCase):
     ):
         mock_cache.make_key.return_value = "marketly:scores:AAPL"
         mock_cache.get_with_source.return_value = (
-            '{"symbol":"AAPL","score":91,"summary":"Cached with a composite score of 72","positives":[],"negatives":[],"company":"Apple Inc.","profitability":{"coverage":0.0},"growth":{"coverage":0.0},"stability":{"coverage":0.0},"valuation":{"coverage":0.0}}',
+            '{"symbol":"AAPL","score":91,"summary":"Cached with a composite score of 72",'
+            '"positives":[],"negatives":[],"company":"Apple Inc.",'
+            '"profitability":{"coverage":0.0},"growth":{"coverage":0.0},'
+            '"stability":{"coverage":0.0},"valuation":{"coverage":0.0},'
+            '"analysisMetadata":{"financialQuality":{"scoreEligible":true}}}',
             "cache",
         )
 

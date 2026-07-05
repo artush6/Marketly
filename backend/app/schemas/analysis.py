@@ -57,6 +57,8 @@ class AnalysisMetadataResponse(BaseModel):
     provenance: Dict[str, Any] = Field(default_factory=dict)
     refreshPolicy: Dict[str, Any] = Field(default_factory=dict)
     gptScore: Optional[int] = None
+    modelSuggestedScore: Optional[int] = None
+    financialQuality: Dict[str, Any] = Field(default_factory=dict)
     dataSource: Optional[str] = None
     dataSources: Dict[str, str] = Field(default_factory=dict)
     inputPartitions: Dict[str, List[str]] = Field(default_factory=dict)
@@ -150,7 +152,7 @@ class MarketContextResponse(BaseModel):
 
 
 class ScoreBreakdownResponse(BaseModel):
-    score: int
+    score: Optional[int] = None
     rawScore: int
     confidenceAdjustment: int = 0
     subscores: Dict[str, int] = Field(default_factory=dict)
@@ -158,6 +160,7 @@ class ScoreBreakdownResponse(BaseModel):
     bonuses: List[str] = Field(default_factory=list)
     penalties: List[str] = Field(default_factory=list)
     method: str
+    reason: Optional[str] = None
 
 
 class HorizonOutlookResponse(BaseModel):
