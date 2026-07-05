@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from concurrent.futures import Future
+from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
 from datetime import datetime
 from threading import Lock
@@ -26,7 +26,7 @@ SEC_FILES = "https://www.sec.gov/files"
 FMP_STATEMENT_LIMIT = 4
 SEC_FORMS = {"10-K", "10-Q", "20-F", "40-F"}
 DEFAULT_SEC_USER_AGENT = "Marketly/1.0 (contact: support@marketly.app)"
-FINANCIAL_SNAPSHOT_MAX_AGE_SECONDS = 86400
+FINANCIAL_SNAPSHOT_MAX_AGE_SECONDS = 86400 * 90
 _inflight_lock = Lock()
 _inflight_financials: dict[str, Future] = {}
 
@@ -777,6 +777,19 @@ def merge_provider_payload(target: dict[str, Any], payload: dict[str, Any]) -> N
     target["sources"].update(source_updates)
 
 
+def _collect_provider_payloads(symbol: str) -> list[dict[str, Any]]:
+    providers = (
+        fetch_finnhub_payload,
+        fetch_fmp_payload,
+        fetch_sec_payload,
+        fetch_yfinance_dividends,
+        fetch_yahoo_summary,
+    )
+    with ThreadPoolExecutor(max_workers=len(providers)) as executor:
+        futures = [executor.submit(provider, symbol) for provider in providers]
+        return [future.result() for future in futures]
+
+
 def _fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
     validate_financials_configuration()
     symbol = normalize_symbol(symbol)
@@ -849,13 +862,7 @@ def _fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
         "sources": {},
     }
 
-    for provider_payload in (
-        fetch_finnhub_payload(symbol),
-        fetch_fmp_payload(symbol),
-        fetch_sec_payload(symbol),
-        fetch_yfinance_dividends(symbol),
-        fetch_yahoo_summary(symbol),
-    ):
+    for provider_payload in _collect_provider_payloads(symbol):
         merge_provider_payload(merged, provider_payload)
 
     filled_fields = sum(1 for value in merged["info"].values() if value is not None)

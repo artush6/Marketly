@@ -1,9 +1,14 @@
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock, current_thread
 from unittest.mock import patch
 
-from app.integrations.financials import fetch_ticker_financials
+from app.integrations.financials import (
+    FINANCIAL_SNAPSHOT_MAX_AGE_SECONDS,
+    _collect_provider_payloads,
+    fetch_ticker_financials,
+)
 
 
 def complete_payload():
@@ -27,6 +32,38 @@ def complete_payload():
 
 
 class FinancialConcurrencyTests(unittest.TestCase):
+    def test_statement_snapshots_remain_reusable_for_a_quarter(self):
+        self.assertGreaterEqual(FINANCIAL_SNAPSHOT_MAX_AGE_SECONDS, 86400 * 90)
+
+    @patch("app.integrations.financials.fetch_yahoo_summary")
+    @patch("app.integrations.financials.fetch_yfinance_dividends")
+    @patch("app.integrations.financials.fetch_sec_payload")
+    @patch("app.integrations.financials.fetch_fmp_payload")
+    @patch("app.integrations.financials.fetch_finnhub_payload")
+    def test_independent_provider_groups_are_collected_concurrently(
+        self,
+        finnhub,
+        fmp,
+        sec,
+        dividends,
+        yahoo,
+    ):
+        thread_ids = set()
+        lock = Lock()
+
+        def record_thread(_symbol):
+            with lock:
+                thread_ids.add(current_thread().ident)
+            time.sleep(0.03)
+            return {}
+
+        for provider in (finnhub, fmp, sec, dividends, yahoo):
+            provider.side_effect = record_thread
+
+        _collect_provider_payloads("AAPL")
+
+        self.assertGreaterEqual(len(thread_ids), 2)
+
     @patch("app.integrations.financials.supabase_store.save_financial_payload")
     @patch("app.integrations.financials.supabase_store.save_snapshot")
     @patch("app.integrations.financials.supabase_store.get_latest_snapshot", return_value=None)
