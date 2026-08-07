@@ -14,7 +14,7 @@ import {
   type CinematicPendingBlock,
   type FollowUpAnswer,
 } from "@/components/marketly";
-import { postFollowUp } from "@/lib/api";
+import { BackendRequestError, postFollowUp } from "@/lib/api";
 import {
   buildAnalysisBlockFromBackendProgressive,
   buildMissingAnalysisBlock,
@@ -333,7 +333,14 @@ export default function Page() {
 
       void (async () => {
         try {
-          const response = await postFollowUp(symbol, normalizedQuery);
+          const activeAnalysis = [...analysisBlocks]
+            .reverse()
+            .find((block) => block.resolution.symbol === symbol);
+          const response = await postFollowUp(
+            symbol,
+            normalizedQuery,
+            activeAnalysis as unknown as Record<string, unknown> | undefined,
+          );
           if (!isMountedRef.current) {
             return;
           }
@@ -349,7 +356,7 @@ export default function Page() {
                 : item,
             ),
           );
-        } catch {
+        } catch (error) {
           if (!isMountedRef.current) {
             return;
           }
@@ -359,7 +366,10 @@ export default function Page() {
               item.id === id
                 ? {
                     ...item,
-                    answer: "Follow-up data is missing.",
+                    answer:
+                      error instanceof BackendRequestError
+                        ? `Follow-up failed: ${error.message}`
+                        : "Follow-up failed because the backend could not be reached.",
                     status: "error",
                   }
                 : item,
@@ -368,7 +378,7 @@ export default function Page() {
         }
       })();
     },
-    [],
+    [analysisBlocks],
   );
 
   const handleSubmit = useCallback(

@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 class FollowUpRequest(BaseModel):
     symbol: str
     question: str
+    analysis_context: dict[str, Any] | None = None
 
 
 class FollowUpResponse(BaseModel):
@@ -28,12 +30,23 @@ class FollowUpResponse(BaseModel):
 def follow_up(request: FollowUpRequest):
     try:
         symbol = normalize_symbol_input(request.symbol)
-        financials = fetch_ticker_financials(symbol)
-        score = build_ticker_score(symbol)
-        news = get_news(symbol)
+        question = request.question.strip()
+        if not question:
+            raise HTTPException(status_code=422, detail="Question cannot be empty.")
+
+        # The dashboard already has a complete analysis payload. Reusing it makes
+        # follow-ups independent of slow financial/news providers and Redis.
+        if request.analysis_context:
+            score = request.analysis_context
+            financials = {}
+            news = []
+        else:
+            financials = fetch_ticker_financials(symbol)
+            score = build_ticker_score(symbol)
+            news = get_news(symbol)
         response = answer_follow_up(
             symbol=symbol,
-            question=request.question.strip(),
+            question=question,
             score_payload=score,
             financial_payload=financials,
             news_payload=news,
@@ -52,11 +65,13 @@ def follow_up(request: FollowUpRequest):
             status_code=503,
             detail=str(exc),
         )
-    except ValueError:
+    except HTTPException:
+        raise
+    except ValueError as exc:
         logger.exception("Assistant follow-up failed due to upstream data issue")
         raise HTTPException(
             status_code=502,
-            detail="Follow-up failed because upstream data is unavailable.",
+            detail=f"Follow-up upstream data is unavailable: {exc}",
         )
     except Exception:
         logger.exception("Unexpected assistant follow-up failure")

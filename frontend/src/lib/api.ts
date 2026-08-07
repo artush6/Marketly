@@ -383,7 +383,21 @@ export async function getTickerScore(symbol: string): Promise<BackendScoreRespon
   return requestJson<BackendScoreResponse>(`/score/${encodeURIComponent(symbol)}`);
 }
 
-export async function postFollowUp(symbol: string, question: string): Promise<BackendFollowUpResponse> {
+export class BackendRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "BackendRequestError";
+  }
+}
+
+export async function postFollowUp(
+  symbol: string,
+  question: string,
+  analysisContext?: Record<string, unknown>,
+): Promise<BackendFollowUpResponse> {
   const res = await fetch(`${getBaseUrl()}/assistant/follow-up`, {
     method: "POST",
     headers: {
@@ -393,11 +407,19 @@ export async function postFollowUp(symbol: string, question: string): Promise<Ba
     body: JSON.stringify({
       symbol,
       question,
+      analysis_context: analysisContext,
     }),
   });
 
   if (!res.ok) {
-    throw new Error(`Request failed with status ${res.status}`);
+    let detail = `Request failed with status ${res.status}`;
+    try {
+      const payload = (await res.json()) as { detail?: string };
+      if (payload.detail) detail = payload.detail;
+    } catch {
+      // Preserve the status-based message for non-JSON proxy failures.
+    }
+    throw new BackendRequestError(detail, res.status);
   }
 
   return res.json() as Promise<BackendFollowUpResponse>;
