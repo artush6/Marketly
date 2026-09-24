@@ -306,7 +306,10 @@ function getBaseUrl() {
 
 const CLIENT_CACHE_TTL_MS = 60_000;
 const CLIENT_REQUEST_TIMEOUT_MS = 120_000;
-const clientResponseCache = new Map<string, { expiresAt: number; value: unknown }>();
+const clientResponseCache = new Map<
+  string,
+  { expiresAt: number; value: unknown }
+>();
 const clientInFlightRequests = new Map<string, Promise<unknown>>();
 
 async function requestJson<T>(path: string): Promise<T> {
@@ -337,7 +340,8 @@ async function requestJson<T>(path: string): Promise<T> {
 
       if (typeof window !== "undefined") {
         const record = value as Record<string, unknown>;
-        const quality = record?.dataQuality as BackendFinancialQuality | undefined;
+        const quality = record?.dataQuality as
+          BackendFinancialQuality | undefined;
         const degraded =
           quality?.status === "insufficient" ||
           quality?.status === "stale" ||
@@ -370,17 +374,25 @@ export async function getFinancials(
   refresh = false,
 ): Promise<BackendFinancialsResponse> {
   const query = refresh ? "?refresh=true" : "";
-  return requestJson<BackendFinancialsResponse>(`/financials/${encodeURIComponent(symbol)}${query}`);
+  return requestJson<BackendFinancialsResponse>(
+    `/financials/${encodeURIComponent(symbol)}${query}`,
+  );
 }
 
-export async function getCompanyNews(symbol: string): Promise<BackendNewsItem[]> {
+export async function getCompanyNews(
+  symbol: string,
+): Promise<BackendNewsItem[]> {
   return requestJson<BackendNewsItem[]>(
     `/news/${encodeURIComponent(symbol)}?days=7&max_items=24`,
   );
 }
 
-export async function getTickerScore(symbol: string): Promise<BackendScoreResponse> {
-  return requestJson<BackendScoreResponse>(`/score/${encodeURIComponent(symbol)}`);
+export async function getTickerScore(
+  symbol: string,
+): Promise<BackendScoreResponse> {
+  return requestJson<BackendScoreResponse>(
+    `/score/${encodeURIComponent(symbol)}`,
+  );
 }
 
 export class BackendRequestError extends Error {
@@ -397,8 +409,10 @@ export async function postFollowUp(
   symbol: string,
   question: string,
   analysisContext?: Record<string, unknown>,
+  conversation: { role: "user" | "assistant"; content: string }[] = [],
 ): Promise<BackendFollowUpResponse> {
   const res = await fetch(`${getBaseUrl()}/assistant/follow-up`, {
+    signal: AbortSignal.timeout(90000),
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -408,6 +422,7 @@ export async function postFollowUp(
       symbol,
       question,
       analysis_context: analysisContext,
+      conversation,
     }),
   });
 
