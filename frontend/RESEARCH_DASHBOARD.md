@@ -6,7 +6,7 @@ The home page is now a market overview in a dark terminal-inspired interface. Se
 
 ## Included
 
-- Global market overview with cached benchmark ETF quotes (SPY/QQQ/DIA/IWM), general market news, a TradingView S&P 500 heatmap, and up to 12 watchlist quotes. ETF proxies are labeled explicitly.
+- Global market overview with cached benchmark ETF quotes (SPY/QQQ/DIA/IWM), general market news, a watchlist daily-change map with an optional TradingView S&P 500 heatmap, and up to 12 watchlist quotes. ETF proxies are labeled explicitly.
 - Bottom chat dock on market and company views using the existing backend OpenAI configuration. It sends the displayed context and up to ten previous conversation messages, supports minimize/clear/error recovery, and makes no AI call until submitted. Conversations are held in memory and reset when the research context changes.
 
 - Debounced company/ticker search through Finnhub, with an explicitly labeled small local catalog/direct-ticker fallback when discovery is unavailable.
@@ -42,4 +42,5 @@ Accounts/cloud sync, background monitoring, full industry aggregates, historical
 
 - Discovery route tests cover distinct listings, de-duplication, invalid input, absent configuration, and provider errors.
 - Browser checks cover live search/data, saved snapshots surviving reload, peer means with missing values, article previews, alerts, and narrow-screen layout.
-- The workspace includes pre-existing untracked components/duplicate files whose missing dependencies break a whole-directory TypeScript check. A production build from tracked source plus this branch's new files excludes those unrelated files.
+- Production build now checks the full repository. Missing dependencies in the older UI components and their stale window/calendar types have been repaired.
+- The external TradingView embed may be blocked by the in-app browser; the local watchlist map works independently and a direct TradingView link remains available.

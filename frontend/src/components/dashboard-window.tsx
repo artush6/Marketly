@@ -6,7 +6,15 @@ import { useRef, useState, useEffect } from "react"
 import { X, Maximize2, Minimize2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import type { WindowType } from "@/app/page"
+export interface WindowType {
+  id: string
+  title: string
+  x: number
+  y: number
+  width: number
+  height: number
+  zIndex: number
+}
 
 interface DashboardWindowProps {
   window: WindowType

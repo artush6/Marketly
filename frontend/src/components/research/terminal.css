@@ -1043,5 +1043,48 @@
   color: #80916f;
   padding: 10px 16px 0;
 }
-.chart-widget-host { height:calc(100% - 25px);width:100%; }
-.research-chart .chart-widget-host > .tradingview-widget-container { height:100%; }
+.chart-widget-host {
+  height: calc(100% - 25px);
+  width: 100%;
+}
+.research-chart .chart-widget-host > .tradingview-widget-container {
+  height: 100%;
+}
+
+.market-map-content {
+  padding: 18px;
+}
+.watchlist-heatmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 4px;
+}
+.watchlist-heatmap button {
+  min-height: 150px;
+  padding: 18px;
+  text-align: left;
+  color: #f2f5ed;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 0;
+  cursor: pointer;
+}
+.watchlist-heatmap strong {
+  font-size: 22px;
+}
+.watchlist-heatmap span {
+  font-family: monospace;
+  font-size: 18px;
+}
+.map-caption {
+  font-size: 11px;
+  color: #9da797;
+  margin: 12px 0;
+}
+.market-map-content > a {
+  display: inline-block;
+  font-size: 12px;
+  margin: 12px;
+  color: #b4e45d;
+}
