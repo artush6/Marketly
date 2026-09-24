@@ -1,8 +1,8 @@
 import logging
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.errors import MisconfigurationError
 from app.core.symbols import normalize_symbol_input
@@ -15,9 +15,15 @@ router = APIRouter(prefix="/assistant", tags=["assistant"])
 logger = logging.getLogger(__name__)
 
 
+class ConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=6000)
+
+
 class FollowUpRequest(BaseModel):
     symbol: str
-    question: str
+    question: str = Field(min_length=1, max_length=4000)
+    conversation: list[ConversationMessage] = Field(default_factory=list, max_length=12)
     analysis_context: dict[str, Any] | None = None
 
 
@@ -50,6 +56,7 @@ def follow_up(request: FollowUpRequest):
             score_payload=score,
             financial_payload=financials,
             news_payload=news,
+            conversation=[message.model_dump() for message in request.conversation],
         )
 
         if "error" in response:

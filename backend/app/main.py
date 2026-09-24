@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routes import analysis, assistant, econ_situation, financials, news
+from app.routes import analysis, assistant, discovery, econ_situation, financials, market, news
 from rich.traceback import install
 from app.core.cache import r as redis_client
 from app.core.config import settings
@@ -15,6 +15,8 @@ app.include_router(news.router)
 app.include_router(analysis.router)
 app.include_router(assistant.router)
 app.include_router(econ_situation.router)
+app.include_router(discovery.router)
+app.include_router(market.router)
 
 
 @app.get("/")
