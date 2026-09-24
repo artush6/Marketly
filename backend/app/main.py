@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routes import analysis, assistant, discovery, econ_situation, financials, market, news
+from app.routes import analysis, assistant, discovery, econ_situation, financials, heatmap, market, news
 from rich.traceback import install
 from app.core.cache import r as redis_client
 from app.core.config import settings
@@ -50,3 +50,5 @@ def dependency_healthz():
             "connected": redis_connected,
         },
     }
+
+app.include_router(heatmap.router)

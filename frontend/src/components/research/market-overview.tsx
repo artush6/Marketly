@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ChartWidget } from "./chart-widget";
+import { FullMarketMap } from "./full-market-map";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -78,76 +78,6 @@ export function useMarketSnapshot(ready: boolean, watchlist: string[]) {
   return { data, loading, error, refresh: () => setRevision((n) => n + 1) };
 }
 
-function MarketHeatmap({
-  quotes,
-  onSelect,
-}: {
-  quotes: MarketQuote[];
-  onSelect: (c: Company) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div className="market-map-content">
-      <div className="watchlist-heatmap">
-        {quotes.length === 0 && (
-          <p className="empty-state">
-            Add companies to your watchlist to see their daily moves.
-          </p>
-        )}
-        {quotes.map((q) => (
-          <button
-            key={q.symbol}
-            onClick={() =>
-              onSelect(
-                STARTER_COMPANIES.find((c) => c.symbol === q.symbol) || {
-                  symbol: q.symbol,
-                  name: q.symbol,
-                },
-              )
-            }
-            style={{
-              background: (q.changePercent ?? 0) >= 0 ? "#244331" : "#512e32",
-            }}
-          >
-            <strong>{q.symbol}</strong>
-            <span>
-              {(q.changePercent ?? 0) > 0 ? "+" : ""}
-              {q.changePercent?.toFixed(2)}%
-            </span>
-          </button>
-        ))}
-      </div>
-      <p className="map-caption">
-        Equal-sized watchlist tiles · daily change · Finnhub
-      </p>
-      <button
-        className="text-button"
-        onClick={() => setExpanded(!expanded)}
-        aria-expanded={expanded}
-      >
-        {expanded ? "Hide" : "Load"} full S&amp;P 500 heatmap
-      </button>
-      {expanded && (
-        <div className="market-heatmap">
-          <ChartWidget kind="heatmap" />
-        </div>
-      )}
-      {expanded && (
-        <p className="map-caption">
-          If the external chart is blocked by your browser, open it directly
-          below.
-        </p>
-      )}
-      <a
-        href="https://www.tradingview.com/heatmap/stock/"
-        target="_blank"
-        rel="noreferrer"
-      >
-        Explore heatmap on TradingView ↗
-      </a>
-    </div>
-  );
-}
 function ArticleImage({ article }: { article: BackendNewsItem }) {
   const [failed, setFailed] = useState(false);
   return safeUrl(article.image) && !failed ? (
@@ -299,9 +229,9 @@ export function MarketOverview({
               <h2>
                 <span>02</span> Market map
               </h2>
-              <span>WATCHLIST / DAILY CHANGE</span>
+              <span>US LISTINGS / DAILY CHANGE</span>
             </div>
-            <MarketHeatmap quotes={available} onSelect={onSelect} />
+            <FullMarketMap onSelect={onSelect} />
           </section>
           <section className="market-discover">
             <div className="terminal-heading">
