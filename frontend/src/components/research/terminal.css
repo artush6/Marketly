@@ -69,7 +69,7 @@
 }
 .research-nav button {
   color: #97a08e;
-  font-size: 11px;
+  font-size: 13px;
 }
 .research-nav button.active {
   color: #d2ee9b;
@@ -118,7 +118,7 @@
 .eyebrow {
   color: #8f9b83;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 9px;
+  font-size: 12px;
 }
 .company-identity h1 {
   color: #e8edde;
@@ -379,14 +379,14 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 10px;
+  font-size: 12px;
   color: #a6b498;
   text-align: right;
 }
 .market-refresh small {
   display: block;
   color: #707f63;
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 4px;
 }
 .benchmark-strip {
@@ -410,11 +410,11 @@
   margin-bottom: 16px;
 }
 .benchmark > div > span {
-  font-size: 12px;
+  font-size: 14px;
   color: #c7d2bd;
 }
 .benchmark > div > small {
-  font-size: 9px;
+  font-size: 12px;
   color: #758768;
   font-family: ui-monospace, monospace;
 }
@@ -431,13 +431,13 @@
 .benchmark > span {
   float: right;
   font-family: ui-monospace, monospace;
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 9px;
 }
 .benchmark > small {
   display: block;
   margin-top: 8px;
-  font-size: 9px;
+  font-size: 12px;
   color: #667b58;
 }
 .benchmark:hover {
@@ -466,19 +466,19 @@
   border-bottom: 1px solid #2b3822;
 }
 .terminal-heading h2 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   letter-spacing: 0.03em;
 }
 .terminal-heading h2 > span {
   color: #728e57;
-  font-size: 9px;
+  font-size: 12px;
   margin-right: 10px;
   font-family: ui-monospace, monospace;
 }
 .terminal-heading > span {
   font-family: ui-monospace, monospace;
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   color: #6f855d;
 }
@@ -496,7 +496,7 @@
   justify-content: space-between;
   padding: 16px 0;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
   list-style: none;
 }
@@ -518,7 +518,7 @@
   color: #d8e9c6;
 }
 .market-headlines p {
-  font-size: 12px;
+  font-size: 14px;
   color: #9fb28c;
   line-height: 1.85;
   padding-bottom: 13px;
@@ -530,7 +530,7 @@
   align-items: center;
   margin-bottom: 17px;
   color: #b0cc8d;
-  font-size: 9px;
+  font-size: 12px;
 }
 .market-heatmap {
   height: 480px;
@@ -546,7 +546,7 @@
   display: block;
   text-align: right;
   padding: 5px 10px;
-  font-size: 9px;
+  font-size: 12px;
   color: #8ca474;
 }
 .market-watchlist {
@@ -576,13 +576,13 @@
   background: #1b2813;
 }
 .market-watchlist b {
-  font-size: 11px;
+  font-size: 13px;
   font-family: ui-monospace, monospace;
 }
 .market-watchlist small {
   display: block;
   color: #829a6e;
-  font-size: 9px;
+  font-size: 12px;
   max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -593,7 +593,7 @@
   text-align: right;
   white-space: nowrap;
   font-family: ui-monospace, monospace;
-  font-size: 12px;
+  font-size: 14px;
 }
 .market-home-sidebar .watchlist-add {
   width: calc(100% - 30px);
@@ -614,7 +614,7 @@
   font-family: ui-monospace, monospace;
 }
 .breadth-values span {
-  font-size: 10px;
+  font-size: 12px;
   color: #94ab80;
 }
 .breadth-values > div:last-child {
@@ -634,7 +634,7 @@
 }
 .breadth-panel > p {
   padding: 16px 22px 22px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
   color: #7a9466;
 }
@@ -642,7 +642,7 @@
   padding: 12px 7px;
 }
 .terminal-note > span {
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   color: #8fa877;
   font-family: ui-monospace, monospace;
@@ -656,7 +656,7 @@
   margin: 13px 0;
 }
 .terminal-note p {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.8;
   color: #92a67f;
   max-width: 235px;
@@ -669,7 +669,7 @@
   background: none;
   border: 0;
   color: #bfdca1;
-  font-size: 10px;
+  font-size: 12px;
   padding: 0;
 }
 .market-discover .terminal-heading {
@@ -680,7 +680,7 @@
 .market-story small {
   display: block;
   font-family: ui-monospace, monospace;
-  font-size: 8px;
+  font-size: 12px;
   color: #8faa75;
   margin: 12px 0 7px;
 }
@@ -700,7 +700,7 @@
   flex-direction: column;
   gap: 10px;
   color: #83976f;
-  font-size: 10px;
+  font-size: 12px;
 }
 /* Context-aware chat remains available without taking over the workspace. */
 .chat-dock {
@@ -735,7 +735,7 @@
   border: 0;
   outline: none;
   color: #e3f1d2;
-  font-size: 14px;
+  font-size: 16px;
 }
 .chat-input-row input::placeholder {
   color: #a1b98a;
@@ -756,7 +756,7 @@
   gap: 18px;
   align-items: center;
   margin-top: 12px;
-  font-size: 8px;
+  font-size: 12px;
   color: #829a6c;
 }
 .chat-context {
@@ -773,7 +773,7 @@
   background: none;
   border: 0;
   color: #a7c18c;
-  font-size: 9px;
+  font-size: 12px;
 }
 .chat-thread {
   border-bottom: 1px solid #3a4d28;
@@ -786,7 +786,7 @@
   padding: 13px 19px;
   border-bottom: 1px solid #2f4020;
   color: #c9dfb0;
-  font-size: 11px;
+  font-size: 13px;
 }
 .chat-thread-heading > span {
   display: flex;
@@ -796,7 +796,7 @@
 .chat-thread-heading small {
   color: #7e9d61;
   font-family: ui-monospace, monospace;
-  font-size: 8px;
+  font-size: 12px;
   margin-left: 4px;
 }
 .chat-thread-heading > div {
@@ -821,7 +821,7 @@
 .chat-message > small {
   display: block;
   font-family: ui-monospace, monospace;
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   color: #b4e45d;
   margin-bottom: 6px;
@@ -832,7 +832,7 @@
 .chat-message > p {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 14px;
   color: #cadfba;
   line-height: 1.85;
 }
@@ -842,7 +842,7 @@
 .chat-empty,
 .chat-thinking,
 .chat-error {
-  font-size: 12px;
+  font-size: 14px;
   color: #91ad77;
 }
 .chat-thinking {
@@ -869,10 +869,10 @@
     gap: 5px;
   }
   .benchmark > div > small {
-    font-size: 8px;
+    font-size: 12px;
   }
   .benchmark > span {
-    font-size: 10px;
+    font-size: 12px;
   }
   .research-columns {
     grid-template-columns: minmax(0, 1fr) 255px;
@@ -896,7 +896,7 @@
     font-size: 28px;
   }
   .market-refresh {
-    font-size: 9px;
+    font-size: 12px;
     gap: 6px;
   }
   .benchmark-strip {
@@ -934,7 +934,7 @@
     gap: 20px;
   }
   .research-nav button {
-    font-size: 10px;
+    font-size: 12px;
     gap: 4px;
     white-space: nowrap;
   }
@@ -953,10 +953,10 @@
     margin-top: 8px;
   }
   .market-refresh > span {
-    font-size: 8px;
+    font-size: 12px;
   }
   .market-refresh small {
-    font-size: 7px;
+    font-size: 12px;
   }
   .benchmark {
     padding: 16px 13px;
@@ -965,7 +965,7 @@
     font-size: 22px;
   }
   .benchmark > div > span {
-    font-size: 11px;
+    font-size: 13px;
   }
   .market-home-sidebar {
     grid-template-columns: 1fr;
@@ -978,7 +978,7 @@
     padding: 15px;
   }
   .terminal-heading > span {
-    font-size: 6px;
+    font-size: 12px;
     max-width: 120px;
     text-align: right;
   }
@@ -986,10 +986,10 @@
     padding: 0 15px;
   }
   .market-headlines summary {
-    font-size: 12px;
+    font-size: 14px;
   }
   .market-headlines p {
-    font-size: 11px;
+    font-size: 13px;
   }
   .market-story h3 {
     font-size: 22px;
@@ -1006,14 +1006,14 @@
     gap: 8px;
   }
   .chat-input-row input {
-    font-size: 12px;
+    font-size: 14px;
   }
   .chat-input-row > svg {
     width: 15px;
   }
   .chat-toolbar {
     gap: 6px;
-    font-size: 7px;
+    font-size: 12px;
   }
   .chat-toolbar > span:nth-child(2) {
     display: none;
@@ -1039,7 +1039,7 @@
   }
 }
 .watchlist-unit {
-  font-size: 8px;
+  font-size: 12px;
   color: #80916f;
   padding: 10px 16px 0;
 }
@@ -1078,13 +1078,13 @@
   font-size: 18px;
 }
 .map-caption {
-  font-size: 11px;
+  font-size: 13px;
   color: #9da797;
   margin: 12px 0;
 }
 .market-map-content > a {
   display: inline-block;
-  font-size: 12px;
+  font-size: 14px;
   margin: 12px;
   color: #b4e45d;
 }
@@ -1111,7 +1111,7 @@
   flex: 1;
 }
 .map-coverage {
-  font-size: 11px;
+  font-size: 13px;
   color: #a4b09e;
   margin: 12px 0;
 }
@@ -1164,6 +1164,146 @@
   color: #b4e45d;
 }
 .full-market-map > a {
-  font-size: 11px;
+  font-size: 13px;
   color: #b4e45d;
+}
+.company-financials {
+  margin-bottom: 32px;
+}
+.ticker-facts {
+  padding: 24px 0;
+  border-bottom: 1px solid #34402e;
+}
+.ticker-facts dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 22px;
+}
+.ticker-facts dt {
+  font-size: 14px;
+  color: #a9b39f;
+  margin-bottom: 8px;
+}
+.ticker-facts dd {
+  font-size: 20px;
+  font-family: var(--font-mono, monospace);
+  margin: 0;
+  color: #f1f5e9;
+}
+.financials-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  padding: 32px 0 22px;
+}
+.financials-heading h2 {
+  font-size: 28px;
+  margin: 8px 0;
+}
+.financials-heading p {
+  color: #adb6a3;
+  font-size: 15px;
+}
+.financials-heading select {
+  background: #20291d;
+  color: #ecf2e3;
+  border: 1px solid #45533a;
+  border-radius: 5px;
+  padding: 10px;
+  font-size: 14px;
+}
+.financial-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.financial-chart-panel {
+  min-width: 0;
+  padding: 22px 16px;
+  background: #161e15;
+  border: 1px solid #34402e;
+  border-radius: 6px;
+}
+.financial-chart-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.financial-chart-heading h3 {
+  font-size: 19px;
+  margin: 0;
+  color: #f0f5e9;
+}
+.financial-chart-heading span {
+  font: 12px monospace;
+  color: #b4c0a7;
+}
+.financial-chart-panel > p {
+  font-size: 14px;
+  color: #a8b29f;
+  line-height: 1.5;
+  min-height: 42px;
+  margin: 12px 0;
+}
+.financial-chart {
+  height: 260px;
+  width: 100%;
+}
+.financial-source {
+  font-size: 12px;
+  color: #98a68e;
+  margin-top: 14px;
+}
+.financial-data-table {
+  margin-top: 20px;
+  color: #c5cfb9;
+  font-size: 13px;
+}
+.financial-data-table summary {
+  cursor: pointer;
+  padding: 7px 0;
+}
+.financial-data-table > div {
+  overflow: auto;
+}
+.financial-data-table table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+.financial-data-table td,
+.financial-data-table th {
+  padding: 10px 8px;
+  text-align: right;
+  border-bottom: 1px solid #36422e;
+  font-size: 12px;
+}
+.financial-data-table th:first-child {
+  text-align: left;
+}
+.financial-detail-link {
+  display: inline-block;
+  color: #b4e45d;
+  font-size: 15px;
+  margin-top: 24px;
+}
+@media (max-width: 1100px) {
+  .financial-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 540px) {
+  .ticker-facts dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .financials-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .financial-chart-panel {
+    padding: 18px 10px;
+  }
 }

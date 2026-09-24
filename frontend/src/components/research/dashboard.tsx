@@ -43,6 +43,7 @@ import {
   STARTER_COMPANIES,
 } from "@/lib/research";
 import { CompanySearch } from "./company-search";
+import { CompanyFinancials } from "./company-financials";
 import { PriceChart } from "./price-chart";
 import { MarketOverview, useMarketSnapshot } from "./market-overview";
 import { ChatDock } from "./chat-dock";
@@ -917,6 +918,11 @@ export function ResearchDashboard() {
               <div className="tab-content" key={`${company.symbol}-${tab}`}>
                 {tab === "Overview" && (
                   <>
+                    <CompanyFinancials
+                      key={company.symbol}
+                      financials={financials}
+                      symbol={company.symbol}
+                    />
                     <section className="research-section analyst-section">
                       <div className="section-heading">
                         <h2>
