@@ -21,7 +21,8 @@ def test_market_uses_cached_quotes_and_keeps_missing_data_explicit(monkeypatch):
     monkeypatch.setattr(market, 'time', lambda: 6000)
     first = client.get('/market/overview', params={'symbols':'AAPL,AAPL,MISSING'}).json()
     quotes = {quote['symbol']: quote for quote in first['quotes']}
-    assert set(quotes) == {'SPY','QQQ','DIA','IWM','AAPL','MISSING'}
+    assert set(quotes) == {'SPY','QQQ','DIA','IWM','TIP','IEF','MUB','CWB','HYG','LQD','AAPL','MISSING'}
+    assert first['fixedIncome']['TIP'] == 'T.I.P.S.'
     assert quotes['MISSING']['price'] is None
     assert quotes['AAPL']['changePercent'] == -1.5
     assert first['newsStatus'] == 'available'
@@ -43,6 +44,6 @@ def test_market_preserves_partial_result_on_provider_failure(monkeypatch):
         raise HTTPException(503, 'Provider unavailable')
     monkeypatch.setattr(market,'provider_get',unavailable)
     data = client.get('/market/overview',params={'symbols':''}).json()
-    assert len(data['quotes']) == 4
+    assert len(data['quotes']) == 10
     assert all(q['price'] is None for q in data['quotes'])
     assert data['newsStatus'] == 'unavailable'

@@ -763,6 +763,56 @@
   font-size: 12px !important;
   background: none;
 }
+.fixed-income-card .section-heading > span {
+  color: #839174;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.fixed-income-list {
+  display: grid;
+}
+.fixed-income-list a {
+  align-items: center;
+  color: inherit;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto 58px;
+  min-height: 38px;
+  text-decoration: none;
+}
+.fixed-income-list a:hover span {
+  color: var(--accent);
+}
+.fixed-income-list span {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fixed-income-list strong {
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+.fixed-income-list small {
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 3px 5px;
+  text-align: right;
+}
+.fixed-income-list small.positive {
+  background: rgba(96, 166, 92, 0.12);
+}
+.fixed-income-list small.negative {
+  background: rgba(204, 84, 84, 0.12);
+}
+.fixed-income-list small.muted {
+  color: #839174;
+}
+.fixed-income-card .disclosure {
+  margin-top: 12px;
+}
 .research-save {
   background: #f1f3eb;
   border-color: #e1e7d8;

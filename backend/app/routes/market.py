@@ -16,6 +16,14 @@ from app.routes.discovery import SYMBOL, provider_get
 
 router = APIRouter(prefix="/market", tags=["market"])
 BENCHMARKS = {"SPY": "S&P 500", "QQQ": "Nasdaq 100", "DIA": "Dow Jones", "IWM": "Russell 2000"}
+FIXED_INCOME = {
+    "TIP": "T.I.P.S.",
+    "IEF": "U.S. Treasuries",
+    "MUB": "Municipals",
+    "CWB": "Convertibles",
+    "HYG": "High Yield",
+    "LQD": "High Grade",
+}
 
 
 def refresh_quote(symbol: str, *, durable: bool = False):
@@ -106,7 +114,7 @@ def overview(background_tasks: BackgroundTasks, symbols: str = Query(default="AA
     watchlist = list(dict.fromkeys(s.strip().upper() for s in symbols.split(",") if s.strip()))
     if len(watchlist) > 12 or any(not SYMBOL.fullmatch(s) for s in watchlist):
         raise HTTPException(422, "Provide up to 12 valid ticker symbols.")
-    tickers = list(dict.fromkeys([*BENCHMARKS, *watchlist]))
+    tickers = list(dict.fromkeys([*BENCHMARKS, *FIXED_INCOME, *watchlist]))
     background_tasks.add_task(track_symbols, tickers)
     with ThreadPoolExecutor(max_workers=6) as pool:
         quotes = list(pool.map(quote_or_missing, tickers))
@@ -116,5 +124,6 @@ def overview(background_tasks: BackgroundTasks, symbols: str = Query(default="AA
     except (HTTPException, ValueError):
         news, news_status = [], "unavailable"
     return {"quotes": quotes, "news": news, "newsStatus": news_status,
-            "benchmarks": BENCHMARKS, "fetchedAt": datetime.now(timezone.utc).isoformat(),
+            "benchmarks": BENCHMARKS, "fixedIncome": FIXED_INCOME,
+            "fetchedAt": datetime.now(timezone.utc).isoformat(),
             "quoteBasis": "ETF proxies; quotes may be delayed", "source": "Finnhub"}

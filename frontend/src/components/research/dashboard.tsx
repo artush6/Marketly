@@ -48,7 +48,11 @@ import { CompanySearch } from "./company-search";
 import { EarningsReminders } from "./earnings-reminders";
 import { CompanyFinancials } from "./company-financials";
 import { PriceChart } from "./price-chart";
-import { MarketOverview, useMarketSnapshot } from "./market-overview";
+import { FIXED_INCOME, MarketOverview, useMarketSnapshot } from "./market-overview";
+import {
+  FinancialDocuments,
+  financialDocumentUrl,
+} from "./financial-documents";
 import { ChatDock } from "./chat-dock";
 import "./research.css";
 import "./terminal.css";
@@ -1217,6 +1221,9 @@ export function ResearchDashboard() {
                           method:
                             "Latest returned income statement · revenue / totalRevenue",
                           source: financials?.sources?.income_statement,
+                          document: financialDocumentUrl(
+                            financials?.financials?.income_statement?.[0] || {},
+                          ),
                         },
                         {
                           title: "Net margin",
@@ -1224,6 +1231,9 @@ export function ResearchDashboard() {
                           method:
                             "Calculated: net income ÷ revenue × 100, from the same statement",
                           source: financials?.sources?.income_statement,
+                          document: financialDocumentUrl(
+                            financials?.financials?.income_statement?.[0] || {},
+                          ),
                         },
                         {
                           title: "Trailing P/E",
@@ -1233,6 +1243,7 @@ export function ResearchDashboard() {
                           source:
                             financials?.sources?.metrics ||
                             financials?.sources?.profile,
+                          document: undefined,
                         },
                       ].map((item) => (
                         <div className="evidence-row" key={item.title}>
@@ -1246,19 +1257,43 @@ export function ResearchDashboard() {
                               {String(m.period)}
                             </small>
                           </div>
-                          <Link
-                            aria-label={`Inspect ${item.title} financial data`}
-                            href={`/financials/${encodeURIComponent(company.symbol)}`}
-                          >
-                            <ArrowUpRight size={17} />
-                          </Link>
+                          {item.document ? (
+                            <a
+                              aria-label={`Open the original filing for ${item.title}`}
+                              href={item.document}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ArrowUpRight size={17} />
+                            </a>
+                          ) : (
+                            <Link
+                              aria-label={`Inspect ${item.title} financial data`}
+                              href={`/financials/${encodeURIComponent(company.symbol)}`}
+                            >
+                              <ArrowUpRight size={17} />
+                            </Link>
+                          )}
                         </div>
                       ))}
                     </div>
+                    <FinancialDocuments
+                      rows={[
+                        ...(financials?.financials?.income_statement || []),
+                        ...(financials?.financials?.balance_sheet || []),
+                        ...(financials?.financials?.cash_flow || []),
+                      ]}
+                    />
+                    <Link
+                      className="financials-link"
+                      href={`/financials/${encodeURIComponent(company.symbol)}`}
+                    >
+                      View all reported values <ArrowUpRight size={13} />
+                    </Link>
                     <p className="disclosure">
-                      These references identify the input data, not
-                      independently verified filing passages. News links below
-                      lead to the original publisher.
+                      Filing links open the original SEC document for the
+                      corresponding statement period. News links below lead to
+                      the original publisher.
                     </p>
                     {financials?.dataQuality?.fetchedAt && (
                       <p className="disclosure">
@@ -1426,6 +1461,52 @@ export function ResearchDashboard() {
                 >
                   <Plus size={14} /> Add company
                 </button>
+              </section>
+              <section className="sidebar-section fixed-income-card">
+                <div className="section-heading">
+                  <h2>Fixed income</h2>
+                  <span>ETF proxies</span>
+                </div>
+                <div className="fixed-income-list">
+                  {FIXED_INCOME.map((item) => {
+                    const quote = market.data?.quotes.find(
+                      (entry) => entry.symbol === item.symbol,
+                    );
+                    const change = quote?.changePercent;
+                    return (
+                      <a
+                        key={item.symbol}
+                        href={`https://www.tradingview.com/symbols/${item.symbol}/`}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`Open ${item.name} market quote`}
+                      >
+                        <span>{item.name}</span>
+                        <strong>
+                          {market.loading && !market.data
+                            ? "…"
+                            : format(quote?.price, "money")}
+                        </strong>
+                        <small
+                          className={
+                            change == null
+                              ? "muted"
+                              : change >= 0
+                                ? "positive"
+                                : "negative"
+                          }
+                        >
+                          {change == null
+                            ? "—"
+                            : `${change >= 0 ? "↗" : "↘"} ${format(Math.abs(change), "percent")}`}
+                        </small>
+                      </a>
+                    );
+                  })}
+                </div>
+                <p className="disclosure">
+                  Liquid ETF proxies · quotes may be delayed
+                </p>
               </section>
               <section className="sidebar-section research-save">
                 <div className="save-illustration">

@@ -39,6 +39,14 @@ const BENCHMARKS = [
   { symbol: "DIA", name: "Dow Jones" },
   { symbol: "IWM", name: "Russell 2000" },
 ];
+export const FIXED_INCOME = [
+  { symbol: "TIP", name: "T.I.P.S." },
+  { symbol: "IEF", name: "U.S. Treasuries" },
+  { symbol: "MUB", name: "Municipals" },
+  { symbol: "CWB", name: "Convertibles" },
+  { symbol: "HYG", name: "High Yield" },
+  { symbol: "LQD", name: "High Grade" },
+] as const;
 export function useMarketSnapshot(ready: boolean, watchlist: string[]) {
   const [data, setData] = useState<MarketSnapshot>();
   const [loading, setLoading] = useState(true);
