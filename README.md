@@ -170,8 +170,11 @@ BACKEND_API_URL=http://127.0.0.1:8000
 
 Production defaults to `https://marketly-sxn7.onrender.com`. The root
 `render.yaml` deploys `backend/`, runs its health check at `/healthz`, and keeps
-the background refresh worker enabled. Configure its secret environment
-variables in Render; they are intentionally not stored in the blueprint.
+the background refresh worker enabled. It also provisions `marketly-cache`, a
+Redis-compatible Render Key Value fast layer connected over Render's private
+network. Supabase remains the durable fallback. Configure the remaining secret
+environment variables in Render; they are intentionally not stored in the
+blueprint.
 
 ## Useful Commands
 

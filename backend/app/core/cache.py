@@ -50,7 +50,13 @@ def _build_client():
         return None
 
     try:
-        client = redis.from_url(redis_url, decode_responses=True)
+        client = redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+            health_check_interval=30,
+        )
         client.ping()
         return client
     except (RedisError, ValueError) as exc:

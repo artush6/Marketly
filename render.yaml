@@ -30,3 +30,15 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: REDIS_URL
+        fromService:
+          name: marketly-cache
+          type: keyvalue
+          property: connectionString
+
+  - type: keyvalue
+    name: marketly-cache
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+    persistenceMode: off
