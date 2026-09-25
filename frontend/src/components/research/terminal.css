@@ -177,7 +177,8 @@
 .data-footnote {
   border-color: #242d20;
 }
-.data-footnote button {
+.data-footnote button,
+.data-footnote a {
   color: #b1c096;
 }
 .company-tabs {

@@ -7,13 +7,21 @@ export function financialDocumentUrl(row: BackendFinancialStatement) {
   return safeUrl(row.sourceUrl) || safeUrl(row.finalLink) || safeUrl(row.link);
 }
 
-export function FinancialDocuments({ rows }: { rows: BackendFinancialStatement[] }) {
+export function FinancialDocuments({
+  rows,
+  issuer,
+}: {
+  rows: BackendFinancialStatement[];
+  issuer?: string;
+}) {
   const documents = Array.from(new Map(rows.map((row) => {
     const url = financialDocumentUrl(row);
     return [url, { url, row }] as const;
   }).filter(([url]) => url)).values());
   return <details className="financial-data-table">
-    <summary>Open original financial documents</summary>
+    <summary>
+      Open filings published by {issuer || "the company"}
+    </summary>
     {documents.length ? <ul>
       {documents.map(({ url, row }) => <li key={url}>
         <a href={url!} target="_blank" rel="noopener noreferrer">

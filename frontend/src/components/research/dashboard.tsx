@@ -459,6 +459,18 @@ export function ResearchDashboard() {
 
   const m = metrics(financials);
   const name = financials?.info?.shortName || company.name;
+  const financialRows = [
+    ...(financials?.financials?.income_statement || []),
+    ...(financials?.financials?.balance_sheet || []),
+    ...(financials?.financials?.cash_flow || []),
+  ];
+  const latestFiling = financialRows.find((row) => financialDocumentUrl(row));
+  const latestFilingUrl = latestFiling
+    ? financialDocumentUrl(latestFiling)
+    : undefined;
+  const latestFilingForm = String(
+    latestFiling?.acceptedForm || "financial filing",
+  );
   const isWatching = watchlist.includes(company.symbol);
   const selectedPeers = Object.values(peerData);
   const triggeredAlerts = snapshot
@@ -905,9 +917,21 @@ export function ResearchDashboard() {
                 </div>
                 <div className="data-footnote">
                   Statement period: {String(m.period)}{" "}
-                  <button onClick={() => setTab("Evidence")}>
-                    View sources <ArrowUpRight size={11} />
-                  </button>
+                  {latestFilingUrl ? (
+                    <a
+                      href={latestFilingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Open ${name} ${latestFilingForm}`}
+                    >
+                      Open {name} {latestFilingForm}{" "}
+                      <ArrowUpRight size={11} />
+                    </a>
+                  ) : (
+                    <button onClick={() => setTab("Evidence")}>
+                      Check source availability <ArrowUpRight size={11} />
+                    </button>
+                  )}
                 </div>
               </section>
               <nav className="company-tabs" aria-label="Company sections">
@@ -1278,11 +1302,8 @@ export function ResearchDashboard() {
                       ))}
                     </div>
                     <FinancialDocuments
-                      rows={[
-                        ...(financials?.financials?.income_statement || []),
-                        ...(financials?.financials?.balance_sheet || []),
-                        ...(financials?.financials?.cash_flow || []),
-                      ]}
+                      rows={financialRows}
+                      issuer={name}
                     />
                     <Link
                       className="financials-link"

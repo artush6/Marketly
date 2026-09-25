@@ -488,13 +488,15 @@
   padding: 10px 0 12px;
   border-top: 1px solid #f1f2ec;
 }
-.data-footnote button {
+.data-footnote button,
+.data-footnote a {
   display: inline-flex;
   gap: 3px;
   align-items: center;
   background: none;
   border: 0;
   color: #727f69;
+  text-decoration: none;
 }
 .company-tabs {
   display: flex;

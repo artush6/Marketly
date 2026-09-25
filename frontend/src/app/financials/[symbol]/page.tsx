@@ -252,11 +252,14 @@ function DataAvailability({
                 ))}
             </div>
 
-            <FinancialDocuments rows={[
-                ...(data?.financials?.income_statement || []),
-                ...(data?.financials?.balance_sheet || []),
-                ...(data?.financials?.cash_flow || []),
-            ]} />
+            <FinancialDocuments
+                issuer={data?.info?.shortName || data?.symbol}
+                rows={[
+                    ...(data?.financials?.income_statement || []),
+                    ...(data?.financials?.balance_sheet || []),
+                    ...(data?.financials?.cash_flow || []),
+                ]}
+            />
             <div className="mt-5 flex flex-wrap gap-2">
                 {sources.length > 0 ? (
                     sources.map(([key, value]) => (

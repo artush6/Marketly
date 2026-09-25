@@ -385,7 +385,7 @@ export function CompanyFinancials({
           />
         </div>
       )}
-      <FinancialDocuments rows={all} />
+      <FinancialDocuments rows={all} issuer={symbol} />
       <a
         className="financial-detail-link"
         href={`/financials/${encodeURIComponent(symbol)}`}
