@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from typing import Optional
 
 import redis
+import requests
 from redis.exceptions import RedisError
 
 from app.core.config import settings
@@ -19,6 +20,56 @@ TTL_PRESETS = {
     "analyst": 86400 * 2,   # 2 days
     "scores": 3600 * 6,     # 6 hours
 }
+
+
+class UpstashRestCache:
+    """Small redis-py-compatible adapter for the Upstash REST API."""
+
+    def __init__(self, url: str, token: str):
+        self.url = url.rstrip("/")
+        self.headers = {"Authorization": f"Bearer {token}"}
+
+    def _command(self, *parts):
+        try:
+            response = requests.post(
+                self.url,
+                headers=self.headers,
+                json=list(parts),
+                timeout=2,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if payload.get("error"):
+                raise RedisError(str(payload["error"]))
+            return payload.get("result")
+        except (requests.RequestException, ValueError) as exc:
+            raise RedisError(str(exc)) from exc
+
+    def ping(self):
+        return self._command("PING") == "PONG"
+
+    def get(self, key):
+        return self._command("GET", key)
+
+    def set(self, key, value, ex=None):
+        command = ["SET", key, value]
+        if ex:
+            command.extend(["EX", int(ex)])
+        return self._command(*command)
+
+    def delete(self, key):
+        return self._command("DEL", key)
+
+    def scan_iter(self, pattern):
+        cursor = "0"
+        while True:
+            result = self._command("SCAN", cursor, "MATCH", pattern, "COUNT", 100)
+            if not isinstance(result, list) or len(result) != 2:
+                return
+            cursor, keys = str(result[0]), result[1]
+            yield from keys or []
+            if cursor == "0":
+                return
 
 
 def _normalize_redis_url(raw_url: str) -> str:
@@ -40,28 +91,37 @@ def _normalize_redis_url(raw_url: str) -> str:
 
 def _build_client():
     redis_url = _normalize_redis_url(settings.REDIS_URL or "")
-    if not redis_url:
-        logger.info("REDIS_URL not set; using Supabase cache")
-        return None
+    if redis_url:
+        parsed = urlparse(redis_url)
+        if parsed.scheme not in {"redis", "rediss", "unix"}:
+            logger.warning("REDIS_URL has invalid scheme; trying Upstash REST")
+        else:
+            try:
+                client = redis.from_url(
+                    redis_url,
+                    decode_responses=True,
+                    socket_connect_timeout=2,
+                    socket_timeout=2,
+                    health_check_interval=30,
+                )
+                client.ping()
+                return client
+            except (RedisError, ValueError) as exc:
+                logger.warning("Redis unavailable; trying Upstash REST: %s", exc)
 
-    parsed = urlparse(redis_url)
-    if parsed.scheme not in {"redis", "rediss", "unix"}:
-        logger.warning("REDIS_URL has invalid scheme; using Supabase cache")
-        return None
+    rest_url = getattr(settings, "UPSTASH_REDIS_REST_URL", None)
+    rest_token = getattr(settings, "UPSTASH_REDIS_REST_TOKEN", None)
+    if rest_url and rest_token:
+        try:
+            client = UpstashRestCache(rest_url, rest_token)
+            client.ping()
+            logger.info("Using Upstash REST fast cache")
+            return client
+        except RedisError as exc:
+            logger.warning("Upstash REST unavailable; using Supabase cache: %s", exc)
 
-    try:
-        client = redis.from_url(
-            redis_url,
-            decode_responses=True,
-            socket_connect_timeout=2,
-            socket_timeout=2,
-            health_check_interval=30,
-        )
-        client.ping()
-        return client
-    except (RedisError, ValueError) as exc:
-        logger.warning("Redis unavailable; using Supabase cache: %s", exc)
-        return None
+    logger.info("No fast cache available; using Supabase cache")
+    return None
 
 
 r = _build_client()

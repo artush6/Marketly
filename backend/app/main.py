@@ -41,6 +41,11 @@ def root():
     return {"message": "Marketly backend is running!"}
 
 
+@app.head("/")
+def root_head():
+    return None
+
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
@@ -63,7 +68,13 @@ def dependency_healthz():
             "model": settings.OPENAI_MODEL,
         },
         "redis": {
-            "configured": bool(settings.REDIS_URL),
+            "configured": bool(
+                settings.REDIS_URL
+                or (
+                    settings.UPSTASH_REDIS_REST_URL
+                    and settings.UPSTASH_REDIS_REST_TOKEN
+                )
+            ),
             "connected": redis_connected,
         },
     }

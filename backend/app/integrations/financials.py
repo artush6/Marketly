@@ -10,7 +10,6 @@ from typing import Any, Optional
 
 import pandas as pd
 import requests
-import yfinance as yf
 from app.core.cache import CacheManager
 from app.core.config import settings
 from app.integrations import supabase_store
@@ -550,16 +549,9 @@ def fetch_fmp_payload(symbol: str) -> dict[str, Any]:
         {**base_params, "limit": FMP_STATEMENT_LIMIT},
         "FMP cash flow",
     )
-    as_reported_income = safe_get(
-        f"{FMP_STABLE}/as-reported-income-statements",
-        {**base_params, "limit": FMP_STATEMENT_LIMIT},
-        "FMP as reported income statement",
-    )
-
     income_statement = _safe_list(income_statement)
     balance_sheet = _safe_list(balance_sheet)
     cash_flow = _safe_list(cash_flow)
-    as_reported_income = _safe_list(as_reported_income)
 
     latest_ratios = _pick_latest_statement(_safe_list(ratios))
     latest_balance_sheet = _pick_latest_statement(balance_sheet)
@@ -606,10 +598,6 @@ def fetch_fmp_payload(symbol: str) -> dict[str, Any]:
         payload["financials"]["cash_flow"] = cash_flow
         payload["sources"]["cash_flow"] = "fmp"
 
-    if as_reported_income:
-        payload["financials"]["as_reported_income_statement"] = as_reported_income
-        payload["sources"]["as_reported_income_statement"] = "fmp"
-
     safe_update(
         payload["info"],
         {
@@ -628,18 +616,8 @@ def fetch_fmp_payload(symbol: str) -> dict[str, Any]:
 
 
 def fetch_yfinance_dividends(symbol: str) -> dict[str, Any]:
-    try:
-        ticker = yf.Ticker(symbol)
-        dividends = ticker.dividends
-        if not hasattr(dividends, "empty") or dividends.empty:
-            return {}
-        return {
-            "dividends": make_json_safe(dividends.tail(10).to_dict()),
-            "sources": {"dividends": "yfinance"},
-        }
-    except Exception as exc:
-        logger.warning("yfinance failed: %s", exc)
-        return {}
+    """Legacy provider hook retained for compatibility; direct Yahoo scraping is disabled."""
+    return {}
 
 
 def fetch_yahoo_summary(symbol: str) -> dict[str, Any]:
@@ -657,7 +635,11 @@ def fetch_yahoo_summary(symbol: str) -> dict[str, Any]:
             {"symbol": symbol},
             "Yahoo profile",
             headers=headers,
-        ) or {}
+        )
+        # A rejected profile call generally means the RapidAPI subscription or
+        # provider is unavailable. Avoid two more doomed requests per symbol.
+        if not profile_response:
+            return {}
         financial_response = safe_get(
             f"https://{RAPIDAPI_HOST}/v1/stock/financial-data",
             {"symbol": symbol},

@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app.core.cache import CacheManager
+from app.core.cache import CacheManager, UpstashRestCache
 from app.integrations.economics import fetch_macro_indicators
 from app.integrations.financials import fetch_ticker_financials
 from app.integrations.news import get_news
@@ -123,6 +123,21 @@ class SupabaseStoreTests(unittest.TestCase):
 
 
 class CacheManagerPersistentFallbackTests(unittest.TestCase):
+    @patch("app.core.cache.requests.post")
+    def test_upstash_rest_adapter_uses_redis_commands(self, mock_post):
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_post.return_value.json.side_effect = [
+            {"result": "PONG"},
+            {"result": "OK"},
+            {"result": "cached"},
+        ]
+        cache = UpstashRestCache("https://cache.upstash.io", "secret")
+
+        self.assertTrue(cache.ping())
+        cache.set("key", "cached", ex=60)
+        self.assertEqual(cache.get("key"), "cached")
+        self.assertEqual(mock_post.call_args_list[1].kwargs["json"], ["SET", "key", "cached", "EX", 60])
+
     @patch("app.core.cache.r", None)
     @patch("app.core.cache.supabase_store.get_json", return_value={"symbol": "TMO"})
     def test_get_reads_supabase_when_redis_is_unavailable(self, mock_get_json):
