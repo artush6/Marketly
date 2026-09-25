@@ -776,6 +776,17 @@ def merge_provider_payload(target: dict[str, Any], payload: dict[str, Any]) -> N
     target["sources"].update(source_updates)
 
 
+def hydrate_saved_financial_history(symbol: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Merge durable statement rows into snapshots and fast-cache responses."""
+    if payload.get("_historyHydrated"):
+        return payload
+    history = supabase_store.get_financial_history(symbol)
+    if history:
+        merge_provider_payload(payload, history)
+        payload["_historyHydrated"] = True
+    return payload
+
+
 def _collect_provider_payloads(symbol: str) -> list[dict[str, Any]]:
     providers = (
         fetch_finnhub_payload,
@@ -815,6 +826,8 @@ def _fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
                     )
                     raise ValueError("cached symbol mismatch")
                 payload = enrich_cached_profile(symbol, payload)
+                history_was_hydrated = bool(payload.get("_historyHydrated"))
+                payload = hydrate_saved_financial_history(symbol, payload)
                 attach_financial_quality(
                     payload,
                     fetched_at=payload.get("_fetchedAt"),
@@ -823,6 +836,8 @@ def _fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
                 if not payload["dataQuality"]["cacheEligible"]:
                     raise ValueError("cached financial payload is not reusable")
                 payload["_dataSource"] = cache_source or "cache"
+                if payload.get("_historyHydrated") and not history_was_hydrated:
+                    CacheManager.set(cache_key, json.dumps(make_json_safe(payload)))
                 return payload
             except Exception:
                 pass
@@ -842,6 +857,7 @@ def _fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
                 pass
             else:
                 payload = enrich_cached_profile(symbol, payload)
+                payload = hydrate_saved_financial_history(symbol, payload)
                 attach_financial_quality(
                     payload,
                     fetched_at=snapshot.get("fetched_at"),
@@ -867,6 +883,8 @@ def _fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
 
     for provider_payload in _collect_provider_payloads(symbol):
         merge_provider_payload(merged, provider_payload)
+
+    hydrate_saved_financial_history(symbol, merged)
 
     filled_fields = sum(1 for value in merged["info"].values() if value is not None)
     logger.info("%s: fetched with %s info fields filled", symbol, filled_fields)

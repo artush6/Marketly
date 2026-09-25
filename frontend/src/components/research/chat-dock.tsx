@@ -8,7 +8,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { postFollowUp } from "@/lib/api";
+import { BackendRequestError, postFollowUp } from "@/lib/api";
 
 type Message = { role: "user" | "assistant"; content: string };
 export function ChatDock({
@@ -58,10 +58,12 @@ export function ChatDock({
           ...items,
           { role: "assistant", content: response.answer },
         ]);
-    } catch {
+    } catch (requestError) {
       if (mounted.current) {
         setError(
-          "Could not get an answer. Your question is restored below—try again.",
+          requestError instanceof BackendRequestError
+            ? `Assistant unavailable: ${requestError.message}`
+            : "Could not reach the assistant. Your question is restored below—try again.",
         );
         setQuestion(text);
         setMessages((items) => items.slice(0, -1));

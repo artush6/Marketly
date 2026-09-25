@@ -146,6 +146,75 @@ def get_latest_snapshot(kind: str, entity_key: str) -> dict[str, Any] | None:
         return None
 
 
+def get_financial_history(symbol: str) -> dict[str, Any]:
+    """Load normalized statement history so a thin snapshot cannot hide older periods."""
+    if not is_configured():
+        return {}
+
+    params = {
+        "symbol": f"eq.{symbol.upper()}",
+        "select": "statement_type,period_end,source,payload",
+        "order": "period_end.desc",
+        "limit": "500",
+    }
+    try:
+        response = requests.get(
+            _rest_url("financial_statement_rows"),
+            headers=_headers(),
+            params=params,
+            timeout=5,
+        )
+        response.raise_for_status()
+        records = response.json()
+    except Exception as exc:
+        logger.warning("Supabase financial history read failed for %s: %s", symbol, exc)
+        return {}
+
+    statements: dict[str, list[dict[str, Any]]] = {}
+    sources: dict[str, set[str]] = {}
+    keyed: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for record in records if isinstance(records, list) else []:
+        statement_type = record.get("statement_type")
+        payload = record.get("payload")
+        if not statement_type or not isinstance(payload, dict):
+            continue
+        period_end = str(
+            payload.get("fiscalDateEnding")
+            or payload.get("date")
+            or record.get("period_end")
+            or ""
+        )
+        period = str(payload.get("period") or payload.get("fp") or "")
+        key = (statement_type, period_end, period)
+        current = keyed.get(key)
+        if current is None:
+            current = dict(payload)
+            current.setdefault("date", period_end)
+            statements.setdefault(statement_type, []).append(current)
+            keyed[key] = current
+        else:
+            for field_name, value in payload.items():
+                if value is not None and current.get(field_name) is None:
+                    current[field_name] = value
+        source = record.get("source")
+        if source:
+            sources.setdefault(statement_type, set()).update(
+                part for part in str(source).split("+") if part
+            )
+
+    for rows in statements.values():
+        rows.sort(
+            key=lambda row: str(row.get("fiscalDateEnding") or row.get("date") or ""),
+            reverse=True,
+        )
+    return {
+        "financials": statements,
+        "sources": {
+            statement_type: "+".join(sorted(provider_names))
+            for statement_type, provider_names in sources.items()
+        },
+    }
+
 def save_snapshot(
     kind: str,
     entity_key: str,

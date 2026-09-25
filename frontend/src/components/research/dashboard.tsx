@@ -48,7 +48,7 @@ import { CompanySearch } from "./company-search";
 import { EarningsReminders } from "./earnings-reminders";
 import { CompanyFinancials } from "./company-financials";
 import { PriceChart } from "./price-chart";
-import { FIXED_INCOME, MarketOverview, useMarketSnapshot } from "./market-overview";
+import { MarketOverview, useMarketSnapshot } from "./market-overview";
 import {
   FinancialDocuments,
   financialDocumentUrl,
@@ -824,6 +824,33 @@ export function ResearchDashboard() {
                     {isWatching ? "Watching" : "Watch"}
                   </button>
                 </div>
+                <div className="company-profile-strip" aria-label="Company details">
+                  <div>
+                    <small>Sector</small>
+                    <strong>{financials?.info?.sector || "—"}</strong>
+                  </div>
+                  <div>
+                    <small>Industry</small>
+                    <strong>{financials?.info?.industry || "—"}</strong>
+                  </div>
+                  <div>
+                    <small>Country</small>
+                    <strong>{financials?.info?.country || "—"}</strong>
+                  </div>
+                  <div>
+                    <small>Currency</small>
+                    <strong>{m.currency}</strong>
+                  </div>
+                  {safeUrl(financials?.info?.website) && (
+                    <a
+                      href={safeUrl(financials?.info?.website)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Website <ArrowUpRight size={13} />
+                    </a>
+                  )}
+                </div>
                 <div className="quote-row">
                   <div className="quote">
                     <span>
@@ -1520,52 +1547,6 @@ export function ResearchDashboard() {
                   <Plus size={14} /> Add company
                 </button>
               </section>
-              <section className="sidebar-section fixed-income-card">
-                <div className="section-heading">
-                  <h2>Fixed income</h2>
-                  <span>ETF proxies</span>
-                </div>
-                <div className="fixed-income-list">
-                  {FIXED_INCOME.map((item) => {
-                    const quote = market.data?.quotes.find(
-                      (entry) => entry.symbol === item.symbol,
-                    );
-                    const change = quote?.changePercent;
-                    return (
-                      <a
-                        key={item.symbol}
-                        href={`https://www.tradingview.com/symbols/${item.symbol}/`}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`Open ${item.name} market quote`}
-                      >
-                        <span>{item.name}</span>
-                        <strong>
-                          {market.loading && !market.data
-                            ? "…"
-                            : format(quote?.price, "money")}
-                        </strong>
-                        <small
-                          className={
-                            change == null
-                              ? "muted"
-                              : change >= 0
-                                ? "positive"
-                                : "negative"
-                          }
-                        >
-                          {change == null
-                            ? "—"
-                            : `${change >= 0 ? "↗" : "↘"} ${format(Math.abs(change), "percent")}`}
-                        </small>
-                      </a>
-                    );
-                  })}
-                </div>
-                <p className="disclosure">
-                  Liquid ETF proxies · quotes may be delayed
-                </p>
-              </section>
               <section className="sidebar-section research-save">
                 <div className="save-illustration">
                   <FileText size={28} />
@@ -1585,38 +1566,6 @@ export function ResearchDashboard() {
                   Save research
                 </button>
                 <small>Stored locally · No account required</small>
-              </section>
-              <section className="sidebar-section company-details">
-                <div className="section-heading">
-                  <h2>Company details</h2>
-                </div>
-                <dl>
-                  <div>
-                    <dt>Sector</dt>
-                    <dd>{financials?.info?.sector || "—"}</dd>
-                  </div>
-                  <div>
-                    <dt>Industry</dt>
-                    <dd>{financials?.info?.industry || "—"}</dd>
-                  </div>
-                  <div>
-                    <dt>Country</dt>
-                    <dd>{financials?.info?.country || "—"}</dd>
-                  </div>
-                  <div>
-                    <dt>Currency</dt>
-                    <dd>{m.currency}</dd>
-                  </div>
-                </dl>
-                {safeUrl(financials?.info?.website) && (
-                  <a
-                    href={safeUrl(financials?.info?.website)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Company website <ArrowUpRight size={13} />
-                  </a>
-                )}
               </section>
               <Link
                 className="financials-link"

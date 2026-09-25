@@ -361,6 +361,50 @@ export function MarketOverview({
               </p>
             )}
           </section>
+          <section className="market-panel fixed-income-card">
+            <div className="terminal-heading">
+              <h2>Fixed income</h2>
+              <span>ETF PROXIES</span>
+            </div>
+            <div className="fixed-income-list">
+              {FIXED_INCOME.map((item) => {
+                const quote = quotes.get(item.symbol);
+                const change = quote?.changePercent;
+                return (
+                  <a
+                    key={item.symbol}
+                    href={`https://www.tradingview.com/symbols/${item.symbol}/`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Open ${item.name} market quote`}
+                  >
+                    <span>{item.name}</span>
+                    <strong>
+                      {loading && !data
+                        ? "…"
+                        : format(quote?.price, "money")}
+                    </strong>
+                    <small
+                      className={
+                        change == null
+                          ? "muted"
+                          : change >= 0
+                            ? "positive"
+                            : "negative"
+                      }
+                    >
+                      {change == null
+                        ? "—"
+                        : `${change >= 0 ? "↗" : "↘"} ${format(Math.abs(change), "percent")}`}
+                    </small>
+                  </a>
+                );
+              })}
+            </div>
+            <p className="disclosure">
+              Liquid ETF proxies · quotes may be delayed
+            </p>
+          </section>
           <section className="market-panel breadth-panel">
             <div className="terminal-heading">
               <h2>Watchlist pulse</h2>

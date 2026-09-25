@@ -124,6 +124,50 @@
   color: #e8edde;
   font-size: 27px;
 }
+.company-profile-strip {
+  align-items: stretch;
+  border-bottom: 1px solid #2b3822;
+  border-top: 1px solid #2b3822;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  margin: 19px 0 2px;
+}
+.company-profile-strip > div {
+  border-right: 1px solid #2b3822;
+  min-width: 0;
+  padding: 12px 15px 12px 0;
+}
+.company-profile-strip > div + div {
+  padding-left: 15px;
+}
+.company-profile-strip small,
+.company-profile-strip strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.company-profile-strip small {
+  color: #718363;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.company-profile-strip strong {
+  color: #c4d2b5;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 3px;
+}
+.company-profile-strip > a {
+  align-items: center;
+  color: #b5ce95;
+  display: flex;
+  font-size: 12px;
+  gap: 5px;
+  padding-left: 15px;
+}
 .quote > span:first-child {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 34px;
@@ -603,6 +647,35 @@
 .market-home-sidebar .disclosure {
   padding: 0 15px 12px;
 }
+.market-home-sidebar .fixed-income-list {
+  padding: 10px 18px 6px;
+}
+.market-home-sidebar .fixed-income-list a {
+  border-bottom: 1px solid #25331d;
+  grid-template-columns: minmax(0, 1fr) auto 58px;
+  min-height: 46px;
+}
+.market-home-sidebar .fixed-income-list a:last-child {
+  border-bottom: 0;
+}
+.market-home-sidebar .fixed-income-list a:hover span {
+  color: #b4e45d;
+}
+.market-home-sidebar .fixed-income-list span {
+  color: #dce8cc;
+}
+.market-home-sidebar .fixed-income-list strong {
+  color: #dce8cc;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.market-home-sidebar .fixed-income-list small {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.market-home-sidebar .fixed-income-card .disclosure {
+  color: #7a9466;
+  line-height: 1.6;
+  padding-top: 5px;
+}
 .breadth-values {
   display: flex;
   justify-content: space-between;
@@ -881,6 +954,15 @@
   }
 }
 @media (max-width: 800px) {
+  .company-profile-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .company-profile-strip > div {
+    border-bottom: 1px solid #2b3822;
+  }
+  .company-profile-strip > a {
+    min-height: 42px;
+  }
   .market-home-columns,
   .research-columns {
     grid-template-columns: 1fr;

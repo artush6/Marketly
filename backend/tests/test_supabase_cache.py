@@ -52,6 +52,47 @@ class SupabaseStoreTests(unittest.TestCase):
             SUPABASE_ANON_KEY=None,
         ),
     )
+    @patch("app.integrations.supabase_store.requests.get")
+    def test_financial_history_merges_duplicate_periods(self, mock_get):
+        mock_get.return_value.raise_for_status.return_value = None
+        mock_get.return_value.json.return_value = [
+            {
+                "statement_type": "income_statement",
+                "period_end": "2025-09-27",
+                "source": "fmp",
+                "payload": {"date": "2025-09-27", "period": "FY", "revenue": 10},
+            },
+            {
+                "statement_type": "income_statement",
+                "period_end": "2025-09-27",
+                "source": "sec_xbrl",
+                "payload": {"date": "2025-09-27", "period": "FY", "netIncome": 2},
+            },
+            {
+                "statement_type": "income_statement",
+                "period_end": "2024-09-28",
+                "source": "fmp",
+                "payload": {"date": "2024-09-28", "period": "FY", "revenue": 9},
+            },
+        ]
+
+        result = supabase_store.get_financial_history("aapl")
+
+        rows = result["financials"]["income_statement"]
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["revenue"], 10)
+        self.assertEqual(rows[0]["netIncome"], 2)
+        self.assertEqual(result["sources"]["income_statement"], "fmp+sec_xbrl")
+        self.assertEqual(mock_get.call_args.kwargs["params"]["symbol"], "eq.AAPL")
+
+    @patch(
+        "app.integrations.supabase_store.settings",
+        SimpleNamespace(
+            SUPABASE_URL="https://project.supabase.co",
+            SUPABASE_SERVICE_ROLE_KEY="service-key",
+            SUPABASE_ANON_KEY=None,
+        ),
+    )
     @patch("app.integrations.supabase_store.requests.post")
     def test_set_json_upserts_payload_with_ttl(self, mock_post):
         mock_post.return_value.raise_for_status.return_value = None
