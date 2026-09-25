@@ -5,7 +5,7 @@ import uvicorn
 
 # Configure logging with Rich
 logging.basicConfig(
-    level="DEBUG",
+    level="INFO",
     format="%(message)s",
     handlers=[RichHandler()]
 )

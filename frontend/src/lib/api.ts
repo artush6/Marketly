@@ -1,3 +1,5 @@
+import { backendServerUrl } from "@/lib/backend-config";
+
 export type BackendFinancialStatement = {
   date?: string;
   calendarYear?: string;
@@ -301,8 +303,7 @@ export type BackendScoreResponse = {
 
 function getBaseUrl() {
   const baseUrl = typeof window === "undefined"
-    ? process.env.BACKEND_API_URL || (process.env.NODE_ENV === "development"
-      ? "http://127.0.0.1:8000" : "https://marketly-sxn7.onrender.com")
+    ? backendServerUrl()
     : process.env.NEXT_PUBLIC_API_URL || "/api/backend";
   return baseUrl.replace(/\/$/, "");
 }

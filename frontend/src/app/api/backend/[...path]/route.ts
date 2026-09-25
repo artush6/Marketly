@@ -1,12 +1,9 @@
 import {NextRequest, NextResponse} from "next/server";
-
-const DEFAULT_BACKEND_URL = process.env.NODE_ENV === "development"
-    ? "http://127.0.0.1:8000"
-    : "https://marketly-sxn7.onrender.com";
+import {backendServerUrl} from "@/lib/backend-config";
 const REQUEST_TIMEOUT_MS = 115_000;
 
 function getBackendBaseUrl() {
-    return (process.env.BACKEND_API_URL || DEFAULT_BACKEND_URL).replace(/\/$/, "");
+    return backendServerUrl();
 }
 
 function buildTargetUrl(path: string[], request: NextRequest) {
@@ -52,6 +49,11 @@ async function proxy(request: NextRequest, path: string[]) {
     } catch (error) {
         const message =
             error instanceof Error ? error.message : "Unknown backend connection failure";
+        console.error("[backend-proxy] request failed", {
+            target: targetUrl.toString(),
+            message,
+            cause: error instanceof Error ? String(error.cause || "") : "",
+        });
 
         return NextResponse.json(
             {

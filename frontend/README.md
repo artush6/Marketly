@@ -15,16 +15,10 @@ npm install
 npm run dev
 ```
 
-Start the backend from this same checkout in another terminal:
-
-```bash
-cd ../backend
-.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-
-Open [http://localhost:3000](http://localhost:3000). Local development defaults to
-this local backend. Pointing at an older deployed backend can return 404 for market,
-earnings and heatmap routes even while individual-company endpoints still work.
+`npm run dev` starts and health-checks the FastAPI backend on port 8000 before
+starting Next.js on port 3000. It uses `backend/.venv/bin/python` when available
+and shuts down both processes together. Open
+[http://localhost:3000](http://localhost:3000).
 
 ## Scripts
 

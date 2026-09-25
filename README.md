@@ -155,7 +155,9 @@ npm install
 npm run dev
 ```
 
-The frontend runs at `http://localhost:3000`.
+This is the normal local launch command. It starts and health-checks the backend
+at `http://127.0.0.1:8000`, then starts the frontend at
+`http://localhost:3000`. Both processes stop together.
 
 Optional `frontend/.env.local`:
 
@@ -165,6 +167,11 @@ BACKEND_API_URL=http://127.0.0.1:8000
 ```
 
 `NEXT_PUBLIC_API_URL` controls the browser-facing API base. `BACKEND_API_URL` controls the server-side proxy target used by the Next.js backend route.
+
+Production defaults to `https://marketly-sxn7.onrender.com`. The root
+`render.yaml` deploys `backend/`, runs its health check at `/healthz`, and keeps
+the background refresh worker enabled. Configure its secret environment
+variables in Render; they are intentionally not stored in the blueprint.
 
 ## Useful Commands
 
