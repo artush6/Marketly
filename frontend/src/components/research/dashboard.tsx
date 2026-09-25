@@ -62,12 +62,58 @@ type View = "Markets" | "Company" | "Watchlist" | "Saved research";
 const STORAGE = "marketly.research.v1";
 const INITIAL_WATCHLIST = ["AAPL", "MSFT", "NVDA", "GOOGL"];
 
-function NewsPhoto({ src, title }: { src?: string; title: string }) {
+const articleImageRequests = new Map<string, Promise<string | undefined>>();
+
+function publisherImage(url: string) {
+  const existing = articleImageRequests.get(url);
+  if (existing) return existing;
+  const request = fetch("/api/article-preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+    signal: AbortSignal.timeout(12000),
+  })
+    .then(async (response) => {
+      if (!response.ok) return undefined;
+      const preview: BackendNewsItem = await response.json();
+      return safeUrl(preview.image);
+    })
+    .catch(() => undefined);
+  articleImageRequests.set(url, request);
+  return request;
+}
+
+function NewsPhoto({ article }: { article: BackendNewsItem }) {
+  const url = safeUrl(article.url);
+  const shouldResolvePublisherImage =
+    article.source?.toLowerCase().includes("yahoo") && Boolean(url);
+  const [src, setSrc] = useState<string | undefined>(
+    shouldResolvePublisherImage ? undefined : safeUrl(article.image),
+  );
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setFailed(false);
+    if (!shouldResolvePublisherImage || !url) {
+      setSrc(safeUrl(article.image));
+      return () => {
+        active = false;
+      };
+    }
+    setSrc(undefined);
+    void publisherImage(url).then((image) => {
+      if (active) setSrc(image);
+    });
+    return () => {
+      active = false;
+    };
+  }, [article.image, shouldResolvePublisherImage, url]);
+
   return safeUrl(src) && !failed ? (
     <Image
       src={safeUrl(src)!}
-      alt={title}
+      alt={article.headline || "Article image"}
       fill
       unoptimized
       sizes="(max-width: 700px) 100vw, 280px"
@@ -93,9 +139,8 @@ function NewsCard({ article }: { article: BackendNewsItem }) {
         aria-label={`Read ${article.headline ?? "article"}`}
       >
         <NewsPhoto
-          key={article.image}
-          src={article.image}
-          title={article.headline ?? "News article"}
+          key={`${article.url}-${article.image}`}
+          article={article}
         />
       </a>
       <div className="news-byline">
