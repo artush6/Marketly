@@ -133,7 +133,7 @@ The backend runs at `http://127.0.0.1:8000`.
 Fill in the relevant keys in `backend/.env`:
 
 ```text
-REDIS_URL=
+REDIS_URL= # optional; leave unset to use the durable Supabase cache
 FINNHUB_API_KEY=
 FMP_API_KEY=
 FMPSDK_API_KEY=

@@ -41,12 +41,12 @@ def _normalize_redis_url(raw_url: str) -> str:
 def _build_client():
     redis_url = _normalize_redis_url(settings.REDIS_URL or "")
     if not redis_url:
-        logger.info("REDIS_URL not set; cache disabled")
+        logger.info("REDIS_URL not set; using Supabase cache")
         return None
 
     parsed = urlparse(redis_url)
     if parsed.scheme not in {"redis", "rediss", "unix"}:
-        logger.warning("REDIS_URL has invalid scheme; cache disabled")
+        logger.warning("REDIS_URL has invalid scheme; using Supabase cache")
         return None
 
     try:
@@ -54,7 +54,7 @@ def _build_client():
         client.ping()
         return client
     except (RedisError, ValueError) as exc:
-        logger.warning("Redis unavailable; cache disabled: %s", exc)
+        logger.warning("Redis unavailable; using Supabase cache: %s", exc)
         return None
 
 
