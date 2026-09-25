@@ -15,7 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // Browser extensions (including One Sec) inject attributes on this element.
+    <html lang="en" suppressHydrationWarning>
       <body className="font-sans">
         {children}
       </body>

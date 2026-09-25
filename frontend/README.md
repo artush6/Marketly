@@ -10,11 +10,21 @@ Marketly is a Next.js App Router frontend for a market-intelligence workflow. It
 ## Local Development
 
 ```bash
+cp .env.example .env.local
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Start the backend from this same checkout in another terminal:
+
+```bash
+cd ../backend
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Open [http://localhost:3000](http://localhost:3000). Local development defaults to
+this local backend. Pointing at an older deployed backend can return 404 for market,
+earnings and heatmap routes even while individual-company endpoints still work.
 
 ## Scripts
 
@@ -31,7 +41,7 @@ Create `.env.local` with any frontend overrides you need.
 
 ```bash
 NEXT_PUBLIC_API_URL=/api/backend
-BACKEND_API_URL=https://your-backend-url
+BACKEND_API_URL=http://127.0.0.1:8000
 ```
 
 `NEXT_PUBLIC_API_URL` controls the browser-facing base URL.

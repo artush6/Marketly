@@ -91,7 +91,7 @@ def get_json(namespace: str, cache_key: str) -> Any | None:
         return None
 
 
-def set_json(namespace: str, cache_key: str, payload: Any, ttl_seconds: int) -> None:
+def set_json(namespace: str, cache_key: str, payload: Any, ttl_seconds: int, *, strict: bool = False) -> None:
     if not is_configured():
         return
 
@@ -112,6 +112,8 @@ def set_json(namespace: str, cache_key: str, payload: Any, ttl_seconds: int) -> 
         )
         response.raise_for_status()
     except Exception as exc:
+        if strict:
+            raise
         logger.warning("Supabase cache write failed for %s:%s: %s", namespace, cache_key, exc)
 
 
@@ -318,3 +320,26 @@ def save_analysis_run(payload: dict[str, Any]) -> None:
         "data_sources": metadata.get("dataSources", {}),
     }
     _upsert_rows("analysis_runs", [row], on_conflict="analysis_id")
+
+
+def get_json_many(namespace: str, cache_keys: list[str]) -> dict[str, Any]:
+    """One bounded read for a watchlist. Propagate failure instead of claiming no events."""
+    if not is_configured() or not cache_keys:
+        return {}
+    response = requests.get(_rest_url(), headers=_headers(), params={
+        "namespace": "eq." + namespace,
+        "cache_key": "in.(" + ",".join(cache_keys) + ")",
+        "expires_at": "gt." + datetime.now(timezone.utc).isoformat(),
+        "select": "cache_key,payload",
+    }, timeout=5)
+    response.raise_for_status()
+    return {row["cache_key"]: row["payload"] for row in response.json()}
+
+
+def delete_json(namespace: str, cache_key: str) -> None:
+    if not is_configured():
+        return
+    response = requests.delete(_rest_url(), headers=_headers(), params={
+        "namespace": "eq." + namespace, "cache_key": "eq." + cache_key,
+    }, timeout=5)
+    response.raise_for_status()

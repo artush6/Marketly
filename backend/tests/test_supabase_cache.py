@@ -139,7 +139,7 @@ class CacheManagerPersistentFallbackTests(unittest.TestCase):
             json.dumps({"score": 53}),
         )
 
-        mock_set_json.assert_called_once_with("scores", "TMO", {"score": 53}, 21600)
+        mock_set_json.assert_called_once_with("scores", "TMO", {"score": 53}, 21600, strict=False)
 
 
 class SnapshotFirstIntegrationTests(unittest.TestCase):
@@ -199,7 +199,7 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
     @patch("app.integrations.financials.supabase_store.get_latest_snapshot")
     @patch("app.integrations.financials.fetch_finnhub_payload")
     @patch("app.integrations.financials.validate_financials_configuration")
-    def test_financials_cache_hit_materializes_supabase_rows(
+    def test_financials_cache_hit_does_not_renew_or_rewrite_data(
         self,
         mock_validate,
         mock_finnhub,
@@ -212,7 +212,8 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
 
         self.assertEqual(payload["symbol"], "TSLA")
         self.assertEqual(payload["_dataSource"], "cache")
-        mock_save_financial_payload.assert_called_once()
+        mock_save_financial_payload.assert_not_called()
+        mock_cache_set.assert_not_called()
         mock_snapshot.assert_not_called()
         mock_finnhub.assert_not_called()
 

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { preloadFinancials } from "@/lib/api";
 import type { Company } from "@/lib/research";
 
 type Stock = {
@@ -112,6 +113,12 @@ export function FullMarketMap({
         )
         .slice(0, 8)
     : [];
+  const visibleMatches = hits?.slice(0, 5).map((stock) => stock.symbol).join(",") || "";
+  useEffect(() => {
+    if (!visibleMatches) return;
+    const timer = setTimeout(() => preloadFinancials(visibleMatches.split(","), true), 400);
+    return () => clearTimeout(timer);
+  }, [visibleMatches]);
   const tiles = useMemo(
     () => layout(nodes, { x: 0, y: 0, w: 1200, h: expanded ? 1000 : 720 }),
     [nodes, expanded],
@@ -131,6 +138,8 @@ export function FullMarketMap({
             role="button"
             tabIndex={show ? 0 : -1}
             aria-label={`${s.name}, ${delta}`}
+            onMouseEnter={() => preloadFinancials([s.symbol], true)}
+            onFocus={() => preloadFinancials([s.symbol], true)}
             onClick={() => onSelect({ symbol: s.symbol, name: s.name })}
             onKeyDown={(e) => {
               if (e.key === "Enter")

@@ -42,7 +42,9 @@ import {
   safeUrl,
   STARTER_COMPANIES,
 } from "@/lib/research";
+import { preloadFinancials } from "@/lib/api";
 import { CompanySearch } from "./company-search";
+import { EarningsReminders } from "./earnings-reminders";
 import { CompanyFinancials } from "./company-financials";
 import { PriceChart } from "./price-chart";
 import { MarketOverview, useMarketSnapshot } from "./market-overview";
@@ -150,6 +152,10 @@ export function ResearchDashboard() {
   const analysisPending = useRef(false);
   const [peerBusy, setPeerBusy] = useState<string[]>([]);
   const market = useMarketSnapshot(ready, watchlist);
+  const preloadSymbols = watchlist.join(",");
+  useEffect(() => {
+    if (ready) preloadFinancials(preloadSymbols.split(","));
+  }, [ready, preloadSymbols]);
 
   useEffect(() => {
     try {
@@ -292,6 +298,7 @@ export function ResearchDashboard() {
   }
 
   function select(c: Company) {
+    setRevision(0);
     setCompany(c);
     setCompanyOpened(true);
     setSnapshot(null);
@@ -534,6 +541,7 @@ export function ResearchDashboard() {
             Saved on this device <CircleHelp size={13} />
           </span>
         </div>
+        <EarningsReminders symbols={watchlist} ready={ready} />
         {notice && (
           <div className="notice" role="status">
             {notice}
@@ -1358,7 +1366,11 @@ export function ResearchDashboard() {
                   </button>
                 </div>
                 <div className="sidebar-watchlist">
-                  {watchlist.slice(0, 7).map((symbol) => (
+                  {watchlist.slice(0, 7).map((symbol) => {
+                    const quote = market.data?.quotes.find((item) => item.symbol === symbol);
+                    const price = quote?.price ?? (symbol === company.symbol ? m.price : null);
+                    const change = quote?.changePercent ?? (symbol === company.symbol ? m.change : null);
+                    return (
                     <div
                       key={symbol}
                       className={symbol === company.symbol ? "current" : ""}
@@ -1380,13 +1392,13 @@ export function ResearchDashboard() {
                               ?.name || "Company"}
                           </small>
                         </span>
-                        {symbol === company.symbol ? (
+                        {price != null ? (
                           <span className="watchlist-price">
-                            {format(m.price, "money", m.currency)}
+                            {format(price, "number")}
                             <small
-                              className={positive ? "positive" : "negative"}
+                              className={(change ?? 0) >= 0 ? "positive" : "negative"}
                             >
-                              {format(m.change, "percent")}
+                              {format(change, "percent")}
                             </small>
                           </span>
                         ) : (
@@ -1401,7 +1413,7 @@ export function ResearchDashboard() {
                         <Star size={14} fill="currentColor" />
                       </button>
                     </div>
-                  ))}
+                  );})}
                 </div>
                 {watchlist.length === 0 && (
                   <p className="disclosure">Watch a company to add it here.</p>

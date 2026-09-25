@@ -34,3 +34,6 @@ exports/
 backups/
 tmp/*.sql
 local/*.sql
+
+# Supabase CLI local state
+supabase/.temp/

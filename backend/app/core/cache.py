@@ -87,17 +87,25 @@ class CacheManager:
         return value, "supabase_cache" if value is not None else None
 
     @staticmethod
-    def set(key: str, value: str, ttl: Optional[int] = None):
+    def set(key: str, value: str, ttl: Optional[int] = None, *, durable: bool = False):
         namespace, identifier = CacheManager.parse_key(key)
         ttl = ttl or TTL_PRESETS.get(namespace, 3600)  # default 1 h fallback
         if r is None:
-            CacheManager._set_persistent(namespace, identifier, value, ttl)
+            CacheManager._set_persistent(namespace, identifier, value, ttl, strict=durable)
             return
         try:
             r.set(key, value, ex=ttl)
         except RedisError as exc:
             logger.warning("Cache write failed for %s: %s", key, exc)
-        CacheManager._set_persistent(namespace, identifier, value, ttl)
+        CacheManager._set_persistent(namespace, identifier, value, ttl, strict=durable)
+
+    @staticmethod
+    def delete_key(key: str):
+        """Invalidate the exact key in both layers, including Redis-free deployments."""
+        namespace, identifier = CacheManager.parse_key(key)
+        supabase_store.delete_json(namespace, identifier)
+        if r is not None:
+            r.delete(key)
 
     @staticmethod
     def delete(pattern: str):
@@ -126,9 +134,9 @@ class CacheManager:
         return json.dumps(payload)
 
     @staticmethod
-    def _set_persistent(namespace: str, identifier: str, value: str, ttl: int):
+    def _set_persistent(namespace: str, identifier: str, value: str, ttl: int, *, strict: bool = False):
         try:
             payload = json.loads(value)
         except ValueError:
             payload = value
-        supabase_store.set_json(namespace, identifier, payload, ttl)
+        supabase_store.set_json(namespace, identifier, payload, ttl, strict=strict)

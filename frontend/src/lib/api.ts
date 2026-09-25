@@ -300,7 +300,10 @@ export type BackendScoreResponse = {
 };
 
 function getBaseUrl() {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "/api/backend";
+  const baseUrl = typeof window === "undefined"
+    ? process.env.BACKEND_API_URL || (process.env.NODE_ENV === "development"
+      ? "http://127.0.0.1:8000" : "https://marketly-sxn7.onrender.com")
+    : process.env.NEXT_PUBLIC_API_URL || "/api/backend";
   return baseUrl.replace(/\/$/, "");
 }
 
@@ -312,7 +315,7 @@ const clientResponseCache = new Map<
 >();
 const clientInFlightRequests = new Map<string, Promise<unknown>>();
 
-async function requestJson<T>(path: string): Promise<T> {
+async function requestJson<T>(path: string, fetchPath = path): Promise<T> {
   const url = `${getBaseUrl()}${path}`;
 
   if (typeof window !== "undefined") {
@@ -327,7 +330,7 @@ async function requestJson<T>(path: string): Promise<T> {
     }
   }
 
-  const request = fetch(url, {
+  const request = fetch(`${getBaseUrl()}${fetchPath}`, {
     cache: "no-store",
     signal: AbortSignal.timeout(CLIENT_REQUEST_TIMEOUT_MS),
   })
@@ -348,7 +351,7 @@ async function requestJson<T>(path: string): Promise<T> {
           ("score" in (record ?? {}) && record.score == null);
         if (!degraded) {
           clientResponseCache.set(url, {
-            expiresAt: Date.now() + CLIENT_CACHE_TTL_MS,
+            expiresAt: Date.now() + (path.startsWith("/financials/") ? 300_000 : CLIENT_CACHE_TTL_MS),
             value,
           });
         }
@@ -438,4 +441,41 @@ export async function postFollowUp(
   }
 
   return res.json() as Promise<BackendFollowUpResponse>;
+}
+
+
+// Preload visible companies with bounded concurrency; opening one reuses the same
+// request/cache. No analysis or LLM request is made by this queue.
+const financialPreloadQueue: string[] = [];
+const financialPreloadPending = new Set<string>();
+let financialPreloadActive = 0;
+
+function drainFinancialPreloads() {
+  while (financialPreloadActive < 2 && financialPreloadQueue.length) {
+    const symbol = financialPreloadQueue.shift()!;
+    financialPreloadActive += 1;
+    const path = `/financials/${encodeURIComponent(symbol)}`;
+    void requestJson<BackendFinancialsResponse>(path, `${path}?track=false`).catch(() => {
+      // A failed speculative load must not block navigation or future retries.
+    }).finally(() => {
+      financialPreloadActive -= 1;
+      financialPreloadPending.delete(symbol);
+      drainFinancialPreloads();
+    });
+  }
+}
+
+export function preloadFinancials(symbols: string[], speculative = false) {
+  if (typeof window === "undefined") return;
+  for (const raw of symbols.slice(0, 50)) {
+    const symbol = raw.trim().toUpperCase();
+    if (!/^[A-Z0-9][A-Z0-9.:-]{0,19}$/.test(symbol) || financialPreloadPending.has(symbol)) continue;
+    // Discovery also returns exchange-specific listings unsupported by our US feeds.
+    // Explicit watchlists and navigation may still load those on demand.
+    if (speculative && !/^[A-Z][A-Z0-9-]{0,9}(?:\.[AB])?$/.test(symbol)) continue;
+    if (financialPreloadQueue.length >= 50) break;
+    financialPreloadPending.add(symbol);
+    financialPreloadQueue.push(symbol);
+  }
+  drainFinancialPreloads();
 }

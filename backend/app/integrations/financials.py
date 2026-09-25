@@ -310,6 +310,7 @@ def _apply_sec_row_metadata(row: dict[str, Any], fact: dict[str, Any] | None) ->
             "period": fact.get("fp"),
             "calendarYear": fact.get("fy"),
             "acceptedForm": fact.get("form"),
+            "accessionNumber": fact.get("accn"),
         },
     )
 
@@ -423,6 +424,22 @@ def fetch_sec_payload(symbol: str) -> dict[str, Any]:
     if cash_flow_row:
         payload["financials"]["cash_flow"] = [cash_flow_row]
         payload["sources"]["cash_flow"] = "sec_xbrl"
+    recent = submissions.get("filings", {}).get("recent", {})
+    accession_numbers = recent.get("accessionNumber", [])
+    documents = recent.get("primaryDocument", [])
+    for statement_rows in payload["financials"].values():
+        for row in statement_rows:
+            accession = row.get("accessionNumber")
+            if not accession:
+                continue
+            base = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}"
+            row["sourceUrl"] = f"{base}/{accession}-index.html"
+            row["sourceDocumentType"] = "filing_index"
+            if accession in accession_numbers:
+                index = accession_numbers.index(accession)
+                if index < len(documents) and documents[index]:
+                    row["sourceUrl"] = f"{base}/{documents[index]}"
+                    row["sourceDocumentType"] = "filing"
     if payload["info"]:
         payload["sources"]["sec_submissions"] = "sec"
 
@@ -787,7 +804,13 @@ def _collect_provider_payloads(symbol: str) -> list[dict[str, Any]]:
     )
     with ThreadPoolExecutor(max_workers=len(providers)) as executor:
         futures = [executor.submit(provider, symbol) for provider in providers]
-        return [future.result() for future in futures]
+        payloads = []
+        for future in futures:
+            try:
+                payloads.append(future.result())
+            except Exception as exc:
+                logger.warning("Financial provider failed: %s", type(exc).__name__)
+        return payloads
 
 
 def _fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
@@ -818,8 +841,6 @@ def _fetch_ticker_financials(symbol: str, force_refresh: bool = False) -> dict:
                 if not payload["dataQuality"]["cacheEligible"]:
                     raise ValueError("cached financial payload is not reusable")
                 payload["_dataSource"] = cache_source or "cache"
-                CacheManager.set(cache_key, json.dumps(make_json_safe(payload)))
-                supabase_store.save_financial_payload(symbol, make_json_safe(payload))
                 return payload
             except Exception:
                 pass

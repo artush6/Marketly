@@ -1,4 +1,9 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from app.integrations import supabase_store
+from app.services.market_refresh import RefreshWorker
 from app.routes import analysis, assistant, discovery, econ_situation, financials, heatmap, market, news
 from rich.traceback import install
 from app.core.cache import r as redis_client
@@ -7,7 +12,18 @@ from app.core.config import settings
 # Make all tracebacks pretty in the console
 install(show_locals=False)
 
-app = FastAPI(title="Marketly Backend 🚀")
+@asynccontextmanager
+async def lifespan(app):
+    worker = None
+    if supabase_store.is_configured() and os.getenv("BACKGROUND_REFRESH_ENABLED", "true").lower() == "true":
+        worker = RefreshWorker()
+        worker.start()
+    yield
+    if worker:
+        worker.stop()
+
+
+app = FastAPI(title="Marketly Backend 🚀", lifespan=lifespan)
 
 # Include routers
 app.include_router(financials.router)

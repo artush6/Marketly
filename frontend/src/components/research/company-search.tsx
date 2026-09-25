@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Search, ArrowUpRight, LoaderCircle } from "lucide-react";
+import { preloadFinancials } from "@/lib/api";
 import { Company, discovery, STARTER_COMPANIES } from "@/lib/research";
 
 export function CompanySearch({
@@ -76,6 +77,12 @@ export function CompanySearch({
       clearTimeout(timer);
     };
   }, [query]);
+  const visibleSymbols = results.slice(0, 5).map((company) => company.symbol).join(",");
+  useEffect(() => {
+    if (!open || loading || !visibleSymbols) return;
+    const timer = setTimeout(() => preloadFinancials(visibleSymbols.split(","), true), 400);
+    return () => clearTimeout(timer);
+  }, [open, loading, visibleSymbols]);
   function select(company: Company) {
     onSelect(company);
     setOpen(false);

@@ -1,5 +1,6 @@
 import type {Metadata} from "next";
 import Link from "next/link";
+import { FinancialDocuments } from "@/components/research/financial-documents";
 import {notFound} from "next/navigation";
 import {ArrowLeft, ArrowUpRight, Building2, Database, Radar} from "lucide-react";
 import {MarketlyNavbar} from "@/components/marketly";
@@ -251,6 +252,11 @@ function DataAvailability({
                 ))}
             </div>
 
+            <FinancialDocuments rows={[
+                ...(data?.financials?.income_statement || []),
+                ...(data?.financials?.balance_sheet || []),
+                ...(data?.financials?.cash_flow || []),
+            ]} />
             <div className="mt-5 flex flex-wrap gap-2">
                 {sources.length > 0 ? (
                     sources.map(([key, value]) => (

@@ -24,6 +24,7 @@ export type MarketQuote = {
   changePercent: number | null;
   timestamp?: number;
   source: string;
+  stale?: boolean;
 };
 export type MarketSnapshot = {
   quotes: MarketQuote[];
@@ -43,6 +44,13 @@ export function useMarketSnapshot(ready: boolean, watchlist: string[]) {
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const symbols = watchlist.slice(0, 12).join(",");
+  useEffect(() => {
+    if (!ready) return;
+    const interval = setInterval(() => {
+      if (!document.hidden) setRevision((n) => n + 1);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [ready]);
   useEffect(() => {
     if (!ready) return;
     const controller = new AbortController();
@@ -296,6 +304,7 @@ export function MarketOverview({
                       </span>
                       <span className="market-watch-price">
                         {format(q?.price, "number")}
+                        {q?.stale && <small>Last known price</small>}
                         <small
                           className={
                             (q?.changePercent ?? 0) >= 0

@@ -1,6 +1,8 @@
 import {NextRequest, NextResponse} from "next/server";
 
-const DEFAULT_BACKEND_URL = "https://marketly-sxn7.onrender.com";
+const DEFAULT_BACKEND_URL = process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:8000"
+    : "https://marketly-sxn7.onrender.com";
 const REQUEST_TIMEOUT_MS = 115_000;
 
 function getBackendBaseUrl() {

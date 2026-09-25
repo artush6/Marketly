@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import { FinancialDocuments } from "./financial-documents";
 import {
   Bar,
   BarChart,
@@ -384,6 +385,7 @@ export function CompanyFinancials({
           />
         </div>
       )}
+      <FinancialDocuments rows={all} />
       <a
         className="financial-detail-link"
         href={`/financials/${encodeURIComponent(symbol)}`}
