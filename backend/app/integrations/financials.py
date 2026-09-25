@@ -451,11 +451,11 @@ def fetch_finnhub_payload(symbol: str) -> dict[str, Any]:
         return {}
 
     token = settings.FINNHUB_API_KEY
-    profile = safe_get(
-        f"{FINNHUB}/stock/profile2",
-        {"symbol": symbol, "token": token},
-        "Finnhub profile",
-    )
+    from app.integrations.company_metadata import get_profile
+    try:
+        profile = get_profile(symbol)
+    except Exception:
+        profile = {}  # Metadata failure must not discard quotes/statements.
     metrics = safe_get(
         f"{FINNHUB}/stock/metric",
         {"symbol": symbol, "token": token},

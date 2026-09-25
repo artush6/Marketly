@@ -1,4 +1,5 @@
 "use client";
+import { CompanyLogo } from "./company-logo";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { FullMarketMap } from "./full-market-map";
@@ -297,7 +298,7 @@ export function MarketOverview({
                 return (
                   <div key={symbol}>
                     <button onClick={() => onSelect(c)}>
-                      <span className="mini-monogram">{symbol[0]}</span>
+                      <CompanyLogo symbol={symbol} />
                       <span>
                         <b>{symbol}</b>
                         <small>{c.name}</small>

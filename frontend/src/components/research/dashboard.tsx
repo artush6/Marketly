@@ -1,4 +1,5 @@
 "use client";
+import { CompanyLogo } from "./company-logo";
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
@@ -610,9 +611,7 @@ export function ResearchDashboard() {
                         setTab("Overview");
                       }}
                     >
-                      <span className="company-monogram">
-                        {item.symbol.slice(0, 1)}
-                      </span>
+                      <CompanyLogo symbol={item.symbol} size="medium" />
                       <span>
                         <b>{item.name}</b>
                         <small>
@@ -668,7 +667,7 @@ export function ResearchDashboard() {
                       )
                     }
                   >
-                    <span className="company-monogram">{symbol[0]}</span>
+                    <CompanyLogo symbol={symbol} size="medium" />
                     <span>
                       <b>{symbol}</b>
                       <small>
@@ -744,9 +743,7 @@ export function ResearchDashboard() {
                 )}
                 <div className="company-title-row">
                   <div className="company-identity">
-                    <span className="company-monogram large">
-                      {company.symbol[0]}
-                    </span>
+                    <CompanyLogo symbol={company.symbol} size="large" />
                     <div>
                       <div className="eyebrow">
                         {company.symbol} <span>·</span>{" "}
@@ -1384,7 +1381,7 @@ export function ResearchDashboard() {
                           )
                         }
                       >
-                        <span className="mini-monogram">{symbol[0]}</span>
+                        <CompanyLogo symbol={symbol} />
                         <span>
                           <b>{symbol}</b>
                           <small>

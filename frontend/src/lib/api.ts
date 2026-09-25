@@ -479,3 +479,22 @@ export function preloadFinancials(symbols: string[], speculative = false) {
   }
   drainFinancialPreloads();
 }
+
+export type CompanyMetadata = {
+  symbol: string;
+  name: string;
+  logoUrl: string | null;
+  exchange?: string | null;
+  industry?: string | null;
+  country?: string | null;
+  currency?: string | null;
+  fetchedAt?: string;
+  source?: string;
+  status: "available" | "missing" | "unavailable";
+};
+
+export function getCompanyMetadata(symbols: string[]) {
+  return requestJson<{ companies: CompanyMetadata[] }>(
+    `/companies/metadata?symbols=${encodeURIComponent(symbols.join(","))}`,
+  );
+}

@@ -1,4 +1,5 @@
 "use client";
+import { CompanyLogo } from "./company-logo";
 import { useEffect, useRef, useState } from "react";
 import { Search, ArrowUpRight, LoaderCircle } from "lucide-react";
 import { preloadFinancials } from "@/lib/api";
@@ -147,6 +148,7 @@ export function CompanySearch({
                 className={active === i ? "highlighted" : ""}
                 onClick={() => select(c)}
               >
+                <CompanyLogo symbol={c.symbol} />
                 <b>{c.symbol}</b>
                 <span>{c.name}</span>
                 <ArrowUpRight size={14} />

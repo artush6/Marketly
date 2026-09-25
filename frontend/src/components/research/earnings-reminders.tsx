@@ -1,4 +1,5 @@
 "use client";
+import { CompanyLogo } from "./company-logo";
 
 import { useEffect, useState } from "react";
 
@@ -42,6 +43,7 @@ export function EarningsReminders({ symbols, ready }: { symbols: string[]; ready
   const visible = reminders.filter((r) => symbols.includes(r.symbol) && !dismissed.includes(r.id));
   return <section aria-label="Upcoming earnings" aria-live="polite">
     {visible.map((reminder) => <div className="inline-notice" key={reminder.id}>
+      <CompanyLogo symbol={reminder.symbol} />
       <span>{reminder.message} Calendar dates may change.</span>{" "}
       <button type="button" aria-label={`Dismiss ${reminder.symbol} earnings reminder`} onClick={() => {
         const next = [...dismissed, reminder.id].slice(-200);

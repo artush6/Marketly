@@ -1624,3 +1624,8 @@
   width: 100%;
   border: 0;
 }
+
+.company-logo {
+  display: inline-grid;
+  vertical-align: middle;
+}
