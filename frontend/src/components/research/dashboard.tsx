@@ -1267,6 +1267,8 @@ export function ResearchDashboard() {
                           source:
                             financials?.sources?.metrics ||
                             financials?.sources?.profile,
+                          sourceNote:
+                            "Market-derived metric · not reported in an issuer filing",
                           document: undefined,
                         },
                       ].map((item) => (
@@ -1277,8 +1279,8 @@ export function ResearchDashboard() {
                             </h3>
                             <p>{item.method}</p>
                             <small>
-                              {item.source || "Provider not specified"} ·{" "}
-                              {String(m.period)}
+                              {item.sourceNote ||
+                                `${item.source || "Provider not specified"} · ${String(m.period)}`}
                             </small>
                           </div>
                           {item.document ? (
@@ -1290,31 +1292,21 @@ export function ResearchDashboard() {
                             >
                               <ArrowUpRight size={17} />
                             </a>
-                          ) : (
-                            <Link
-                              aria-label={`Inspect ${item.title} financial data`}
-                              href={`/financials/${encodeURIComponent(company.symbol)}`}
-                            >
-                              <ArrowUpRight size={17} />
-                            </Link>
-                          )}
+                          ) : null}
                         </div>
                       ))}
                     </div>
                     <FinancialDocuments
                       rows={financialRows}
                       issuer={name}
+                      defaultOpen
                     />
-                    <Link
-                      className="financials-link"
-                      href={`/financials/${encodeURIComponent(company.symbol)}`}
-                    >
-                      View all reported values <ArrowUpRight size={13} />
-                    </Link>
                     <p className="disclosure">
                       Filing links open the original SEC document for the
-                      corresponding statement period. News links below lead to
-                      the original publisher.
+                      corresponding statement period. Market-derived metrics
+                      are labeled separately because they do not appear in an
+                      issuer filing. News links below lead to the original
+                      publisher.
                     </p>
                     {financials?.dataQuality?.fetchedAt && (
                       <p className="disclosure">

@@ -10,15 +10,17 @@ export function financialDocumentUrl(row: BackendFinancialStatement) {
 export function FinancialDocuments({
   rows,
   issuer,
+  defaultOpen = false,
 }: {
   rows: BackendFinancialStatement[];
   issuer?: string;
+  defaultOpen?: boolean;
 }) {
   const documents = Array.from(new Map(rows.map((row) => {
     const url = financialDocumentUrl(row);
     return [url, { url, row }] as const;
   }).filter(([url]) => url)).values());
-  return <details className="financial-data-table">
+  return <details className="financial-data-table" open={defaultOpen}>
     <summary>
       Open filings published by {issuer || "the company"}
     </summary>
