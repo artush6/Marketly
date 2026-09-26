@@ -562,6 +562,9 @@ export function ResearchDashboard() {
       headline: article.headline,
       summary: article.summary?.slice(0, 700),
       url: article.url,
+      image: article.image,
+      source: article.source,
+      datetime: article.datetime,
     })),
     comparisonCompanies: [
       ...(financials ? [{
@@ -1657,6 +1660,9 @@ export function ResearchDashboard() {
                       headline: a.headline,
                       summary: a.summary?.slice(0, 700),
                       url: a.url,
+                      image: a.image,
+                      source: a.source,
+                      datetime: a.datetime,
                     })) || [],
                   fetchedAt: market.data?.fetchedAt,
                 }

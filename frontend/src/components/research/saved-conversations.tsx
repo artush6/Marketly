@@ -6,7 +6,29 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   sources?: { url: string; title: string }[];
+  visuals?: ChatVisual[];
 };
+
+export type ChatVisual =
+  | {
+      type: "comparison";
+      title: string;
+      companies: Array<{
+        symbol: string;
+        name?: string;
+        pe?: number | null;
+        margin?: number | null;
+        marketCap?: number | null;
+        revenue?: number | null;
+      }>;
+    }
+  | {
+      type: "image";
+      url: string;
+      alt: string;
+      caption?: string;
+      sourceUrl?: string;
+    };
 
 export type Conversation = {
   id: string;
@@ -68,7 +90,11 @@ export function SavedConversations() {
     const load = () => setItems(readConversations());
     load();
     window.addEventListener("marketly-chat-saved", load);
-    return () => window.removeEventListener("marketly-chat-saved", load);
+    window.addEventListener("storage", load);
+    return () => {
+      window.removeEventListener("marketly-chat-saved", load);
+      window.removeEventListener("storage", load);
+    };
   }, []);
 
   function remove(id: string) {

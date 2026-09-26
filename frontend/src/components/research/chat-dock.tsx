@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ArrowUp, ChevronDown, LoaderCircle, MessageSquare, Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { ArrowLeft, ArrowUp, ChevronDown, ExternalLink, LoaderCircle, Maximize2, MessageSquare, PanelRight, Sparkles, X } from "lucide-react";
 import { BackendRequestError, getFinancials, postFollowUp, type BackendFinancialsResponse } from "@/lib/api";
 import { metrics, safeUrl, STARTER_COMPANIES } from "@/lib/research";
 import {
   readConversations,
   writeConversations,
   type ChatMessage as Message,
+  type ChatVisual,
   type Conversation,
 } from "./saved-conversations";
+import { ChatHistory } from "./chat-history";
+
+const RichChatMessage = dynamic(
+  () => import("./rich-chat-message").then((module) => module.RichChatMessage),
+  { ssr: false },
+);
 
 const COMPANY_ALIASES: Record<string, string> = {
   nvidia: "NVDA",
@@ -56,7 +64,12 @@ function comparisonCompany(data: BackendFinancialsResponse) {
   };
 }
 
-export function ChatDock({ scope, context }: { scope: string; context: Record<string, unknown> }) {
+export function ChatDock({ scope, context, mode = "dock", initialConversationId }: {
+  scope: string;
+  context: Record<string, unknown>;
+  mode?: "dock" | "workspace";
+  initialConversationId?: string;
+}) {
   const [pinned, setPinned] = useState(false);
   const [strategy, setStrategy] = useState("Balanced");
   const [horizon, setHorizon] = useState("3–5 years");
@@ -64,16 +77,37 @@ export function ChatDock({ scope, context }: { scope: string; context: Record<st
   const [activeScope, setActiveScope] = useState(scope);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(mode === "workspace");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const conversationId = useRef("");
+  const [activeConversationId, setActiveConversationId] = useState("");
   const activeContext = useRef(context);
   const activeScopeRef = useRef(scope);
   const resumed = useRef(false);
   const pending = useRef(false);
   const mounted = useRef(true);
   const bottom = useRef<HTMLDivElement>(null);
+  const loadedInitialConversation = useRef(false);
+
+  const openConversation = useCallback((conversation: Conversation) => {
+    if (pending.current || !conversation?.id || !Array.isArray(conversation.messages)) return;
+    conversationId.current = conversation.id;
+    activeScopeRef.current = conversation.scope;
+    activeContext.current = conversation.context || {
+      scope: conversation.scope,
+      contextNote: "Saved context was unavailable; current data may differ.",
+    };
+    resumed.current = true;
+    setActiveConversationId(conversation.id);
+    setActiveScope(conversation.scope);
+    setMessages(conversation.messages);
+    setStrategy(conversation.strategy || "Balanced");
+    setHorizon(conversation.horizon || "3–5 years");
+    setResearch(Boolean(conversation.research));
+    setError("");
+    setOpen(true);
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
@@ -99,22 +133,7 @@ export function ChatDock({ scope, context }: { scope: string; context: Record<st
       setPinned(localStorage.getItem("marketly.chat.pinned") === "true");
     } catch { /* Defaults remain usable. */ }
 
-    const resumeConversation = (event: Event) => {
-      if (pending.current) return;
-      const conversation = (event as CustomEvent<Conversation>).detail;
-      if (!conversation?.id || !Array.isArray(conversation.messages)) return;
-      conversationId.current = conversation.id;
-      activeScopeRef.current = conversation.scope;
-      activeContext.current = conversation.context || { scope: conversation.scope, contextNote: "Saved context was unavailable; current data may differ." };
-      resumed.current = true;
-      setActiveScope(conversation.scope);
-      setMessages(conversation.messages);
-      setStrategy(conversation.strategy || "Balanced");
-      setHorizon(conversation.horizon || "3–5 years");
-      setResearch(Boolean(conversation.research));
-      setError("");
-      setOpen(true);
-    };
+    const resumeConversation = (event: Event) => openConversation((event as CustomEvent<Conversation>).detail);
     const askResearchQuestion = (event: Event) => {
       setQuestion((event as CustomEvent<string>).detail);
       setResearch(true);
@@ -126,18 +145,28 @@ export function ChatDock({ scope, context }: { scope: string; context: Record<st
       window.removeEventListener("marketly-resume-chat", resumeConversation);
       window.removeEventListener("marketly-research-question", askResearchQuestion);
     };
-  }, []);
+  }, [openConversation]);
 
   useEffect(() => {
-    document.body.classList.toggle("marketly-chat-pinned", pinned);
+    if (loadedInitialConversation.current || typeof window === "undefined") return;
+    loadedInitialConversation.current = true;
+    const requestedId = initialConversationId || new URLSearchParams(window.location.search).get("conversation") || "";
+    const conversations = readConversations();
+    const selected = conversations.find((conversation) => conversation.id === requestedId) || (mode === "workspace" ? conversations[0] : undefined);
+    if (selected) openConversation(selected);
+  }, [initialConversationId, mode, openConversation]);
+
+  useEffect(() => {
+    document.body.classList.toggle("marketly-chat-pinned", mode === "dock" && pinned);
     try { localStorage.setItem("marketly.chat.pinned", String(pinned)); } catch { /* Session only. */ }
     return () => document.body.classList.remove("marketly-chat-pinned");
-  }, [pinned]);
+  }, [mode, pinned]);
 
   useEffect(() => {
     if (!messages.some((message) => message.role === "assistant") || busy) return;
     try {
       conversationId.current ||= crypto.randomUUID();
+      setActiveConversationId(conversationId.current);
       const entry: Conversation = {
         id: conversationId.current,
         scope: activeScopeRef.current,
@@ -158,6 +187,7 @@ export function ChatDock({ scope, context }: { scope: string; context: Record<st
   function startNewConversation() {
     if (busy) return;
     conversationId.current = "";
+    setActiveConversationId("");
     activeScopeRef.current = scope;
     activeContext.current = context;
     resumed.current = false;
@@ -173,12 +203,67 @@ export function ChatDock({ scope, context }: { scope: string; context: Record<st
       investorStrategy: strategy,
       investmentHorizon: horizon,
     };
+    const visuals: ChatVisual[] = [];
     const symbols = comparisonSymbols(text, activeScopeRef.current);
-    if (!symbols.length) return nextContext;
-    const results = await Promise.allSettled(symbols.map((symbol) => getFinancials(symbol)));
-    nextContext.comparisonCompanies = results.flatMap((result) => result.status === "fulfilled" ? [comparisonCompany(result.value)] : []);
-    nextContext.comparisonDataFailures = results.flatMap((result, index) => result.status === "rejected" ? [symbols[index]] : []);
-    return nextContext;
+    if (symbols.length) {
+      const results = await Promise.allSettled(symbols.map((symbol) => getFinancials(symbol)));
+      nextContext.comparisonCompanies = results.flatMap((result) => result.status === "fulfilled" ? [comparisonCompany(result.value)] : []);
+      nextContext.comparisonDataFailures = results.flatMap((result, index) => result.status === "rejected" ? [symbols[index]] : []);
+    }
+    const comparison = Array.isArray(nextContext.comparisonCompanies)
+      ? nextContext.comparisonCompanies as Array<{ symbol: string; name?: string; metrics?: { pe?: number | null; margin?: number | null; marketCap?: number | null; revenue?: number | null } }>
+      : [];
+    if (comparison.length >= 2 && /\b(compare|comparison|versus|vs\.?|choose|better)\b/i.test(text)) {
+      visuals.push({
+        type: "comparison",
+        title: `${comparison.slice(0, 3).map((company) => company.symbol).join(" vs ")} at a glance`,
+        companies: comparison.slice(0, 3).map((company) => ({ symbol: company.symbol, name: company.name, ...company.metrics })),
+      });
+    }
+    const news = Array.isArray(nextContext.news)
+      ? nextContext.news as Array<{ headline?: string; image?: string; url?: string; source?: string }>
+      : [];
+    const illustratedStory = /\b(news|headline|catalyst|what happened|why did|market move)\b/i.test(text)
+      ? news.find((story) => safeUrl(story.image))
+      : undefined;
+    if (illustratedStory?.image) {
+      visuals.push({
+        type: "image",
+        url: illustratedStory.image,
+        alt: illustratedStory.headline || "Related market story",
+        caption: illustratedStory.headline || illustratedStory.source,
+        sourceUrl: illustratedStory.url,
+      });
+    }
+    return { requestContext: nextContext, visuals };
+  }
+
+  function saveForTransfer() {
+    conversationId.current ||= crypto.randomUUID();
+    setActiveConversationId(conversationId.current);
+    const entry: Conversation = {
+      id: conversationId.current,
+      scope: activeScopeRef.current,
+      title: messages.find((message) => message.role === "user")?.content.slice(0, 90) || `New ${activeScopeRef.current} research`,
+      updatedAt: new Date().toISOString(),
+      messages,
+      strategy,
+      horizon,
+      research,
+      context: activeContext.current,
+    };
+    writeConversations([entry, ...readConversations().filter((item) => item.id !== entry.id)]);
+    return entry.id;
+  }
+
+  function openWorkspace(popout = false) {
+    const id = saveForTransfer();
+    const url = `/research-chat?conversation=${encodeURIComponent(id)}${popout ? "&popout=1" : ""}`;
+    if (popout) {
+      window.open(url, "marketly-research-chat", "popup,width=1120,height=820,resizable=yes,scrollbars=yes");
+    } else {
+      window.location.assign(url);
+    }
   }
 
   async function submit(event: React.FormEvent) {
@@ -193,10 +278,10 @@ export function ChatDock({ scope, context }: { scope: string; context: Record<st
     const history = messages.slice(-10).map((message) => ({ role: message.role, content: message.content.slice(0, 6000) }));
     setMessages((items) => [...items, { role: "user", content: text }]);
     try {
-      const requestContext = await assistantContext(text);
+      const { requestContext, visuals } = await assistantContext(text);
       const response = await postFollowUp(activeScopeRef.current, text, requestContext, history, research);
       if (mounted.current) {
-        setMessages((items) => [...items, { role: "assistant", content: response.answer, sources: response.sources }]);
+        setMessages((items) => [...items, { role: "assistant", content: response.answer, sources: response.sources, visuals }]);
       }
     } catch (requestError) {
       if (mounted.current) {
@@ -212,23 +297,30 @@ export function ChatDock({ scope, context }: { scope: string; context: Record<st
     }
   }
 
-  return (
-    <section className={`chat-dock ${open ? "expanded" : ""} ${pinned ? "pinned" : ""}`} aria-label="Research assistant">
+  const panel = (
+    <section className={`chat-dock ${open ? "expanded" : ""} ${mode === "dock" && pinned ? "pinned" : ""} ${mode === "workspace" ? "workspace" : ""}`} aria-label="Research assistant">
       {open && (
         <div className="chat-thread">
           <div className="chat-thread-heading">
-            <span><Sparkles size={14} /> Marketly assistant <small>{activeScope === "MARKET" ? "US MARKETS" : activeScope}</small></span>
+            <span>
+              {mode === "workspace" && <button className="chat-back" aria-label="Back to Marketly" onClick={() => window.opener ? window.close() : window.location.assign("/")}><ArrowLeft size={16} /></button>}
+              <Sparkles size={14} /> Marketly assistant <small>{activeScope === "MARKET" ? "US MARKETS" : activeScope}</small>
+            </span>
             <div>
+              {mode === "dock" && <button aria-label={pinned ? "Unpin conversation" : "Pin conversation to side"} onClick={() => { setPinned(!pinned); setOpen(true); }}><PanelRight size={16} /></button>}
+              {mode === "dock" && <button aria-label="Open full chat workspace" disabled={busy} onClick={() => openWorkspace(false)}><Maximize2 size={16} /></button>}
+              <button aria-label="Open chat in separate window" disabled={busy} onClick={() => openWorkspace(true)}><ExternalLink size={16} /></button>
               <button aria-label="Start new conversation" disabled={busy} onClick={startNewConversation}><X size={15} /></button>
-              <button aria-label="Minimize chat" onClick={() => setOpen(false)}><ChevronDown size={17} /></button>
+              {mode === "dock" && <button aria-label="Minimize chat" onClick={() => setOpen(false)}><ChevronDown size={17} /></button>}
             </div>
           </div>
+          {mode === "dock" && <ChatHistory activeId={activeConversationId} mode="strip" onOpen={openConversation} onNew={startNewConversation} />}
           <div className="chat-messages" role="log" aria-live="polite">
             {!messages.length && <p className="chat-empty">Ask about the market, challenge a thesis, or compare the companies that matter.</p>}
             {messages.map((message, index) => (
               <div className={`chat-message ${message.role}`} key={`${message.role}-${index}`}>
                 <small>{message.role === "user" ? "YOU" : "MARKETLY"}</small>
-                <p>{message.content}</p>
+                {message.role === "assistant" ? <RichChatMessage message={message} /> : <p>{message.content}</p>}
                 {message.sources?.map((source) => {
                   const url = safeUrl(source.url);
                   return url ? <a key={url} href={url} target="_blank" rel="noreferrer">{source.title || "Source"} ↗</a> : null;
@@ -246,7 +338,7 @@ export function ChatDock({ scope, context }: { scope: string; context: Record<st
           <label>Strategy <select aria-label="Investor strategy" value={strategy} onChange={(event) => { setStrategy(event.target.value); try { localStorage.setItem("marketly.strategy", event.target.value); } catch { /* Session only. */ } }}>{["Conservative", "Balanced", "Aggressive growth"].map((value) => <option key={value}>{value}</option>)}</select></label>
           <label>Horizon <select aria-label="Investment horizon" value={horizon} onChange={(event) => { setHorizon(event.target.value); try { localStorage.setItem("marketly.horizon", event.target.value); } catch { /* Session only. */ } }}>{["Under 1 year", "1–3 years", "3–5 years", "5+ years"].map((value) => <option key={value}>{value}</option>)}</select></label>
           <label className="chat-checkbox"><input type="checkbox" checked={research} onChange={(event) => setResearch(event.target.checked)} /> Search web</label>
-          <button className="text-button" type="button" onClick={() => { setPinned(!pinned); setOpen(true); }}>{pinned ? "Unpin" : "Pin to side"}</button>
+          {mode === "dock" && <button className="text-button" type="button" onClick={() => { setPinned(!pinned); setOpen(true); }}>{pinned ? "Unpin" : "Pin to side"}</button>}
         </div>
         <div className="chat-input-row">
           <Sparkles size={18} />
@@ -256,9 +348,15 @@ export function ChatDock({ scope, context }: { scope: string; context: Record<st
         <div className="chat-toolbar">
           <span className="chat-context"><span className="device-dot" />{activeScope === "MARKET" ? "Market & watchlist context" : `${activeScope} research context`}</span>
           <span>AI answers · verify key claims</span>
-          <button type="button" onClick={() => setOpen(!open)} aria-label={open ? "Minimize conversation" : "Open conversation"}><MessageSquare size={13} />{messages.length ? `${messages.length} messages` : "Chat"}</button>
+          {mode === "dock" && <button type="button" onClick={() => setOpen(!open)} aria-label={open ? "Minimize conversation" : "Open conversation"}><MessageSquare size={13} />{messages.length ? `${messages.length} messages` : "Chat"}</button>}
         </div>
       </form>
     </section>
   );
+  return mode === "workspace" ? (
+    <div className="chat-workspace-shell">
+      <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />
+      <main className="chat-workspace-main">{panel}</main>
+    </div>
+  ) : panel;
 }
