@@ -371,21 +371,6 @@ export function MarketOverview({
               Liquid ETF proxies · quotes may be delayed
             </p>
           </section>
-          <section className="terminal-note">
-            <span>RESEARCH WORKFLOW</span>
-            <h3>
-              Start wide.
-              <br />
-              Then go deep.
-            </h3>
-            <p>
-              Select a company for financials, competitors, source data, and an
-              AI research brief.
-            </p>
-            <button onClick={() => onSelect(STARTER_COMPANIES[0])}>
-              Explore a company <ArrowUpRight size={14} />
-            </button>
-          </section>
         </aside>
       </div>
       <MarketBreadth />

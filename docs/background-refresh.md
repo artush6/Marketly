@@ -1,7 +1,7 @@
 # Background market data
 
 The API starts a Supabase-backed refresh worker in its FastAPI lifespan. It makes
-no LLM calls. Apply `supabase/migrations/20260925093816_background_market_refresh.sql`
+LLM calls for relationship research. Apply `supabase/migrations/20260925093816_background_market_refresh.sql`
 and `supabase/migrations/20260926094653_relationship_news_intelligence.sql` to the
 same project as the backend's `SUPABASE_URL`, then deploy/restart this branch.
 The existing cache, snapshots and financial tables from `supabase/schema.sql` are
@@ -15,9 +15,17 @@ prerequisites. Only the backend service role can access the queue or its functio
 - Financials: immediately for newly tracked companies; every six hours during the
   seven days beginning on an expected earnings date; otherwise a weekly safety check.
   Release dates can change and a release is not necessarily the SEC filing date.
-- Relationship intelligence: every fourteen days for active companies. The job
-  skims the latest thirty days of company news and upserts dated partnership,
-  customer, and supplier evidence. Normal company-news reads do the same immediately.
+- Relationship intelligence: every fourteen days for active companies, using three
+  web research passes (supply chain, partnerships, ownership/competition). These use
+  the configured OpenAI model with high reasoning effort and search historical
+  filings and issuer disclosures without a recent-news cutoff. Requires OPENAI_API_KEY
+  and incurs model/search usage. Manual Deep research queues the same durable job,
+  with a fifteen-minute cooldown after success. The UI polls its progress.
+  Validated dated evidence is upserted into company_relationships; citations must
+  appear in retrieved web results, self-links are rejected, and old evidence is
+  preserved. Each record labels current/historical/uncertain status. The research
+  report (including partial failures and coverage gaps) is saved in market_data_cache.
+  News regexes remain discovery hints and no longer create verified graph edges.
 - Inactive symbols stop after thirty days without visits. Opening the watchlist
   renews tracking. Funds used as benchmarks only receive quote jobs.
 

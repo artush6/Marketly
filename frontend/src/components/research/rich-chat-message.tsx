@@ -47,10 +47,10 @@ function RichText({ content }: { content: string }) {
 
 function ComparisonVisual({ visual }: { visual: Extract<ChatVisual, { type: "comparison" }> }) {
   const charts = [
-    { key: "revenue", title: "Revenue", color: "#b4e45d", formatter: (value: number) => `$${(value / 1e9).toFixed(1)}B` },
-    { key: "marketCap", title: "Market cap", color: "#8fbf55", formatter: (value: number) => `$${(value / 1e9).toFixed(1)}B` },
-    { key: "pe", title: "Trailing P/E", color: "#6f9f45", formatter: (value: number) => `${value.toFixed(1)}×` },
-    { key: "margin", title: "Net margin", color: "#4e7b35", formatter: (value: number) => `${value.toFixed(1)}%` },
+    { key: "revenue", title: "Revenue", color: "#f5a24b", formatter: (value: number) => `$${(value / 1e9).toFixed(1)}B` },
+    { key: "marketCap", title: "Market cap", color: "#64b5f6", formatter: (value: number) => `$${(value / 1e9).toFixed(1)}B` },
+    { key: "pe", title: "Trailing P/E", color: "#b59af5", formatter: (value: number) => `${value.toFixed(1)}×` },
+    { key: "margin", title: "Net margin", color: "#58c7c2", formatter: (value: number) => `${value.toFixed(1)}%` },
   ].map((chart) => ({ ...chart, data: visual.companies.filter((company) => company[chart.key as keyof typeof company] != null).map((company) => ({ symbol: company.symbol, value: Number(company[chart.key as keyof typeof company]) })) })).filter((chart) => chart.data.length);
   return (
     <figure className="chat-comparison-visual">
@@ -62,7 +62,7 @@ function ComparisonVisual({ visual }: { visual: Extract<ChatVisual, { type: "com
         {visual.companies.map((company) => <span key={company.symbol}><CompanyLogo symbol={company.symbol} /> <b>{company.symbol}</b>{company.name && <small>{company.name}</small>}</span>)}
       </div>
       <div className="comparison-mini-charts">
-        {charts.map((chart) => <div key={chart.key}><strong>{chart.title}</strong><ResponsiveContainer width="100%" height={128}><BarChart data={chart.data} layout="vertical" margin={{ left: 0, right: 12 }}><XAxis type="number" hide /><YAxis type="category" dataKey="symbol" width={46} tick={{ fill: "#9fb68a", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip formatter={(value) => [chart.formatter(Number(value)), chart.title]} /><Bar dataKey="value" fill={chart.color} radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></div>)}
+        {charts.map((chart) => <div key={chart.key}><strong>{chart.title}</strong><ResponsiveContainer width="100%" height={128}><BarChart data={chart.data} layout="vertical" margin={{ left: 0, right: 12 }}><XAxis type="number" hide /><YAxis type="category" dataKey="symbol" width={46} tick={{ fill: "#969da6", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip formatter={(value) => [chart.formatter(Number(value)), chart.title]} /><Bar dataKey="value" fill={chart.color} radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></div>)}
       </div>
     </figure>
   );

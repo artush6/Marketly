@@ -67,10 +67,10 @@ export function ChartWidget({
             fontFamily: "Arial, sans-serif",
             fontSize: "11",
             chartType: "area",
-            lineColor: theme === "light" ? "#2f7658" : "#b4e45d",
+            lineColor: "#f5a24b",
             topColor: theme === "light" ? "rgba(47,118,88,0.14)" : "rgba(180,228,93,0.12)",
             bottomColor: theme === "light" ? "rgba(47,118,88,0)" : "rgba(180,228,93,0)",
-            backgroundColor: theme === "light" ? "#ffffff" : "#141814",
+            backgroundColor: "#111315",
             dateRanges: [
               "1d|1",
               "1m|30",

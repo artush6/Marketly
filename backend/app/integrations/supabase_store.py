@@ -405,7 +405,8 @@ def save_news_articles(symbol: str, articles: list[dict[str, Any]]) -> None:
             }
         )
     _upsert_rows("news_articles", rows, on_conflict="symbol,external_id")
-    save_relationship_signals(symbol, articles)
+    # Regex news signals are discovery hints, not verified graph edges. The
+    # scheduled research pass resolves counterparties and validates dated sources.
 
 
 def _company_id(symbol: str) -> str | None:
@@ -457,8 +458,19 @@ def get_company_relationships(symbol: str) -> list[dict[str, Any]]:
     return _select_rows("company_relationships", {
         "company_id": f"eq.{company_id}",
         "select": "id,related_company_name,related_symbol,relationship_type,direction,product_service,evidence_summary,source_url,source_date,confidence,last_verified_at",
-        "order": "confidence.desc,source_date.desc", "limit": "100",
+        "order": "confidence.desc,source_date.desc", "limit": "1000",
     })
+
+
+def save_researched_relationships(symbol: str, rows: list[dict[str, Any]]) -> None:
+    if not is_configured():
+        raise ValueError("Supabase persistence is not configured")
+    company_id = _company_id(symbol)
+    if not company_id:
+        raise ValueError("Company could not be persisted")
+    now = datetime.now(timezone.utc).isoformat()
+    _upsert_rows("company_relationships", [dict(row, company_id=company_id, last_verified_at=now) for row in rows],
+                 on_conflict="company_id,related_company_name,relationship_type,source_url", strict=True)
 
 
 def get_market_instruments() -> list[dict[str, Any]]:

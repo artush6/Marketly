@@ -62,7 +62,6 @@ import { RelationshipResearch } from "./relationship-research";
 import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
 import { StyledSelect } from "./styled-select";
-import "./research.css";
 
 type Tab = "Overview" | "Profile" | "Network" | "Compare" | "News" | "Evidence";
 type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research";
@@ -1175,24 +1174,6 @@ export function ResearchDashboard() {
                           </button>
                         </div>
                       )}
-                    </section>
-                    <section className="comparison-teaser">
-                      <div>
-                        <div className="eyebrow">
-                          PUT THE NUMBERS IN CONTEXT
-                        </div>
-                        <h2>How does {company.symbol} compare?</h2>
-                        <p>
-                          Compare valuation and profitability against the
-                          companies that matter.
-                        </p>
-                      </div>
-                      <button
-                        className="secondary-button"
-                        onClick={() => setTab("Compare")}
-                      >
-                        Compare peers <ArrowUpRight size={15} />
-                      </button>
                     </section>
                   </>
                 )}

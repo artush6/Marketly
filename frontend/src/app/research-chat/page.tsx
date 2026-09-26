@@ -1,8 +1,6 @@
 "use client";
 
 import { ChatDock } from "@/components/research/chat-dock";
-import "@/components/research/research.css";
-import "@/components/research/terminal.css";
 
 export default function ResearchChatPage() {
   return (

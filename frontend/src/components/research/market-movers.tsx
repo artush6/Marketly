@@ -26,7 +26,7 @@ export function MarketMovers({ scope, onSelect }: { scope: "sp500" | "smallCap";
     <div className="terminal-heading"><h2>{scope === "sp500" ? "Market movers" : "Small-cap attention list"}</h2><span>{scope === "sp500" ? "S&P 500" : "SMALL CAP"}</span></div>
     <nav className="mover-tabs" aria-label="Mover views">{(["gainers", "losers", "unusual", "earnings", "revisions"] as MoverTab[]).map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
     {error ? <div className="inline-error">{error}</div> : !group ? <div className="empty-state"><LoaderCircle className="spin" size={15} /> Loading movers…</div> : !rows?.length ? <div className="mover-empty"><strong>{tab === "earnings" ? "Earnings movers" : "Estimate revisions"}</strong><span>No verified {tab} feed is connected yet. Marketly will not manufacture this signal.</span></div> : <div className="mover-list">
-      <h3>{tab === "gainers" ? <ArrowUp size={14} /> : tab === "losers" ? <ArrowDown size={14} /> : null}{tab}</h3>
+      <h3 className={tab === "gainers" ? "positive" : tab === "losers" ? "negative" : ""}>{tab === "gainers" ? <ArrowUp size={14} /> : tab === "losers" ? <ArrowDown size={14} /> : null}{tab}</h3>
       {rows.map((stock) => <button onClick={() => onSelect(stock)} key={stock.symbol}><CompanyLogo symbol={stock.symbol} /><span><b>{stock.symbol}</b><small>{stock.name}{stock.sector ? ` · ${stock.sector}` : ""}</small></span><strong className={stock.changePercent >= 0 ? "positive" : "negative"}>{stock.changePercent > 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%</strong></button>)}
     </div>}
   </section>;

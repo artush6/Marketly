@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "../components/research/research.css";
 import "../components/research/terminal.css";
+import "../components/research/amber.css";
 import { MarketTickerTape } from "@/components/research/market-ticker-tape";
 
 export const metadata: Metadata = {
@@ -23,7 +25,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `document.documentElement.dataset.marketlyTheme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'`,
+            __html: `document.documentElement.dataset.marketlyTheme='dark'`,
           }}
         />
       </head>

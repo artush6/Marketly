@@ -437,6 +437,8 @@ export type RelationshipResponse = {
   count: number;
   loadedAt: string;
   coverageNote: string;
+  researchState?: "idle" | "queued" | "running" | "failed";
+  researchReport?: { completedAt: string; status: string; passes: { scope: string; saved: number; coverageGaps: string[] }[]; failures: { scope: string; error: string }[] } | null;
 };
 
 export function getRelationships(symbol: string) {

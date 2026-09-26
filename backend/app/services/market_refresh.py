@@ -102,8 +102,8 @@ def execute_job(job):
         CacheManager.delete_key(CacheManager.make_key('scores', symbol))
         return financial_interval(earnings_events(symbol))
     if kind == 'relationships':
-        from app.integrations.news import get_news
-        get_news(symbol, days=30, max_items=50, force_refresh=True)
+        from app.services.relationship_research import research_relationships
+        research_relationships(symbol)
         return 14 * 86400
     raise ValueError('Unknown refresh job')
 
