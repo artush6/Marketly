@@ -38,7 +38,7 @@ def _get_client() -> OpenAI:
 
     if not settings.OPENAI_API_KEY:
         raise MisconfigurationError("OPENAI_API_KEY is not configured")
-    return OpenAI(api_key=settings.OPENAI_API_KEY)
+    return OpenAI(api_key=settings.OPENAI_API_KEY, timeout=60.0, max_retries=0)
 
 
 def score_ticker(
@@ -114,6 +114,7 @@ def score_ticker(
         client = _get_client()
         response = client.chat.completions.create(
             model=settings.OPENAI_MODEL,
+            reasoning_effort="low",
             messages=[
                 {
                     "role": "system",
@@ -168,7 +169,7 @@ def score_ticker(
                     "content": f"Ticker data (financials, macro, news): {safe_payload_json}"
                 }
             ],
-            max_completion_tokens=700,
+            max_completion_tokens=4096,
             response_format={
                 "type": "json_schema",
                 "json_schema": {
@@ -193,7 +194,12 @@ def score_ticker(
             },
         )
 
-        content = response.choices[0].message.content
+        choice = response.choices[0]
+        if choice.finish_reason == "length":
+            raise ValueError("AI response exceeded its output budget. Please retry with a narrower question.")
+        content = choice.message.content
+        if not content:
+            raise ValueError("AI returned no answer. Please retry.")
         parsed = json.loads(content)
 
         # Ensure keys always exist
@@ -251,6 +257,7 @@ def generate_scenarios(
         client = _get_client()
         response = client.chat.completions.create(
             model=settings.OPENAI_MODEL,
+            reasoning_effort="low",
             messages=[
                 {
                     "role": "system",
@@ -401,6 +408,7 @@ def answer_follow_up(
         client = _get_client()
         response = client.chat.completions.create(
             model=settings.OPENAI_MODEL,
+            reasoning_effort="low",
             messages=[
                 {
                     "role": "system",
@@ -428,10 +436,15 @@ def answer_follow_up(
                     },
                 },
             },
-            max_completion_tokens=1000,
+            max_completion_tokens=4096,
         )
 
-        content = response.choices[0].message.content
+        choice = response.choices[0]
+        if choice.finish_reason == "length":
+            raise ValueError("AI response exceeded its output budget. Please retry with a narrower question.")
+        content = choice.message.content
+        if not content:
+            raise ValueError("AI returned no answer. Please retry.")
         parsed = json.loads(content)
         return sanitize(parsed)
     except MisconfigurationError:

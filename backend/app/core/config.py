@@ -44,7 +44,7 @@ def get_settings() -> Settings:
         RAPIDAPI_KEY=os.getenv("RAPIDAPI_KEY"),
         FRED_API_KEY=os.getenv("FRED_API_KEY"),
         OPENAI_API_KEY=os.getenv("OPENAI_API_KEY"),
-        OPENAI_MODEL=os.getenv("OPENAI_MODEL", "gpt-5-nano-2025-08-07"),
+        OPENAI_MODEL=os.getenv("OPENAI_MODEL", "gpt-5.6-luna"),
         SUPABASE_URL=os.getenv("SUPABASE_URL"),
         SUPABASE_ANON_KEY=os.getenv("SUPABASE_ANON_KEY"),
         SUPABASE_SERVICE_ROLE_KEY=os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
