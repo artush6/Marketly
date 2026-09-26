@@ -18,6 +18,7 @@ import type {
   BackendFinancialsResponse,
   BackendFinancialStatement,
 } from "@/lib/api";
+import { StyledSelect } from "./styled-select";
 
 type Row = Record<string, string | number | null>;
 type Series = { key: string; label: string; color: string };
@@ -307,15 +308,11 @@ export function CompanyFinancials({
           <h2>Financial performance</h2>
           <p>Reported results, from revenue to cash generation.</p>
         </div>
-        <select
-          aria-label="Financial reporting period"
-          value={period}
-          onChange={(e) => setChoice(e.target.value)}
-        >
-          {annual && <option>Annual</option>}
-          {quarterly && <option>Quarterly</option>}
-          <option>All periods</option>
-        </select>
+        <StyledSelect ariaLabel="Financial reporting period" value={period} onChange={setChoice} options={[
+          ...(annual ? [{ value: "Annual", label: "Annual" }] : []),
+          ...(quarterly ? [{ value: "Quarterly", label: "Quarterly" }] : []),
+          { value: "All periods", label: "All periods" },
+        ]} />
       </div>
       {mixed ? (
         <p className="inline-notice">

@@ -7,11 +7,12 @@ import { safeUrl } from "@/lib/research";
 import type { ChatMessage, ChatVisual } from "./saved-conversations";
 
 function InlineText({ text }: { text: string }) {
+  const tickerStopwords = new Set(["AI", "CEO", "CFO", "SEC", "ETF", "USD", "US", "UK", "EU", "IPO", "EPS", "EBIT", "EBITDA", "FCF", "GDP", "CPI", "PCE", "FED", "API", "JSON", "CSV"]);
   const parts = text.split(/(\*\*[^*]+\*\*|\b[A-Z]{2,5}\b|(?:\$|€|£)?\d[\d,.]*(?:%|×|x|B|M|T)?)/g);
   return parts.map((part, index) => {
     if (/^\*\*[^*]+\*\*$/.test(part)) return <strong key={index}>{part.slice(2, -2)}</strong>;
-    if (/^\b[A-Z]{2,5}\b$/.test(part)) return <mark className="ticker-mark" key={index}>{part}</mark>;
-    if (/^(?:\$|€|£)?\d[\d,.]*(?:%|×|x|B|M|T)?$/.test(part)) return <mark className="metric-mark" key={index}>{part}</mark>;
+    if (/^\b[A-Z]{2,5}\b$/.test(part) && !tickerStopwords.has(part)) return <span className="ticker-inline" key={index}><CompanyLogo symbol={part} />{part}</span>;
+    if (/^(?:\$|€|£)?\d[\d,.]*(?:%|×|x|B|M|T)?$/.test(part)) return <span className="metric-inline" key={index}>{part}</span>;
     return part;
   });
 }
@@ -45,8 +46,12 @@ function RichText({ content }: { content: string }) {
 }
 
 function ComparisonVisual({ visual }: { visual: Extract<ChatVisual, { type: "comparison" }> }) {
-  const valuation = visual.companies.map((company) => ({ symbol: company.symbol, value: company.pe ?? 0 }));
-  const margins = visual.companies.map((company) => ({ symbol: company.symbol, value: company.margin ?? 0 }));
+  const charts = [
+    { key: "revenue", title: "Revenue", color: "#b4e45d", formatter: (value: number) => `$${(value / 1e9).toFixed(1)}B` },
+    { key: "marketCap", title: "Market cap", color: "#8fbf55", formatter: (value: number) => `$${(value / 1e9).toFixed(1)}B` },
+    { key: "pe", title: "Trailing P/E", color: "#6f9f45", formatter: (value: number) => `${value.toFixed(1)}×` },
+    { key: "margin", title: "Net margin", color: "#4e7b35", formatter: (value: number) => `${value.toFixed(1)}%` },
+  ].map((chart) => ({ ...chart, data: visual.companies.filter((company) => company[chart.key as keyof typeof company] != null).map((company) => ({ symbol: company.symbol, value: Number(company[chart.key as keyof typeof company]) })) })).filter((chart) => chart.data.length);
   return (
     <figure className="chat-comparison-visual">
       <figcaption>
@@ -57,8 +62,7 @@ function ComparisonVisual({ visual }: { visual: Extract<ChatVisual, { type: "com
         {visual.companies.map((company) => <span key={company.symbol}><CompanyLogo symbol={company.symbol} /> <b>{company.symbol}</b>{company.name && <small>{company.name}</small>}</span>)}
       </div>
       <div className="comparison-mini-charts">
-        <div><strong>Trailing P/E</strong><ResponsiveContainer width="100%" height={128}><BarChart data={valuation} layout="vertical" margin={{ left: 0, right: 12 }}><XAxis type="number" hide /><YAxis type="category" dataKey="symbol" width={46} tick={{ fill: "#9fb68a", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip formatter={(value) => [`${Number(value).toFixed(1)}×`, "P/E"]} /><Bar dataKey="value" fill="#b4e45d" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></div>
-        <div><strong>Net margin</strong><ResponsiveContainer width="100%" height={128}><BarChart data={margins} layout="vertical" margin={{ left: 0, right: 12 }}><XAxis type="number" hide /><YAxis type="category" dataKey="symbol" width={46} tick={{ fill: "#9fb68a", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, "Margin"]} /><Bar dataKey="value" fill="#6f9f45" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></div>
+        {charts.map((chart) => <div key={chart.key}><strong>{chart.title}</strong><ResponsiveContainer width="100%" height={128}><BarChart data={chart.data} layout="vertical" margin={{ left: 0, right: 12 }}><XAxis type="number" hide /><YAxis type="category" dataKey="symbol" width={46} tick={{ fill: "#9fb68a", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip formatter={(value) => [chart.formatter(Number(value)), chart.title]} /><Bar dataKey="value" fill={chart.color} radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></div>)}
       </div>
     </figure>
   );

@@ -8,7 +8,8 @@ export const metadata: Metadata = {
     default: "Marketly",
     template: "%s | Marketly",
   },
-  description: "A premium market intelligence workspace for company analysis, news flow, and financial drill-downs.",
+  description:
+    "A premium market intelligence workspace for company analysis, news flow, and financial drill-downs.",
 };
 
 export default function RootLayout({
@@ -18,7 +19,14 @@ export default function RootLayout({
 }>) {
   return (
     // Browser extensions (including One Sec) inject attributes on this element.
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-marketly-theme="dark" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `document.documentElement.dataset.marketlyTheme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'`,
+          }}
+        />
+      </head>
       <body className="font-sans">
         <MarketTickerTape />
         {children}

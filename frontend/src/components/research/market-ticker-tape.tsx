@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, LoaderCircle, Plus, Settings2, X } from "lucide-react";
 import { format } from "@/lib/research";
+import { ThemeToggle } from "./theme-toggle";
 
 type TapeItem = {
   symbol: string;
@@ -80,7 +81,8 @@ export function MarketTickerTape() {
           {busy && !data.items.length && <span className="market-tape-loading"><LoaderCircle className="spin" size={13} /> Loading global markets</span>}
         </div>
       </div>
-      <button className="market-tape-manage" aria-label="Customize market ticker" onClick={() => setEditing((value) => !value)}><Settings2 size={14} /></button>
+      <ThemeToggle />
+      <button className="market-tape-manage" aria-label="Customize market ticker" onClick={() => setEditing((value) => !value)}><Settings2 size={12} /></button>
       {editing && <div className="market-tape-picker">
         <header><span>Market tape</span><button onClick={() => setEditing(false)} aria-label="Close ticker settings"><X size={14} /></button></header>
         <p>Choose up to 13 instruments. Your selection follows this workspace.</p>

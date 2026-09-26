@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { FullMarketMap } from "./full-market-map";
 import { MarketMovers } from "./market-movers";
+import { MarketBreadth } from "./market-breadth";
+import { MarketUpcoming } from "./market-upcoming";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -134,11 +136,6 @@ export function MarketOverview({
   onWatchlist: () => void;
 }) {
   const quotes = new Map(data?.quotes.map((q) => [q.symbol, q]));
-  const available = watchlist
-    .map((s) => quotes.get(s))
-    .filter((q): q is MarketQuote => q?.changePercent != null);
-  const up = available.filter((q) => (q.changePercent ?? 0) > 0).length;
-  const down = available.filter((q) => (q.changePercent ?? 0) < 0).length;
   return (
     <div className="market-home">
       <div className="market-page-heading">
@@ -202,7 +199,6 @@ export function MarketOverview({
           );
         })}
       </div>
-      <MarketMovers scope="sp500" onSelect={onSelect} />
       <div className="market-home-columns">
         <div className="market-main-column">
           <section className="market-panel">
@@ -210,7 +206,7 @@ export function MarketOverview({
               <h2>
                 <span>01</span> Market briefing
               </h2>
-              <span>HEADLINES / FINNHUB</span>
+              <span>WHY MARKETS ARE MOVING</span>
             </div>
             {loading && !data ? (
               <div className="empty-state">Loading market headlines…</div>
@@ -220,7 +216,7 @@ export function MarketOverview({
               </div>
             ) : (
               <div className="market-headlines">
-                {data.news.slice(0, 6).map((article, i) => (
+                {data.news.toSorted((a, b) => (b.importanceScore ?? 0) - (a.importanceScore ?? 0) || (b.datetime ?? 0) - (a.datetime ?? 0)).slice(0, 6).map((article, i) => (
                   <details key={article.url ?? i} open={i === 0}>
                     <summary>
                       <span>{article.headline}</span>
@@ -251,39 +247,6 @@ export function MarketOverview({
               <span>US LISTINGS / DAILY CHANGE</span>
             </div>
             <FullMarketMap onSelect={onSelect} />
-          </section>
-          <section className="market-discover">
-            <div className="terminal-heading">
-              <h2>
-                <span>03</span> Beyond the ticker
-              </h2>
-              <span>MARKET NEWS</span>
-            </div>
-            <div className="news-grid">
-              {data?.news.slice(6, 9).map((article, i) => (
-                <article className="market-story" key={article.url ?? i}>
-                  <a
-                    href={safeUrl(article.url)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <div className="news-photo">
-                      <ArticleImage article={article} />
-                    </div>
-                    <small>
-                      {article.source} /{" "}
-                      {article.datetime
-                        ? new Date(article.datetime * 1000).toLocaleDateString(
-                            [],
-                            { month: "short", day: "numeric" },
-                          )
-                        : "News"}
-                    </small>
-                    <h3>{article.headline}</h3>
-                  </a>
-                </article>
-              ))}
-            </div>
           </section>
         </div>
         <aside className="market-home-sidebar">
@@ -363,6 +326,7 @@ export function MarketOverview({
               </p>
             )}
           </section>
+          <MarketUpcoming symbols={watchlist} />
           <section className="market-panel fixed-income-card">
             <div className="terminal-heading">
               <h2>Fixed income</h2>
@@ -407,42 +371,6 @@ export function MarketOverview({
               Liquid ETF proxies · quotes may be delayed
             </p>
           </section>
-          <section className="market-panel breadth-panel">
-            <div className="terminal-heading">
-              <h2>Watchlist pulse</h2>
-              <span>{available.length} QUOTES</span>
-            </div>
-            <div className="breadth-values">
-              <div>
-                <strong className="positive">{up}</strong>
-                <span>Advancing</span>
-              </div>
-              <div>
-                <strong className="negative">{down}</strong>
-                <span>Declining</span>
-              </div>
-            </div>
-            <div className="breadth-bar">
-              <i
-                style={{
-                  width: available.length
-                    ? `${(up / available.length) * 100}%`
-                    : "0%",
-                }}
-              />
-              <i
-                style={{
-                  width: available.length
-                    ? `${(down / available.length) * 100}%`
-                    : "0%",
-                }}
-              />
-            </div>
-            <p>
-              Daily changes across your available watchlist quotes. Not a
-              market-wide sentiment indicator.
-            </p>
-          </section>
           <section className="terminal-note">
             <span>RESEARCH WORKFLOW</span>
             <h3>
@@ -460,6 +388,20 @@ export function MarketOverview({
           </section>
         </aside>
       </div>
+      <MarketBreadth />
+      <MarketMovers scope="sp500" onSelect={onSelect} />
+      <section className="market-discover">
+        <div className="terminal-heading"><h2><span>05</span> Beyond the ticker</h2><span>DEEPER RESEARCH / STORIES</span></div>
+        <div className="news-grid">
+          {data?.news.slice(6, 9).map((article, i) => <article className="market-story" key={article.url ?? i}>
+            <a href={safeUrl(article.url)} target="_blank" rel="noreferrer">
+              <div className="news-photo"><ArticleImage article={article} /></div>
+              <small>{article.source} / {article.datetime ? new Date(article.datetime * 1000).toLocaleDateString([], { month: "short", day: "numeric" }) : "News"}</small>
+              <h3>{article.headline}</h3>
+            </a>
+          </article>)}
+        </div>
+      </section>
     </div>
   );
 }

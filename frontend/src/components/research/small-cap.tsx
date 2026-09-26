@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 import { type Company } from "@/lib/research";
 import { MarketMovers } from "./market-movers";
+import { StyledSelect } from "./styled-select";
 
 type Stock = Company & {
   sector: string;
@@ -78,14 +79,8 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
       <MarketMovers scope="smallCap" onSelect={onSelect} />
       <div className="discovery-filters">
         <input aria-label="Search small caps" placeholder="Company, ticker or industry" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <select aria-label="Small-cap sector" value={sector} onChange={(event) => { setSector(event.target.value); setIndustry(""); }}>
-          <option value="">All sectors</option>
-          {sectors.map((value) => <option key={value}>{value}</option>)}
-        </select>
-        <select aria-label="Small-cap industry" value={industry} onChange={(event) => setIndustry(event.target.value)}>
-          <option value="">All industries</option>
-          {industries.map((value) => <option key={value}>{value}</option>)}
-        </select>
+        <StyledSelect ariaLabel="Small-cap sector" value={sector} onChange={(value) => { setSector(value); setIndustry(""); }} options={[{ value: "", label: "All sectors" }, ...sectors.map((value) => ({ value, label: value }))]} />
+        <StyledSelect ariaLabel="Small-cap industry" value={industry} onChange={setIndustry} options={[{ value: "", label: "All industries" }, ...industries.map((value) => ({ value, label: value }))]} />
         <button className="secondary-button" onClick={() => window.dispatchEvent(new CustomEvent("marketly-research-question", { detail: `Research smaller public companies in ${query || industry || sector || "my watchlist sectors"}. Verify current market caps, identify concrete catalysts and traction, assess cash runway, dilution, trading liquidity and downside. Compare 3 candidates for my strategy and cite issuer sources. Do not describe any candidate as a guaranteed winner.` }))}>Research opportunities ↗</button>
       </div>
       {error && <div className="inline-error" role="alert">{error} <button className="text-button" onClick={() => void load()}>Try again</button></div>}

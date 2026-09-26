@@ -13,6 +13,7 @@ import {
   type Conversation,
 } from "./saved-conversations";
 import { ChatHistory } from "./chat-history";
+import { StyledSelect } from "./styled-select";
 
 const RichChatMessage = dynamic(
   () => import("./rich-chat-message").then((module) => module.RichChatMessage),
@@ -36,7 +37,7 @@ const CHAT_OPEN_KEY = "marketly.chat.open.v1";
 const CHAT_PINNED_KEY = "marketly.chat.pinned.v3";
 
 function comparisonSymbols(question: string, scope: string) {
-  if (!/\b(compare|comparison|versus|vs\.?|choose between|better)\b/i.test(question)) return [];
+  if (!/\b(compare|comparison|versus|vs\.?|choose between|better|revenue|sales|margin|valuation|market cap|metrics|financials|graph|chart|measure|performance)\b/i.test(question)) return [];
   const symbols: string[] = [];
   const add = (symbol: string) => {
     if (!symbols.includes(symbol) && symbols.length < 3) symbols.push(symbol);
@@ -238,7 +239,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     const comparison = Array.isArray(nextContext.comparisonCompanies)
       ? nextContext.comparisonCompanies as Array<{ symbol: string; name?: string; metrics?: { pe?: number | null; margin?: number | null; marketCap?: number | null; revenue?: number | null } }>
       : [];
-    if (comparison.length >= 2 && /\b(compare|comparison|versus|vs\.?|choose|better)\b/i.test(text)) {
+    if (comparison.length >= 2 && /\b(compare|comparison|versus|vs\.?|choose|better|revenue|sales|margin|valuation|market cap|metrics|financials|graph|chart|measure|performance)\b/i.test(text)) {
       visuals.push({
         type: "comparison",
         title: `${comparison.slice(0, 3).map((company) => company.symbol).join(" vs ")} at a glance`,
@@ -363,8 +364,8 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   const composer = (
       <form onSubmit={submit}>
         <div className="chat-preferences">
-          <label>Strategy <select aria-label="Investor strategy" value={strategy} onChange={(event) => { setStrategy(event.target.value); try { localStorage.setItem("marketly.strategy", event.target.value); } catch { /* Session only. */ } }}>{["Conservative", "Balanced", "Aggressive growth"].map((value) => <option key={value}>{value}</option>)}</select></label>
-          <label>Horizon <select aria-label="Investment horizon" value={horizon} onChange={(event) => { setHorizon(event.target.value); try { localStorage.setItem("marketly.horizon", event.target.value); } catch { /* Session only. */ } }}>{["Under 1 year", "1–3 years", "3–5 years", "5+ years"].map((value) => <option key={value}>{value}</option>)}</select></label>
+          <label>Strategy <StyledSelect ariaLabel="Investor strategy" value={strategy} options={["Conservative", "Balanced", "Aggressive growth"].map((item) => ({ value: item, label: item }))} onChange={(value) => { setStrategy(value); try { localStorage.setItem("marketly.strategy", value); } catch { /* Session only. */ } }} /></label>
+          <label>Horizon <StyledSelect ariaLabel="Investment horizon" value={horizon} options={["Under 1 year", "1–3 years", "3–5 years", "5+ years"].map((item) => ({ value: item, label: item }))} onChange={(value) => { setHorizon(value); try { localStorage.setItem("marketly.horizon", value); } catch { /* Session only. */ } }} /></label>
           <label className="chat-checkbox"><input type="checkbox" checked={research} onChange={(event) => setResearch(event.target.checked)} /> Search web</label>
           {mode === "dock" && <button className="text-button" type="button" onClick={() => { setPinned(!pinned); setOpen(true); }}>{pinned ? "Unpin" : "Pin to side"}</button>}
         </div>

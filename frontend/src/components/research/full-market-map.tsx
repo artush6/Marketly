@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { preloadFinancials } from "@/lib/api";
 import type { Company } from "@/lib/research";
+import { StyledSelect } from "./styled-select";
 
 type Stock = {
   symbol: string;
@@ -209,16 +210,7 @@ export function FullMarketMap({
   return (
     <div className="full-market-map">
       <div className="map-controls">
-        <select
-          aria-label="Map sector"
-          value={sector}
-          onChange={(e) => setSector(e.target.value)}
-        >
-          <option>All sectors</option>
-          {sectors.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
+        <StyledSelect ariaLabel="Map sector" value={sector} onChange={setSector} options={["All sectors", ...sectors].map((name) => ({ value: name, label: name }))} />
         <input
           aria-label="Find a stock on the market map"
           placeholder="Find any company…"

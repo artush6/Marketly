@@ -61,6 +61,7 @@ import { SavedConversations } from "./saved-conversations";
 import { RelationshipResearch } from "./relationship-research";
 import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
+import { StyledSelect } from "./styled-select";
 import "./research.css";
 
 type Tab = "Overview" | "Profile" | "Network" | "Compare" | "News" | "Evidence";
@@ -693,7 +694,7 @@ export function ResearchDashboard() {
             onWatchlist={() => navigate("Watchlist")}
           />
         ) : view === "Small CAP" ? (<SmallCap onSelect={select} />) : view === "News" ? (
-          <NewsHub symbols={watchlist} onSelect={select} />
+          <NewsHub symbols={watchlist} />
         ) : view === "Saved research" ? (
           <section className="library-view">
             <div className="section-heading">
@@ -984,16 +985,7 @@ export function ResearchDashboard() {
                     }}
                   >
                     <span>Notify in this workspace when price is</span>
-                    <select
-                      aria-label="Alert direction"
-                      value={alertDirection}
-                      onChange={(e) =>
-                        setAlertDirection(e.target.value as "above" | "below")
-                      }
-                    >
-                      <option value="above">Above</option>
-                      <option value="below">Below</option>
-                    </select>
+                    <StyledSelect ariaLabel="Alert direction" value={alertDirection} onChange={(value) => setAlertDirection(value as "above" | "below")} options={[{ value: "above", label: "Above" }, { value: "below", label: "Below" }]} />
                     <input
                       aria-label="Target price"
                       type="number"

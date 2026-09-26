@@ -1681,3 +1681,31 @@
   display: inline-grid;
   vertical-align: middle;
 }
+
+/* Theme state is session-only; the root layout resets it from the device preference. */
+html[data-marketly-theme="dark"] .research-app {
+  --ink: #dce5d7;
+  --muted-ink: #82907b;
+  --line: #242c23;
+  --green: #a8d95d;
+  --paper: #050705;
+  color-scheme: dark;
+  color: var(--ink);
+  background: var(--paper);
+}
+html[data-marketly-theme="dark"] .research-header,
+html[data-marketly-theme="dark"] .research-nav { background:#070907; border-color:#242c23; }
+html[data-marketly-theme="dark"] .research-main,
+html[data-marketly-theme="dark"] .market-home,
+html[data-marketly-theme="dark"] .company-overview,
+html[data-marketly-theme="dark"] .library-view { color:#dce5d7; background:#050705; }
+html[data-marketly-theme="dark"] .company-search,
+html[data-marketly-theme="dark"] .search-menu { color:#8b9983; background:#0b0e0b; border-color:#2c352a; box-shadow:0 18px 50px #000c; }
+html[data-marketly-theme="dark"] .company-search input,
+html[data-marketly-theme="dark"] .search-menu button { color:#cbd6c5; }
+html[data-marketly-theme="dark"] .search-menu button:hover,
+html[data-marketly-theme="dark"] .search-menu button.highlighted { background:#151c13; }
+html[data-marketly-theme="dark"] .avatar,
+html[data-marketly-theme="dark"] .research-nav button small { color:#9eae94; background:#151c13; border-color:#2b3528; }
+html[data-marketly-theme="dark"] .research-nav button { color:#7e8b78; }
+html[data-marketly-theme="dark"] .research-nav button.active { color:#b4e45d; }
