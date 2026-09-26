@@ -410,14 +410,10 @@ def save_news_articles(symbol: str, articles: list[dict[str, Any]]) -> None:
 
 def _company_id(symbol: str) -> str | None:
     _upsert_rows("companies", [{"symbol": symbol.upper()}], on_conflict="symbol")
-    try:
-        rows = _select_rows("companies", {
-            "symbol": f"eq.{symbol.upper()}", "select": "id", "limit": "1",
-        })
-        return str(rows[0]["id"]) if rows and rows[0].get("id") else None
-    except Exception as exc:
-        logger.warning("Company id lookup failed for %s: %s", symbol, exc)
-        return None
+    rows = _select_rows("companies", {
+        "symbol": f"eq.{symbol.upper()}", "select": "id", "limit": "1",
+    })
+    return str(rows[0]["id"]) if rows and rows[0].get("id") else None
 
 
 def save_relationship_signals(symbol: str, articles: list[dict[str, Any]]) -> None:
@@ -458,15 +454,11 @@ def get_company_relationships(symbol: str) -> list[dict[str, Any]]:
     company_id = _company_id(symbol)
     if not company_id:
         return []
-    try:
-        return _select_rows("company_relationships", {
-            "company_id": f"eq.{company_id}",
-            "select": "id,related_company_name,related_symbol,relationship_type,direction,product_service,evidence_summary,source_url,source_date,confidence,last_verified_at",
-            "order": "confidence.desc,source_date.desc", "limit": "100",
-        })
-    except Exception as exc:
-        logger.warning("Relationship read failed for %s: %s", symbol, exc)
-        return []
+    return _select_rows("company_relationships", {
+        "company_id": f"eq.{company_id}",
+        "select": "id,related_company_name,related_symbol,relationship_type,direction,product_service,evidence_summary,source_url,source_date,confidence,last_verified_at",
+        "order": "confidence.desc,source_date.desc", "limit": "100",
+    })
 
 
 def get_market_instruments() -> list[dict[str, Any]]:
@@ -478,6 +470,10 @@ def get_market_instruments() -> list[dict[str, Any]]:
     except Exception as exc:
         logger.warning("Market instrument read failed: %s", exc)
         return []
+
+
+def upsert_market_instrument(instrument: dict[str, Any]) -> None:
+    _upsert_rows("market_instruments", [instrument], on_conflict="symbol", strict=True)
 
 
 def get_workspace_trackers(workspace_key: str) -> list[str]:

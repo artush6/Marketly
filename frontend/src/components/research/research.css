@@ -1709,3 +1709,46 @@ html[data-marketly-theme="dark"] .avatar,
 html[data-marketly-theme="dark"] .research-nav button small { color:#9eae94; background:#151c13; border-color:#2b3528; }
 html[data-marketly-theme="dark"] .research-nav button { color:#7e8b78; }
 html[data-marketly-theme="dark"] .research-nav button.active { color:#b4e45d; }
+
+/* These components are defined in this file after the shell theme, so keep
+   their surfaces explicit instead of inheriting the light defaults. */
+html[data-marketly-theme="dark"] .secondary-button {
+  background:#20291b;
+  border-color:#3c4932;
+  color:#c4d4b2;
+}
+html[data-marketly-theme="dark"] .secondary-button:hover,
+html[data-marketly-theme="dark"] .secondary-button.selected {
+  background:#2a3820;
+  border-color:#4b603b;
+  color:#c8eb96;
+}
+html[data-marketly-theme="dark"] .article-link-form {
+  background:#151c12;
+  border-color:#37482a;
+  color:#8ea67b;
+}
+html[data-marketly-theme="dark"] .article-link-form input {
+  background:transparent;
+  color:#d2e2bf;
+}
+html[data-marketly-theme="dark"] .article-link-form input::placeholder { color:#829970; }
+html[data-marketly-theme="dark"] .article-link-form button { color:#b7db8e; }
+html[data-marketly-theme="dark"] .discovery-filters input,
+html[data-marketly-theme="dark"] .styled-select-trigger {
+  background:#101710!important;
+  border-color:#3a4932!important;
+  color:#c8d7bc!important;
+}
+html[data-marketly-theme="dark"] .discovery-filters input::placeholder { color:#83917b; }
+html[data-marketly-theme="dark"] .watchlist-grid > div {
+  background:#141a13;
+  border-color:#303b2d;
+}
+html[data-marketly-theme="dark"] .watchlist-grid > div > button:first-child { color:#dce5d7; }
+html[data-marketly-theme="dark"] .watchlist-grid small { color:#93a187; }
+
+html[data-marketly-theme="light"] .article-link-form input {
+  background:transparent!important;
+  color:#3b493d!important;
+}

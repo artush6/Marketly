@@ -22,7 +22,7 @@ import { StyledSelect } from "./styled-select";
 
 type Row = Record<string, string | number | null>;
 type Series = { key: string; label: string; color: string };
-const colors = ["#b4e45d", "#63baca", "#c0a4ee"];
+const colors = ["var(--chart-primary)", "var(--chart-secondary)", "var(--chart-tertiary)"];
 function num(
   row: Record<string, unknown> | undefined,
   ...keys: string[]
@@ -91,16 +91,16 @@ function ChartPanel({
                 data={data}
                 margin={{ top: 12, right: 12, bottom: 4, left: 0 }}
               >
-                <CartesianGrid stroke="#303b30" vertical={false} />
+                <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
                 <XAxis
                   dataKey="period"
-                  stroke="#aab5a4"
+                  stroke="var(--chart-axis)"
                   tickLine={false}
                   axisLine={false}
                   tick={{ fontSize: 12 }}
                 />
                 <YAxis
-                  stroke="#aab5a4"
+                  stroke="var(--chart-axis)"
                   tickLine={false}
                   axisLine={false}
                   width={55}
@@ -109,18 +109,18 @@ function ChartPanel({
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "#20291f",
-                    border: "1px solid #59694d",
+                    background: "var(--chart-tooltip-bg)",
+                    border: "1px solid var(--chart-tooltip-border)",
                     borderRadius: 6,
-                    color: "#f3f7ed",
+                    color: "var(--chart-tooltip-text)",
                   }}
                   formatter={(v: number) => [
                     `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(v)} ${unit}`,
                   ]}
-                  labelStyle={{ color: "#f3f7ed" }}
+                  labelStyle={{ color: "var(--chart-tooltip-text)" }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
-                <ReferenceLine y={0} stroke="#63705b" />
+                <ReferenceLine y={0} stroke="var(--chart-zero)" />
                 {series.map((s) =>
                   line ? (
                     <Line

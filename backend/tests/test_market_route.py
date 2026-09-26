@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from fastapi import HTTPException
 from app.main import app
 from app.routes import market
+from app.integrations import company_metadata
 
 client = TestClient(app)
 
@@ -47,3 +48,22 @@ def test_market_preserves_partial_result_on_provider_failure(monkeypatch):
     assert len(data['quotes']) == 10
     assert all(q['price'] is None for q in data['quotes'])
     assert data['newsStatus'] == 'unavailable'
+
+
+def test_custom_tape_ticker_is_verified_and_persisted(monkeypatch):
+    workspace = 'a77c49e6-91a0-4f52-9e50-12dc2b1044ab'
+    saved = []
+    trackers = ['SPY']
+    monkeypatch.setattr(market, 'quote_or_missing', lambda symbol: {'symbol': symbol, 'price': 210.68})
+    monkeypatch.setattr(company_metadata, 'get_profile', lambda symbol: {'name': 'SAP SE'})
+    monkeypatch.setattr(market.supabase_store, 'get_workspace_trackers', lambda key: list(trackers))
+    monkeypatch.setattr(market.supabase_store, 'upsert_market_instrument', lambda instrument: saved.append(instrument))
+    monkeypatch.setattr(market.supabase_store, 'set_workspace_trackers', lambda key, symbols: trackers.__setitem__(slice(None), symbols))
+    monkeypatch.setattr(market, 'register_symbols', lambda symbols: None)
+
+    response = client.post(f'/market/tape/{workspace}/instruments/sap')
+
+    assert response.status_code == 200
+    assert response.json()['name'] == 'SAP SE'
+    assert saved[0]['symbol'] == 'SAP'
+    assert trackers == ['SPY', 'SAP']

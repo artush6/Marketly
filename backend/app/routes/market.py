@@ -154,6 +154,40 @@ def update_market_tape(workspace_key: str, update: TrackerUpdate):
     return {"workspaceKey": workspace_key, "symbols": symbols}
 
 
+@router.post("/tape/{workspace_key}/instruments/{symbol}")
+def add_market_tape_instrument(workspace_key: str, symbol: str):
+    workspace_key = _workspace_key(workspace_key)
+    symbol = symbol.strip().upper()
+    if not SYMBOL.fullmatch(symbol):
+        raise HTTPException(422, "Enter a valid ticker symbol.")
+    quote = quote_or_missing(symbol)
+    if quote.get("price") is None:
+        raise HTTPException(404, f"No verified quote was found for {symbol}.")
+    name = symbol
+    try:
+        from app.integrations.company_metadata import get_profile
+        name = get_profile(symbol).get("name") or symbol
+    except Exception:
+        pass
+    supabase_store.upsert_market_instrument({
+        "symbol": symbol,
+        "name": name,
+        "asset_class": "equity",
+        "region": None,
+        "proxy_note": "User-added ticker",
+        "default_order": 200,
+        "active": True,
+    })
+    selected = supabase_store.get_workspace_trackers(workspace_key)
+    if symbol not in selected:
+        if len(selected) >= 13:
+            raise HTTPException(422, "Remove an instrument before adding another.")
+        selected.append(symbol)
+    supabase_store.set_workspace_trackers(workspace_key, selected)
+    register_symbols([symbol])
+    return {"workspaceKey": workspace_key, "symbol": symbol, "name": name}
+
+
 @router.get("/earnings")
 def earnings(background_tasks: BackgroundTasks, symbols: str = Query(default="", max_length=2100)):
     watchlist = parse_symbols(symbols)

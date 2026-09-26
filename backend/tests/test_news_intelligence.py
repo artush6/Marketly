@@ -27,3 +27,12 @@ def test_critical_event_outranks_routine_story():
 
 def test_non_relationship_story_has_no_signal():
     assert relationship_signal({"headline": "Shares rise after analyst note"}) is None
+
+
+def test_relationship_counterparty_drops_exchange_suffix():
+    signal = relationship_signal({
+        "headline": "Qualcomm partners with Apple Inc. (NASDAQ: AAPL) on connectivity",
+    })
+
+    assert signal is not None
+    assert signal["relatedCompanyName"] == "Apple Inc"

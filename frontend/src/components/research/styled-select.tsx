@@ -12,7 +12,6 @@ export function StyledSelect({ value, options, onChange, ariaLabel }: {
   ariaLabel: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [dropUp, setDropUp] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const close = (event: PointerEvent) => {
@@ -26,22 +25,16 @@ export function StyledSelect({ value, options, onChange, ariaLabel }: {
     const index = Math.max(0, options.findIndex((option) => option.value === value));
     onChange(options[(index + offset + options.length) % options.length].value);
   };
-  return <div className="styled-select" ref={root}>
+  return <div className={`styled-select ${open ? "open" : ""}`} ref={root}>
     <button type="button" className="styled-select-trigger" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open}
-      onClick={() => {
-        if (!open && root.current) {
-          const rect = root.current.getBoundingClientRect();
-          setDropUp(window.innerHeight - rect.bottom < Math.min(260, options.length * 40 + 12));
-        }
-        setOpen((value) => !value);
-      }}
+      onClick={() => setOpen((value) => !value)}
       onKeyDown={(event) => {
         if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); move(event.key === "ArrowDown" ? 1 : -1); }
         if (event.key === "Escape") setOpen(false);
       }}>
       <span>{current?.label}</span><ChevronDown size={13} />
     </button>
-    {open && <div className={`styled-select-menu ${dropUp ? "drop-up" : ""}`} role="listbox" aria-label={ariaLabel}>
+    {open && <div className="styled-select-menu" role="listbox" aria-label={ariaLabel}>
       {options.map((option) => <button type="button" role="option" aria-selected={option.value === value} key={option.value}
         onClick={() => { onChange(option.value); setOpen(false); }}>
         <span>{option.label}</span>{option.value === value && <Check size={12} />}

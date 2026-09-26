@@ -38,6 +38,7 @@ export function RelationshipResearch({ symbol, companyName }: {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [coverageNote, setCoverageNote] = useState("");
+  const [scanNote, setScanNote] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,13 +61,18 @@ export function RelationshipResearch({ symbol, companyName }: {
     if (refreshing) return;
     setRefreshing(true);
     setError("");
+    setScanNote("Reading the latest 30 days of company headlines for dated partnership, customer, supplier, and contract evidence…");
     try {
       const response = await refreshRelationships(symbol);
       setRelationships(response.relationships);
       setCoverageNote(response.coverageNote);
       setSelected(response.relationships[0]);
-    } catch {
-      setError("The evidence refresh could not be completed. Existing relationships are unchanged.");
+      setScanNote(response.relationships.length
+        ? `Scan complete. ${response.relationships.length} dated relationship${response.relationships.length === 1 ? "" : "s"} available.`
+        : "Scan complete. No qualifying dated relationship evidence was found in the current news window.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The evidence refresh could not be completed. Existing relationships are unchanged.");
+      setScanNote("");
     } finally {
       setRefreshing(false);
     }
@@ -127,6 +133,7 @@ export function RelationshipResearch({ symbol, companyName }: {
         </div>
       )}
       {error && relationships.length > 0 && <p className="inline-error">{error}</p>}
+      {scanNote && <p className="relationship-scan-status" role="status">{refreshing && <LoaderCircle className="spin" size={13} />}{scanNote}</p>}
       <p className="disclosure">{coverageNote || "Coverage depends on public disclosure and may be incomplete."} Automatic safety rechecks run every 14 days for active companies.</p>
     </section>
   );

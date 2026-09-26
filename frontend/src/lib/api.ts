@@ -447,7 +447,10 @@ export async function refreshRelationships(symbol: string) {
   const response = await fetch(`${getBaseUrl()}/relationships/${encodeURIComponent(symbol)}/refresh`, {
     method: "POST", cache: "no-store", signal: AbortSignal.timeout(120000),
   });
-  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Request failed with status ${response.status}`);
+  }
   return response.json() as Promise<RelationshipResponse>;
 }
 

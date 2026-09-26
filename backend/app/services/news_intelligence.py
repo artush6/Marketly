@@ -30,6 +30,7 @@ RELATIONSHIP_PATTERNS: tuple[tuple[str, str], ...] = (
 
 def _clean_company_name(value: str) -> str | None:
     value = re.split(r"\b(?:to|for|on|as|after|before|amid|in)\b", value, maxsplit=1, flags=re.I)[0]
+    value = re.split(r"\s*[\(\[]", value, maxsplit=1)[0]
     value = re.sub(r"\s+", " ", value).strip(" .–—-()[]")
     if len(value) < 2 or len(value) > 80:
         return None

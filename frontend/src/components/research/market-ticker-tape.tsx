@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, LoaderCircle, Plus, Settings2, X } from "lucide-react";
+import type { FormEvent } from "react";
+import { Check, LoaderCircle, Plus, Search, Settings2, X } from "lucide-react";
 import { format } from "@/lib/research";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -30,6 +31,8 @@ export function MarketTickerTape() {
   const [workspace, setWorkspace] = useState("");
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(true);
+  const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const id = workspace || workspaceId();
@@ -68,6 +71,27 @@ export function MarketTickerTape() {
     }
   }
 
+  async function addCustom(event: FormEvent) {
+    event.preventDefault();
+    const symbol = query.trim().toUpperCase();
+    if (!symbol || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/backend/market/tape/${encodeURIComponent(workspace)}/instruments/${encodeURIComponent(symbol)}`, { method: "POST" });
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}));
+        throw new Error(detail.detail || `Could not add ${symbol}.`);
+      }
+      setQuery("");
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : `Could not add ${symbol}.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="market-tape" aria-label="Global market ticker">
       <div className="market-tape-viewport">
@@ -86,7 +110,9 @@ export function MarketTickerTape() {
       {editing && <div className="market-tape-picker">
         <header><span>Market tape</span><button onClick={() => setEditing(false)} aria-label="Close ticker settings"><X size={14} /></button></header>
         <p>Choose up to 13 instruments. Your selection follows this workspace.</p>
-        <div>{data.available.map((item) => <button disabled={busy || (!selected.has(item.symbol) && selected.size >= 13)} className={selected.has(item.symbol) ? "selected" : ""} key={item.symbol} onClick={() => void update(item.symbol)}>{selected.has(item.symbol) ? <Check size={13} /> : <Plus size={13} />}<span>{item.symbol}<small>{item.name}</small></span></button>)}</div>
+        <form className="market-tape-search" onSubmit={addCustom}><Search size={13} /><input aria-label="Add ticker to market tape" placeholder="Search or enter a ticker, e.g. SAP" value={query} onChange={(event) => setQuery(event.target.value)} maxLength={12} /><button type="submit" disabled={!query.trim() || busy}>Add</button></form>
+        {error && <p className="market-tape-error" role="alert">{error}</p>}
+        <div className="market-tape-options">{data.available.filter((item) => !query || `${item.symbol} ${item.name}`.toLowerCase().includes(query.toLowerCase())).map((item) => <button disabled={busy || (!selected.has(item.symbol) && selected.size >= 13)} className={selected.has(item.symbol) ? "selected" : ""} key={item.symbol} onClick={() => void update(item.symbol)}>{selected.has(item.symbol) ? <Check size={13} /> : <Plus size={13} />}<span>{item.symbol}<small>{item.name}</small></span></button>)}</div>
       </div>}
     </section>
   );

@@ -2,6 +2,7 @@
 -- All writes are service-only. Public clients consume these records through FastAPI.
 
 alter table public.companies
+  add column if not exists id uuid not null default gen_random_uuid(),
   add column if not exists employee_count integer,
   add column if not exists founded_year integer,
   add column if not exists ipo_date date,
@@ -10,6 +11,11 @@ alter table public.companies
   add column if not exists office_locations jsonb not null default '[]'::jsonb,
   add column if not exists company_description text,
   add column if not exists profile_payload jsonb not null default '{}'::jsonb;
+
+-- The first Marketly schema used symbol as the companies primary key. Keep it
+-- intact for existing foreign keys while providing a stable surrogate key for
+-- relationship records and backend lookups.
+create unique index if not exists companies_id_key on public.companies (id);
 
 alter table public.news_articles
   add column if not exists importance_score smallint not null default 1

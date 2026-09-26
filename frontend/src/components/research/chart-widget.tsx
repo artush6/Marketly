@@ -10,6 +10,14 @@ export function ChartWidget({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  useEffect(() => {
+    const read = () => setTheme(document.documentElement.dataset.marketlyTheme === "light" ? "light" : "dark");
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-marketly-theme"] });
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     const root = host.current;
     if (!root) return;
@@ -29,7 +37,7 @@ export function ChartWidget({
       width: "100%",
       height: "100%",
       locale: "en",
-      colorTheme: "dark",
+      colorTheme: theme,
     };
     script.textContent = JSON.stringify(
       kind === "heatmap"
@@ -59,10 +67,10 @@ export function ChartWidget({
             fontFamily: "Arial, sans-serif",
             fontSize: "11",
             chartType: "area",
-            lineColor: "#b4e45d",
-            topColor: "rgba(180,228,93,0.12)",
-            bottomColor: "rgba(180,228,93,0)",
-            backgroundColor: "#141814",
+            lineColor: theme === "light" ? "#2f7658" : "#b4e45d",
+            topColor: theme === "light" ? "rgba(47,118,88,0.14)" : "rgba(180,228,93,0.12)",
+            bottomColor: theme === "light" ? "rgba(47,118,88,0)" : "rgba(180,228,93,0)",
+            backgroundColor: theme === "light" ? "#ffffff" : "#141814",
             dateRanges: [
               "1d|1",
               "1m|30",
@@ -84,7 +92,7 @@ export function ChartWidget({
       active = false;
       mount.remove();
     };
-  }, [kind, symbol]);
+  }, [kind, symbol, theme]);
   return (
     <div ref={host} className="chart-widget-host">
       {failed && (
