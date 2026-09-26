@@ -47,6 +47,15 @@ export type BackendFinancialsResponse = {
     roe?: number | null;
     grossMargin?: number | null;
     debtToEquity?: number | null;
+    fullTimeEmployees?: number | null;
+    foundedYear?: number | null;
+    ipoDate?: string | null;
+    chiefExecutive?: string | null;
+    headquarters?: string | null;
+    officeLocations?: Array<Record<string, string>>;
+    companyOfficers?: Array<{ name?: string; title?: string; age?: number; yearBorn?: number }>;
+    longBusinessSummary?: string | null;
+    phone?: string | null;
     [key: string]: unknown;
   };
   quote?: {
@@ -100,6 +109,16 @@ export type BackendNewsItem = {
   source?: string;
   summary?: string;
   url?: string;
+  symbol?: string;
+  importanceScore?: number;
+  importanceLabel?: "routine" | "notable" | "important" | "critical";
+  importanceReasons?: string[];
+  relationshipSignal?: {
+    relationshipType?: string;
+    relatedCompanyName?: string;
+    relatedSymbol?: string;
+    confidence?: number;
+  } | null;
   [key: string]: unknown;
 };
 
@@ -390,6 +409,46 @@ export async function getCompanyNews(
   return requestJson<BackendNewsItem[]>(
     `/news/${encodeURIComponent(symbol)}?days=7&max_items=24`,
   );
+}
+
+export async function getGroupedNews(symbols: string[]): Promise<Record<string, BackendNewsItem[]>> {
+  return requestJson<Record<string, BackendNewsItem[]>>(
+    `/news/grouped?symbols=${encodeURIComponent(symbols.join(","))}&days=14&max_items=30`,
+  );
+}
+
+export type CompanyRelationship = {
+  id: string;
+  related_company_name: string;
+  related_symbol?: string | null;
+  relationship_type: "supplier" | "customer" | "partner" | "competitor" | "investor" | "subsidiary" | "other";
+  direction: string;
+  product_service?: string | null;
+  evidence_summary: string;
+  source_url: string;
+  source_date?: string | null;
+  confidence: number;
+  last_verified_at: string;
+};
+
+export type RelationshipResponse = {
+  symbol: string;
+  relationships: CompanyRelationship[];
+  count: number;
+  loadedAt: string;
+  coverageNote: string;
+};
+
+export function getRelationships(symbol: string) {
+  return requestJson<RelationshipResponse>(`/relationships/${encodeURIComponent(symbol)}`);
+}
+
+export async function refreshRelationships(symbol: string) {
+  const response = await fetch(`${getBaseUrl()}/relationships/${encodeURIComponent(symbol)}/refresh`, {
+    method: "POST", cache: "no-store", signal: AbortSignal.timeout(120000),
+  });
+  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+  return response.json() as Promise<RelationshipResponse>;
 }
 
 export async function getTickerScore(

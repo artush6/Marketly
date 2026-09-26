@@ -39,9 +39,11 @@ def parse_universe(script: str):
     return json.loads(raw)
 
 
-@lru_cache(maxsize=2)
-def universe(bucket: int):
-    page = fetch_public("/map?t=sec_all")
+@lru_cache(maxsize=8)
+def _universe(kind: str, bucket: int):
+    if kind not in {"sec", "sec_all"}:
+        raise ValueError("Unsupported market universe")
+    page = fetch_public(f"/map?t={kind}")
     runtime = re.search(r'(/assets/dist-legacy/runtime\.v1\.[a-f0-9]+\.js)', page)
     if not runtime:
         raise ValueError("Map runtime unavailable")
@@ -50,6 +52,10 @@ def universe(bucket: int):
     if not version:
         raise ValueError("Map universe unavailable")
     return parse_universe(fetch_public(f"/assets/dist-legacy/7791.v1.{version.group(1)}.js"))
+
+
+def universe(kind: str):
+    return _universe(kind, int(time() // 86400))
 
 
 def combine(root, performance):
@@ -79,7 +85,7 @@ def heatmap():
         if _snapshot and time() - _refreshed < 600:
             return {**_snapshot, "stale": False}
         try:
-            root = universe(int(time() // 86400))
+            root = universe("sec_all")
             perf = json.loads(fetch_public("/api/map_perf?t=sec_all&st=d1"))
             stocks = combine(root, perf)
             _snapshot = {"stocks": stocks, "source": "Finviz", "sourceUrl": "https://finviz.com/map?t=sec_all",
@@ -92,3 +98,28 @@ def heatmap():
             if _snapshot:
                 return {**_snapshot, "stale": True}
             raise HTTPException(503, "Full-market map is temporarily unavailable. Please retry.")
+
+
+@router.get("/movers")
+def movers():
+    try:
+        sp500_root = universe("sec")
+        sp500_perf = json.loads(fetch_public("/api/map_perf?t=sec&st=d1"))
+        sp500 = [stock for stock in combine(sp500_root, sp500_perf) if stock.get("changePercent") is not None]
+
+        all_root = universe("sec_all")
+        all_perf = json.loads(fetch_public("/api/map_perf?t=sec_all&st=d1"))
+        small_caps = [stock for stock in combine(all_root, all_perf)
+                      if 300 <= stock["marketCap"] <= 2000 and stock.get("changePercent") is not None]
+
+        def ranked(stocks, reverse):
+            return sorted(stocks, key=lambda stock: stock["changePercent"], reverse=reverse)[:8]
+
+        return {
+            "sp500": {"gainers": ranked(sp500, True), "losers": ranked(sp500, False)},
+            "smallCap": {"gainers": ranked(small_caps, True), "losers": ranked(small_caps, False)},
+            "fetchedAt": datetime.now(timezone.utc).isoformat(),
+            "source": "Finviz", "delayed": True, "marketCapUnit": "USD millions",
+        }
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        raise HTTPException(503, "Market movers are temporarily unavailable. Please retry.")

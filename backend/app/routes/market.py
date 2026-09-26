@@ -3,13 +3,16 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from functools import lru_cache
 from time import time
+from uuid import UUID
 
 import json
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from pydantic import BaseModel, Field
 from app.core.cache import CacheManager
 from app.services.market_refresh import register_symbols
+from app.services.news_intelligence import enrich_articles
 from app.integrations import supabase_store
 
 from app.routes.discovery import SYMBOL, provider_get
@@ -24,6 +27,25 @@ FIXED_INCOME = {
     "HYG": "High Yield",
     "LQD": "High Grade",
 }
+TRACKER_CATALOG = (
+    {"symbol": "SPY", "name": "S&P 500", "asset_class": "equity_index", "region": "United States", "proxy_note": "ETF proxy", "default_order": 10},
+    {"symbol": "DIA", "name": "Dow Jones", "asset_class": "equity_index", "region": "United States", "proxy_note": "ETF proxy", "default_order": 20},
+    {"symbol": "QQQ", "name": "Nasdaq 100", "asset_class": "equity_index", "region": "United States", "proxy_note": "ETF proxy", "default_order": 30},
+    {"symbol": "IWM", "name": "Russell 2000", "asset_class": "equity_index", "region": "United States", "proxy_note": "ETF proxy", "default_order": 40},
+    {"symbol": "GLD", "name": "Gold", "asset_class": "commodity", "region": "Global", "proxy_note": "ETF proxy", "default_order": 50},
+    {"symbol": "SLV", "name": "Silver", "asset_class": "commodity", "region": "Global", "proxy_note": "ETF proxy", "default_order": 60},
+    {"symbol": "BNO", "name": "Brent crude", "asset_class": "commodity", "region": "Global", "proxy_note": "ETF proxy", "default_order": 70},
+    {"symbol": "VGK", "name": "Europe", "asset_class": "equity_index", "region": "Europe", "proxy_note": "ETF proxy", "default_order": 80},
+    {"symbol": "EWG", "name": "Germany", "asset_class": "equity_index", "region": "Europe", "proxy_note": "ETF proxy", "default_order": 90},
+    {"symbol": "EWQ", "name": "France", "asset_class": "equity_index", "region": "Europe", "proxy_note": "ETF proxy", "default_order": 100},
+    {"symbol": "EWU", "name": "United Kingdom", "asset_class": "equity_index", "region": "Europe", "proxy_note": "ETF proxy", "default_order": 110},
+    {"symbol": "EWJ", "name": "Japan", "asset_class": "equity_index", "region": "Asia", "proxy_note": "ETF proxy", "default_order": 120},
+    {"symbol": "EEM", "name": "Emerging markets", "asset_class": "equity_index", "region": "Global", "proxy_note": "ETF proxy", "default_order": 130},
+)
+
+
+class TrackerUpdate(BaseModel):
+    symbols: list[str] = Field(min_length=1, max_length=13)
 
 
 def refresh_quote(symbol: str, *, durable: bool = False):
@@ -58,8 +80,8 @@ def refresh_news(*, durable: bool = False):
     data = provider_get("news", {"category": "general"})
     if not isinstance(data, list):
         raise ValueError("Invalid news response")
-    result = [{key: item.get(key) for key in ("headline", "summary", "url", "image", "source", "datetime")}
-            for item in data if isinstance(item, dict) and item.get("headline") and item.get("url")][:18]
+    result = enrich_articles([{key: item.get(key) for key in ("headline", "summary", "url", "image", "source", "datetime")}
+            for item in data if isinstance(item, dict) and item.get("headline") and item.get("url")][:18])
     CacheManager.set(CacheManager.make_key("market_news", "general"), json.dumps(result), ttl=86400, durable=durable)
     return result
 
@@ -82,6 +104,54 @@ def parse_symbols(symbols, limit=100):
     if len(values) > limit or any(not SYMBOL.fullmatch(s) for s in values):
         raise HTTPException(422, f"Provide up to {limit} valid ticker symbols.")
     return values
+
+
+def _workspace_key(value: str) -> str:
+    try:
+        return str(UUID(value))
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid workspace key.") from exc
+
+
+@router.get("/tape")
+def market_tape(workspace_key: str = Query(max_length=36)):
+    workspace_key = _workspace_key(workspace_key)
+    instruments = supabase_store.get_market_instruments() or [dict(item) for item in TRACKER_CATALOG]
+    available = {item["symbol"]: item for item in instruments}
+    selected = supabase_store.get_workspace_trackers(workspace_key)
+    if not selected:
+        selected = [item["symbol"] for item in sorted(instruments, key=lambda item: item.get("default_order", 100))[:8]]
+        try:
+            supabase_store.set_workspace_trackers(workspace_key, selected)
+        except Exception:
+            pass
+    selected = [symbol for symbol in selected if symbol in available]
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        quotes = list(pool.map(quote_or_missing, selected))
+    quote_map = {quote["symbol"]: quote for quote in quotes}
+    return {
+        "items": [{**available[symbol], **quote_map.get(symbol, {})} for symbol in selected],
+        "available": instruments,
+        "workspaceKey": workspace_key,
+        "fetchedAt": datetime.now(timezone.utc).isoformat(),
+        "note": "Index and commodity values use tradable ETF proxies; quotes may be delayed.",
+    }
+
+
+@router.put("/tape/{workspace_key}")
+def update_market_tape(workspace_key: str, update: TrackerUpdate):
+    workspace_key = _workspace_key(workspace_key)
+    instruments = supabase_store.get_market_instruments() or [dict(item) for item in TRACKER_CATALOG]
+    available = {item["symbol"] for item in instruments}
+    symbols = list(dict.fromkeys(symbol.strip().upper() for symbol in update.symbols))
+    if any(symbol not in available for symbol in symbols):
+        raise HTTPException(422, "One or more tracker symbols are unavailable.")
+    try:
+        supabase_store.set_workspace_trackers(workspace_key, symbols)
+    except Exception as exc:
+        raise HTTPException(503, "Tracker preferences could not be saved.") from exc
+    register_symbols(symbols)
+    return {"workspaceKey": workspace_key, "symbols": symbols}
 
 
 @router.get("/earnings")

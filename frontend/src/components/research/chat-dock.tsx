@@ -31,6 +31,9 @@ const COMPANY_ALIASES: Record<string, string> = {
   meta: "META",
   tesla: "TSLA",
 };
+const CHAT_CHANNEL = "marketly-chat-state";
+const CHAT_OPEN_KEY = "marketly.chat.open.v1";
+const CHAT_PINNED_KEY = "marketly.chat.pinned.v3";
 
 function comparisonSymbols(question: string, scope: string) {
   if (!/\b(compare|comparison|versus|vs\.?|choose between|better)\b/i.test(question)) return [];
@@ -70,7 +73,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   mode?: "dock" | "workspace";
   initialConversationId?: string;
 }) {
-  const [pinned, setPinned] = useState(false);
+  const [pinned, setPinned] = useState(true);
   const [strategy, setStrategy] = useState("Balanced");
   const [horizon, setHorizon] = useState("3–5 years");
   const [research, setResearch] = useState(false);
@@ -89,6 +92,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   const mounted = useRef(true);
   const bottom = useRef<HTMLDivElement>(null);
   const loadedInitialConversation = useRef(false);
+  const stateChannel = useRef<BroadcastChannel | null>(null);
 
   const openConversation = useCallback((conversation: Conversation) => {
     if (pending.current || !conversation?.id || !Array.isArray(conversation.messages)) return;
@@ -130,8 +134,22 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     try {
       setStrategy(localStorage.getItem("marketly.strategy") || "Balanced");
       setHorizon(localStorage.getItem("marketly.horizon") || "3–5 years");
-      setPinned(localStorage.getItem("marketly.chat.pinned.v2") === "true");
+      setPinned(localStorage.getItem(CHAT_PINNED_KEY) !== "false");
+      setOpen(localStorage.getItem(CHAT_OPEN_KEY) !== "false");
     } catch { /* Defaults remain usable. */ }
+
+    const applyState = (value: { open?: boolean; pinned?: boolean }) => {
+      if (typeof value.open === "boolean") setOpen(value.open);
+      if (typeof value.pinned === "boolean") setPinned(value.pinned);
+    };
+    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(CHAT_CHANNEL) : null;
+    stateChannel.current = channel;
+    if (channel) channel.onmessage = (event: MessageEvent<{ open?: boolean; pinned?: boolean }>) => applyState(event.data || {});
+    const syncStorage = (event: StorageEvent) => {
+      if (event.key === CHAT_OPEN_KEY) setOpen(event.newValue !== "false");
+      if (event.key === CHAT_PINNED_KEY) setPinned(event.newValue === "true");
+    };
+    window.addEventListener("storage", syncStorage);
 
     const resumeConversation = (event: Event) => openConversation((event as CustomEvent<Conversation>).detail);
     const askResearchQuestion = (event: Event) => {
@@ -142,6 +160,9 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     window.addEventListener("marketly-resume-chat", resumeConversation);
     window.addEventListener("marketly-research-question", askResearchQuestion);
     return () => {
+      channel?.close();
+      stateChannel.current = null;
+      window.removeEventListener("storage", syncStorage);
       window.removeEventListener("marketly-resume-chat", resumeConversation);
       window.removeEventListener("marketly-research-question", askResearchQuestion);
     };
@@ -158,9 +179,13 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
 
   useEffect(() => {
     document.body.classList.toggle("marketly-chat-pinned", mode === "dock" && pinned);
-    try { localStorage.setItem("marketly.chat.pinned.v2", String(pinned)); } catch { /* Session only. */ }
+    try {
+      localStorage.setItem(CHAT_OPEN_KEY, String(open));
+      if (mode === "dock") localStorage.setItem(CHAT_PINNED_KEY, String(pinned));
+    } catch { /* Session only. */ }
+    stateChannel.current?.postMessage(mode === "dock" ? { open, pinned } : { open });
     return () => document.body.classList.remove("marketly-chat-pinned");
-  }, [mode, pinned]);
+  }, [mode, open, pinned]);
 
   useEffect(() => {
     if (!messages.some((message) => message.role === "assistant") || busy) return;

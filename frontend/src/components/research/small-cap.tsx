@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 import { type Company } from "@/lib/research";
+import { MarketMovers } from "./market-movers";
 
 type Stock = Company & {
   sector: string;
@@ -74,6 +75,7 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
           {loading ? <LoaderCircle size={14} className="spin" /> : <RefreshCw size={14} />} Retry
         </button>
       </div>
+      <MarketMovers scope="smallCap" onSelect={onSelect} />
       <div className="discovery-filters">
         <input aria-label="Search small caps" placeholder="Company, ticker or industry" value={query} onChange={(event) => setQuery(event.target.value)} />
         <select aria-label="Small-cap sector" value={sector} onChange={(event) => { setSector(event.target.value); setIndustry(""); }}>

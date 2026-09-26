@@ -48,7 +48,10 @@ def get_profile(symbol: str, *, check_persistent: bool = True) -> dict:
                 raise ValueError('Invalid company profile')
             if profile.get('ticker') and profile['ticker'].upper() != symbol:
                 raise ValueError('Company profile symbol mismatch')
-            fields = ('name', 'ticker', 'logo', 'weburl', 'exchange', 'country', 'currency', 'finnhubIndustry')
+            fields = (
+                'name', 'ticker', 'logo', 'weburl', 'exchange', 'country', 'currency',
+                'finnhubIndustry', 'ipo', 'phone', 'shareOutstanding', 'marketCapitalization',
+            )
             payload = {key: profile.get(key) for key in fields}
             logo = payload.get('logo')
             if not isinstance(logo, str) or urlparse(logo).scheme != 'https' or not urlparse(logo).netloc:

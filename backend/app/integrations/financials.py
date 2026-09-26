@@ -482,6 +482,9 @@ def fetch_finnhub_payload(symbol: str) -> dict[str, Any]:
                 "currency": profile.get("currency"),
                 "logo": profile.get("logo"),
                 "website": profile.get("weburl"),
+                "ipoDate": profile.get("ipo"),
+                "phone": profile.get("phone"),
+                "sharesOutstandingMillions": profile.get("shareOutstanding"),
             },
         )
         payload["sources"]["profile"] = "finnhub"
@@ -674,6 +677,20 @@ def fetch_yahoo_summary(symbol: str) -> dict[str, Any]:
                 "sector": profile.get("sector"),
                 "industry": profile.get("industry"),
                 "country": profile.get("country"),
+                "fullTimeEmployees": profile.get("fullTimeEmployees"),
+                "phone": profile.get("phone"),
+                "website": profile.get("website"),
+                "headquarters": ", ".join(part for part in (profile.get("city"), profile.get("state"), profile.get("country")) if part),
+                "officeLocations": [
+                    {key: profile.get(key) for key in ("address1", "address2", "city", "state", "zip", "country") if profile.get(key)}
+                ] if any(profile.get(key) for key in ("address1", "city", "country")) else [],
+                "longBusinessSummary": profile.get("longBusinessSummary"),
+                "chiefExecutive": next((officer.get("name") for officer in profile.get("companyOfficers", [])
+                                         if isinstance(officer, dict) and "chief executive" in str(officer.get("title", "")).lower()), None),
+                "companyOfficers": [
+                    {key: officer.get(key) for key in ("name", "title", "age", "yearBorn") if officer.get(key) is not None}
+                    for officer in profile.get("companyOfficers", []) if isinstance(officer, dict)
+                ][:12],
                 "marketCap": financial.get("marketCap", {}).get("raw")
                 or financial.get("enterpriseValue", {}).get("raw"),
                 "beta": financial.get("beta", {}).get("raw") or stats.get("beta", {}).get("raw"),

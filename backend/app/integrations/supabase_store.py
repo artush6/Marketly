@@ -45,7 +45,13 @@ def _headers(*, prefer: str | None = None) -> dict[str, str]:
     return headers
 
 
-def _upsert_rows(table_name: str, rows: list[dict[str, Any]], *, on_conflict: str) -> None:
+def _upsert_rows(
+    table_name: str,
+    rows: list[dict[str, Any]],
+    *,
+    on_conflict: str,
+    strict: bool = False,
+) -> None:
     if not rows or not is_configured():
         return
 
@@ -59,7 +65,18 @@ def _upsert_rows(table_name: str, rows: list[dict[str, Any]], *, on_conflict: st
         )
         response.raise_for_status()
     except Exception as exc:
+        if strict:
+            raise
         logger.warning("Supabase upsert failed for %s: %s", table_name, exc)
+
+
+def _select_rows(table_name: str, params: dict[str, str], *, timeout: int = 5) -> list[dict[str, Any]]:
+    if not is_configured():
+        return []
+    response = requests.get(_rest_url(table_name), headers=_headers(), params=params, timeout=timeout)
+    response.raise_for_status()
+    payload = response.json()
+    return payload if isinstance(payload, list) else []
 
 
 def _expires_at(ttl_seconds: int) -> str:
@@ -260,6 +277,14 @@ def save_financial_payload(symbol: str, payload: dict[str, Any]) -> None:
         "industry": info.get("industry"),
         "country": info.get("country"),
         "currency": info.get("currency"),
+        "employee_count": info.get("fullTimeEmployees"),
+        "founded_year": info.get("foundedYear"),
+        "ipo_date": info.get("ipoDate"),
+        "chief_executive": info.get("chiefExecutive"),
+        "headquarters": info.get("headquarters"),
+        "office_locations": info.get("officeLocations") or [],
+        "company_description": info.get("longBusinessSummary"),
+        "profile_payload": info,
     }
     _upsert_rows("companies", [company_row], on_conflict="symbol")
 
@@ -369,10 +394,119 @@ def save_news_articles(symbol: str, articles: list[dict[str, Any]]) -> None:
                 "url": article.get("url"),
                 "source": article.get("source"),
                 "published_at": published_at,
+                "importance_score": article.get("importanceScore", 1),
+                "importance_label": article.get("importanceLabel", "routine"),
+                "relationship_signal": bool(article.get("relationshipSignal")),
+                "relationship_type": (article.get("relationshipSignal") or {}).get("relationshipType"),
+                "related_company_name": (article.get("relationshipSignal") or {}).get("relatedCompanyName"),
+                "related_symbol": (article.get("relationshipSignal") or {}).get("relatedSymbol"),
+                "skimmed_at": article.get("skimmedAt"),
                 "payload": article,
             }
         )
     _upsert_rows("news_articles", rows, on_conflict="symbol,external_id")
+    save_relationship_signals(symbol, articles)
+
+
+def _company_id(symbol: str) -> str | None:
+    _upsert_rows("companies", [{"symbol": symbol.upper()}], on_conflict="symbol")
+    try:
+        rows = _select_rows("companies", {
+            "symbol": f"eq.{symbol.upper()}", "select": "id", "limit": "1",
+        })
+        return str(rows[0]["id"]) if rows and rows[0].get("id") else None
+    except Exception as exc:
+        logger.warning("Company id lookup failed for %s: %s", symbol, exc)
+        return None
+
+
+def save_relationship_signals(symbol: str, articles: list[dict[str, Any]]) -> None:
+    if not is_configured():
+        return
+    company_id = _company_id(symbol)
+    if not company_id:
+        return
+    rows: list[dict[str, Any]] = []
+    for article in articles:
+        signal = article.get("relationshipSignal") if isinstance(article, dict) else None
+        source_url = article.get("url") if isinstance(article, dict) else None
+        if not isinstance(signal, dict) or not signal.get("relatedCompanyName") or not source_url:
+            continue
+        source_date = None
+        if isinstance(article.get("datetime"), (int, float)):
+            source_date = datetime.fromtimestamp(article["datetime"], tz=timezone.utc).date().isoformat()
+        rows.append({
+            "company_id": company_id,
+            "related_company_name": signal["relatedCompanyName"],
+            "related_symbol": signal.get("relatedSymbol"),
+            "relationship_type": signal.get("relationshipType") or "other",
+            "direction": signal.get("direction") or "mutual",
+            "product_service": signal.get("productService"),
+            "evidence_summary": article.get("headline") or "Relationship mentioned in company news",
+            "source_url": source_url,
+            "source_date": source_date,
+            "confidence": signal.get("confidence", 0.65),
+            "last_verified_at": datetime.now(timezone.utc).isoformat(),
+        })
+    _upsert_rows(
+        "company_relationships", rows,
+        on_conflict="company_id,related_company_name,relationship_type,source_url",
+    )
+
+
+def get_company_relationships(symbol: str) -> list[dict[str, Any]]:
+    company_id = _company_id(symbol)
+    if not company_id:
+        return []
+    try:
+        return _select_rows("company_relationships", {
+            "company_id": f"eq.{company_id}",
+            "select": "id,related_company_name,related_symbol,relationship_type,direction,product_service,evidence_summary,source_url,source_date,confidence,last_verified_at",
+            "order": "confidence.desc,source_date.desc", "limit": "100",
+        })
+    except Exception as exc:
+        logger.warning("Relationship read failed for %s: %s", symbol, exc)
+        return []
+
+
+def get_market_instruments() -> list[dict[str, Any]]:
+    try:
+        return _select_rows("market_instruments", {
+            "active": "eq.true", "select": "symbol,name,asset_class,region,proxy_note,default_order",
+            "order": "default_order.asc,symbol.asc",
+        })
+    except Exception as exc:
+        logger.warning("Market instrument read failed: %s", exc)
+        return []
+
+
+def get_workspace_trackers(workspace_key: str) -> list[str]:
+    try:
+        rows = _select_rows("workspace_market_trackers", {
+            "workspace_key": f"eq.{workspace_key}", "select": "symbol,sort_order",
+            "order": "sort_order.asc,symbol.asc",
+        })
+        return [str(row["symbol"]) for row in rows if row.get("symbol")]
+    except Exception as exc:
+        logger.warning("Market tracker read failed: %s", exc)
+        return []
+
+
+def set_workspace_trackers(workspace_key: str, symbols: list[str]) -> None:
+    if not is_configured():
+        return
+    response = requests.delete(
+        _rest_url("workspace_market_trackers"), headers=_headers(prefer="return=minimal"),
+        params={"workspace_key": f"eq.{workspace_key}"}, timeout=5,
+    )
+    response.raise_for_status()
+    _upsert_rows(
+        "workspace_market_trackers",
+        [{"workspace_key": workspace_key, "symbol": symbol, "sort_order": index}
+         for index, symbol in enumerate(symbols)],
+        on_conflict="workspace_key,symbol",
+        strict=True,
+    )
 
 
 def save_analysis_run(payload: dict[str, Any]) -> None:

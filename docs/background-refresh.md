@@ -2,7 +2,8 @@
 
 The API starts a Supabase-backed refresh worker in its FastAPI lifespan. It makes
 no LLM calls. Apply `supabase/migrations/20260925093816_background_market_refresh.sql`
-to the same project as the backend's `SUPABASE_URL`, then deploy/restart this branch.
+and `supabase/migrations/20260926094653_relationship_news_intelligence.sql` to the
+same project as the backend's `SUPABASE_URL`, then deploy/restart this branch.
 The existing cache, snapshots and financial tables from `supabase/schema.sql` are
 prerequisites. Only the backend service role can access the queue or its functions.
 
@@ -14,6 +15,9 @@ prerequisites. Only the backend service role can access the queue or its functio
 - Financials: immediately for newly tracked companies; every six hours during the
   seven days beginning on an expected earnings date; otherwise a weekly safety check.
   Release dates can change and a release is not necessarily the SEC filing date.
+- Relationship intelligence: every fourteen days for active companies. The job
+  skims the latest thirty days of company news and upserts dated partnership,
+  customer, and supplier evidence. Normal company-news reads do the same immediately.
 - Inactive symbols stop after thirty days without visits. Opening the watchlist
   renews tracking. Funds used as benchmarks only receive quote jobs.
 

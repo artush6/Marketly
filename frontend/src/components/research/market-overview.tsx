@@ -3,6 +3,7 @@ import { CompanyLogo } from "./company-logo";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { FullMarketMap } from "./full-market-map";
+import { MarketMovers } from "./market-movers";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -201,6 +202,7 @@ export function MarketOverview({
           );
         })}
       </div>
+      <MarketMovers scope="sp500" onSelect={onSelect} />
       <div className="market-home-columns">
         <div className="market-main-column">
           <section className="market-panel">

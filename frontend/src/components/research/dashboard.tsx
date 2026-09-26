@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
   Bell,
   Bookmark,
+  Building2,
   ChevronRight,
   CircleHelp,
   ExternalLink,
@@ -17,11 +18,13 @@ import {
   Globe2,
   Layers3,
   LoaderCircle,
+  Newspaper,
   Plus,
   RefreshCw,
   Sparkles,
   Star,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -57,11 +60,11 @@ import { SmallCap } from "./small-cap";
 import { SavedConversations } from "./saved-conversations";
 import { RelationshipResearch } from "./relationship-research";
 import { ChatDock } from "./chat-dock";
+import { NewsHub } from "./news-hub";
 import "./research.css";
-import "./terminal.css";
 
-type Tab = "Overview" | "Compare" | "News" | "Evidence";
-type View = "Small CAP" | "Markets" | "Company" | "Watchlist" | "Saved research";
+type Tab = "Overview" | "Profile" | "Network" | "Compare" | "News" | "Evidence";
+type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research";
 const STORAGE = "marketly.research.v1";
 const INITIAL_WATCHLIST = ["AAPL", "MSFT", "NVDA", "GOOGL"];
 
@@ -619,7 +622,7 @@ export function ResearchDashboard() {
       <nav className="research-nav" aria-label="Primary navigation">
         <div>
           {(
-            ["Markets", "Small CAP", "Company", "Watchlist", "Saved research"] as View[]
+            ["Markets", "Small CAP", "News", "Company", "Watchlist", "Saved research"] as View[]
           ).map((item) => (
             <button
               className={view === item ? "active" : ""}
@@ -628,6 +631,8 @@ export function ResearchDashboard() {
             >
               {item === "Markets" ? (
                 <Globe2 size={16} />
+              ) : item === "News" ? (
+                <Newspaper size={16} />
               ) : item === "Company" ? (
                 <Layers3 size={16} />
               ) : item === "Watchlist" ? (
@@ -687,7 +692,9 @@ export function ResearchDashboard() {
             onToggle={toggleWatch}
             onWatchlist={() => navigate("Watchlist")}
           />
-        ) : view === "Small CAP" ? (<SmallCap onSelect={select} />) : view === "Saved research" ? (
+        ) : view === "Small CAP" ? (<SmallCap onSelect={select} />) : view === "News" ? (
+          <NewsHub symbols={watchlist} onSelect={select} />
+        ) : view === "Saved research" ? (
           <section className="library-view">
             <div className="section-heading">
               <div>
@@ -1061,7 +1068,7 @@ export function ResearchDashboard() {
                 </div>
               </section>
               <nav className="company-tabs" aria-label="Company sections">
-                {(["Overview", "Compare", "News", "Evidence"] as Tab[]).map(
+                {(["Overview", "Profile", "Network", "Compare", "News", "Evidence"] as Tab[]).map(
                   (t) => (
                     <button
                       key={t}
@@ -1077,12 +1084,6 @@ export function ResearchDashboard() {
               <div className="tab-content" key={`${company.symbol}-${tab}`}>
                 {tab === "Overview" && (
                   <>
-                    <RelationshipResearch
-                      key={company.symbol}
-                      symbol={company.symbol}
-                      companyName={name}
-                      context={companyAssistantContext}
-                    />
                     <CompanyFinancials
                       key={company.symbol}
                       financials={financials}
@@ -1203,6 +1204,23 @@ export function ResearchDashboard() {
                     </section>
                   </>
                 )}
+                {tab === "Profile" && (
+                  <section className="research-section company-facts">
+                    <div className="section-heading"><div><h2><Building2 size={17} /> Company profile</h2><p>Leadership, scale, and operating footprint from the latest available profile.</p></div></div>
+                    <div className="company-fact-grid">
+                      <div><small><Users size={13} /> Employees</small><strong>{financials?.info?.fullTimeEmployees?.toLocaleString() || "Not reported"}</strong></div>
+                      <div><small>Chief executive</small><strong>{financials?.info?.chiefExecutive || "Not reported"}</strong></div>
+                      <div><small>Headquarters</small><strong>{financials?.info?.headquarters || "Not reported"}</strong></div>
+                      <div><small>Founded</small><strong>{financials?.info?.foundedYear || "Not reported"}</strong></div>
+                      <div><small>Public since</small><strong>{financials?.info?.ipoDate || "Not reported"}</strong></div>
+                      <div><small>Industry</small><strong>{financials?.info?.industry || "Not reported"}</strong></div>
+                    </div>
+                    {financials?.info?.longBusinessSummary && <div className="company-description"><h3>What the company does</h3><p>{financials.info.longBusinessSummary}</p></div>}
+                    {financials?.info?.officeLocations?.length ? <div className="company-description"><h3>Office footprint</h3><div className="office-list">{financials.info.officeLocations.slice(0, 12).map((office, index) => <span key={`${office.address1 || office.city}-${index}`}>{[office.address1, office.city, office.state, office.country].filter(Boolean).join(", ")}</span>)}</div></div> : null}
+                    {financials?.info?.companyOfficers?.length ? <div className="company-description"><h3>Leadership</h3><div className="officer-list">{financials.info.companyOfficers.slice(0, 10).map((officer, index) => <div key={`${officer.name}-${index}`}><b>{officer.name || "Name unavailable"}</b><span>{officer.title || "Title unavailable"}</span></div>)}</div></div> : null}
+                  </section>
+                )}
+                {tab === "Network" && <RelationshipResearch key={company.symbol} symbol={company.symbol} companyName={name} />}
                 {tab === "Compare" && snapshot && (
                   <div className="notice">
                     Comparisons use current peer data. Return to current data to

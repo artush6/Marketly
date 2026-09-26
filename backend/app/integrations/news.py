@@ -9,6 +9,7 @@ from app.core.cache import CacheManager
 from app.core.config import settings
 from app.core.errors import MisconfigurationError
 from app.integrations import supabase_store
+from app.services.news_intelligence import enrich_articles
 import finnhub
 
 logger = logging.getLogger(__name__)
@@ -24,8 +25,8 @@ def _get_finnhub_client() -> finnhub.Client:
     return finnhub.Client(api_key=settings.FINNHUB_API_KEY)
 
 
-def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Optional[str] = None):
-    """"
+def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Optional[str] = None, *, force_refresh: bool = False):
+    """
     Fetch recent company news from Finnhub for a given symbol.
     Uses Redis caching to avoid redundant API calls.
     Optionally saves results to a JSON file.
@@ -37,16 +38,16 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
         f"{symbol}_{days}d_{max_items or 'all'}",
     )
     # Try to load from cache
-    cached, cache_source = CacheManager.get_with_source(cache_key)
+    cached, cache_source = (None, None) if force_refresh else CacheManager.get_with_source(cache_key)
     if cached:
-        articles = json.loads(cached)
+        articles = enrich_articles(json.loads(cached))
         if isinstance(articles, list):
             supabase_store.save_news_articles(symbol, articles)
         LAST_DATA_SOURCE.set(cache_source or "cache")
         return articles
 
     snapshot_key = f"{symbol}_{days}d_{max_items or 'all'}"
-    snapshot = supabase_store.get_latest_snapshot("news", snapshot_key)
+    snapshot = None if force_refresh else supabase_store.get_latest_snapshot("news", snapshot_key)
     if snapshot and isinstance(snapshot.get("payload"), list):
         LAST_DATA_SOURCE.set("supabase")
         CacheManager.set(cache_key, json.dumps(snapshot["payload"]))
@@ -59,8 +60,9 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
     date_end = datetime.date.today().isoformat()
 
     finnhub_client = _get_finnhub_client()
-    articles = finnhub_client.company_news(
+    articles = enrich_articles(finnhub_client.company_news(
         symbol, _from=date_start, to=date_end)
+    )
 
     if max_items:
         articles = articles[:max_items]
@@ -103,7 +105,7 @@ def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: 
     cache_key = CacheManager.make_key("news", f"{symbols_str}_{days}d")
 
     if cached := CacheManager.get(cache_key):
-        return json.loads(cached)
+        return {symbol: enrich_articles(articles) for symbol, articles in json.loads(cached).items()}
 
     date_start = (datetime.date.today() -
                   datetime.timedelta(days=days)).isoformat()
@@ -116,8 +118,8 @@ def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: 
 
     finnhub_client = _get_finnhub_client()
     for symbol in symbols:
-        articles = finnhub_client.company_news(
-            symbol, _from=date_start, to=date_end)
+        articles = enrich_articles(finnhub_client.company_news(
+            symbol, _from=date_start, to=date_end))
         logger.debug("%s: %s articles", symbol, len(articles))
         logger.debug("%s: type=%s, sample=%s", symbol, type(articles), articles[:1])
 
@@ -125,6 +127,7 @@ def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: 
             articles = articles[:max_items]
 
         grouped[symbol] = articles
+        supabase_store.save_news_articles(symbol, articles)
 
     # Cache the new data
     CacheManager.set(cache_key, json.dumps(grouped))
@@ -150,7 +153,7 @@ def get_news_mixed(symbols, max_items: int = 10, days: int = 3, output_file: Opt
     cache_key = CacheManager.make_key("news", f"{symbols_str}_{days}d")
 
     if cached := CacheManager.get(cache_key):
-        return json.loads(cached)
+        return enrich_articles(json.loads(cached))
 
     date_start = (datetime.date.today() -
                   datetime.timedelta(days=days)).isoformat()
@@ -163,13 +166,14 @@ def get_news_mixed(symbols, max_items: int = 10, days: int = 3, output_file: Opt
 
     finnhub_client = _get_finnhub_client()
     for symbol in symbols:
-        articles = finnhub_client.company_news(
-            symbol, _from=date_start, to=date_end)
+        articles = enrich_articles(finnhub_client.company_news(
+            symbol, _from=date_start, to=date_end))
         if max_items:
             articles = articles[:max_items]
+        supabase_store.save_news_articles(symbol, articles)
         mixed_articles.extend(articles)
 
-    mixed_articles.sort(key=lambda x: x['datetime'])
+    mixed_articles.sort(key=lambda x: x.get('datetime', 0), reverse=True)
 
     CacheManager.set(cache_key, json.dumps(mixed_articles))
 

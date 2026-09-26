@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.integrations import supabase_store
 from app.services.market_refresh import RefreshWorker
-from app.routes import companies, analysis, assistant, discovery, econ_situation, financials, heatmap, market, news
+from app.routes import companies, analysis, assistant, discovery, econ_situation, financials, heatmap, market, news, relationships
 from rich.traceback import install
 from app.core.cache import r as redis_client
 from app.core.config import settings
@@ -29,6 +29,7 @@ app = FastAPI(title="Marketly Backend 🚀", lifespan=lifespan)
 app.include_router(companies.router)
 app.include_router(financials.router)
 app.include_router(news.router)
+app.include_router(relationships.router)
 app.include_router(analysis.router)
 app.include_router(assistant.router)
 app.include_router(econ_situation.router)
