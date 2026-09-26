@@ -84,7 +84,8 @@ def heatmap():
             stocks = combine(root, perf)
             _snapshot = {"stocks": stocks, "source": "Finviz", "sourceUrl": "https://finviz.com/map?t=sec_all",
                          "fetchedAt": datetime.now(timezone.utc).isoformat(),
-                         "scope": "US-listed stocks covered by Finviz, including ADRs", "delayed": True}
+                         "scope": "US-listed stocks covered by Finviz, including ADRs", "delayed": True,
+                         "marketCapUnit": "USD millions"}
             _refreshed = time()
             return {**_snapshot, "stale": False}
         except (httpx.HTTPError, ValueError, KeyError, TypeError):

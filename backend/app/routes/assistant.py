@@ -25,11 +25,13 @@ class FollowUpRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     conversation: list[ConversationMessage] = Field(default_factory=list, max_length=12)
     analysis_context: dict[str, Any] | None = None
+    research: bool = False
 
 
 class FollowUpResponse(BaseModel):
     symbol: str
     answer: str
+    sources: list[dict[str, str]] = Field(default_factory=list)
 
 
 @router.post("/follow-up", response_model=FollowUpResponse)
@@ -42,7 +44,7 @@ def follow_up(request: FollowUpRequest):
 
         # The dashboard already has a complete analysis payload. Reusing it makes
         # follow-ups independent of slow financial/news providers and Redis.
-        if request.analysis_context:
+        if request.analysis_context is not None or request.research or symbol == "MARKET":
             score = request.analysis_context
             financials = {}
             news = []
@@ -50,6 +52,14 @@ def follow_up(request: FollowUpRequest):
             financials = fetch_ticker_financials(symbol)
             score = build_ticker_score(symbol)
             news = get_news(symbol)
+        if request.research:
+            from app.integrations.research_chat import research_answer
+            result = research_answer(
+                question,
+                {"symbol": symbol, **(request.analysis_context or {})},
+                [message.model_dump() for message in request.conversation],
+            )
+            return {"symbol": symbol, **result}
         response = answer_follow_up(
             symbol=symbol,
             question=question,

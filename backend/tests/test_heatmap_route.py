@@ -38,3 +38,18 @@ def test_initial_outage_is_explicit(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         module.heatmap()
     assert exc.value.status_code==503
+
+
+def test_heatmap_declares_market_cap_units(monkeypatch):
+    monkeypatch.setattr(module, '_snapshot', None)
+    monkeypatch.setattr(module, 'universe', lambda _: {
+        'children': [{'name': 'Tech', 'children': [{'name': 'Software', 'children': [
+            {'name': f'S{i}', 'description': f'Stock {i}', 'value': i + 1}
+            for i in range(120)
+        ]}]}]
+    })
+    monkeypatch.setattr(module, 'fetch_public', lambda _: '{"nodes": {}}')
+
+    result = module.heatmap()
+
+    assert result['marketCapUnit'] == 'USD millions'

@@ -1390,3 +1390,116 @@
     padding: 18px 10px;
   }
 }
+.chat-preferences {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #a1b98a;
+}
+.chat-preferences label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-preferences select {
+  background: #20291b;
+  color: #dce8cc;
+  border: 1px solid #405131;
+  border-radius: 4px;
+  padding: 4px 6px;
+  max-width: 150px;
+}
+.chat-checkbox input {
+  accent-color: #b4e45d;
+}
+.chat-message a {
+  display: inline-block;
+  font-size: 12px;
+  color: #b4e45d;
+  margin: 4px 8px 0 0;
+}
+.relationship-research .section-heading h2,
+.relationship-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.relationship-answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #36402f;
+  line-height: 1.75;
+  margin-top: 18px;
+}
+.relationship-sources {
+  overflow-wrap: anywhere;
+  border-top: 1px solid #dce3d3;
+  margin-top: 22px;
+  padding-top: 16px;
+}
+.relationship-sources h3 {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.relationship-sources a {
+  display: inline-block;
+  color: #466c23;
+  font-size: 12px;
+  margin: 0 12px 7px 0;
+}
+.conversation-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid #dce3d3;
+}
+.conversation-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+}
+.conversation-open small {
+  color: #7f8d73;
+}
+.discovery-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) 1fr 1fr auto;
+  gap: 10px;
+  margin: 24px 0 16px;
+}
+.discovery-filters input,
+.discovery-filters select {
+  min-width: 0;
+  border: 1px solid #d7dfce;
+  border-radius: 5px;
+  background: #fff;
+  padding: 10px 11px;
+  color: #27331f;
+}
+@media (min-width:1100px) {
+  body.marketly-chat-pinned .research-app {
+    margin-right: 420px;
+    transition: margin-right 180ms ease;
+  }
+  .chat-dock.pinned {top:12px; bottom:12px; right:12px; left:auto; width:396px; transform:none; display:flex; flex-direction:column; max-width:none;}
+  .chat-dock.pinned .chat-thread {flex:1; min-height:0; display:flex; flex-direction:column;}
+  .chat-dock.pinned .chat-messages {flex:1; max-height:none;}
+}
+@media (max-width: 820px) {
+  .discovery-filters {
+    grid-template-columns: 1fr;
+  }
+  .relationship-research .section-heading {
+    align-items: flex-start;
+    gap: 14px;
+  }
+}

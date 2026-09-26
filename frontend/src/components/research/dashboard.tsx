@@ -53,12 +53,15 @@ import {
   FinancialDocuments,
   financialDocumentUrl,
 } from "./financial-documents";
+import { SmallCap } from "./small-cap";
+import { SavedConversations } from "./saved-conversations";
+import { RelationshipResearch } from "./relationship-research";
 import { ChatDock } from "./chat-dock";
 import "./research.css";
 import "./terminal.css";
 
 type Tab = "Overview" | "Compare" | "News" | "Evidence";
-type View = "Markets" | "Company" | "Watchlist" | "Saved research";
+type View = "Small CAP" | "Markets" | "Company" | "Watchlist" | "Saved research";
 const STORAGE = "marketly.research.v1";
 const INITIAL_WATCHLIST = ["AAPL", "MSFT", "NVDA", "GOOGL"];
 
@@ -541,6 +544,53 @@ export function ResearchDashboard() {
     },
     { label: "Net margin", value: format(m.margin, "percent") },
   ];
+  const companyAssistantContext = {
+    symbol: company.symbol,
+    watchlist,
+    financialMetrics: m,
+    dataQuality: financials?.dataQuality,
+    financialSources: financials?.sources,
+    analysis: analysis
+      ? {
+          summary: analysis.summary,
+          score: analysis.score,
+          positives: analysis.positives,
+          negatives: analysis.negatives,
+        }
+      : null,
+    news: news.slice(0, 6).map((article) => ({
+      headline: article.headline,
+      summary: article.summary?.slice(0, 700),
+      url: article.url,
+    })),
+    comparisonCompanies: [
+      ...(financials ? [{
+        symbol: company.symbol,
+        name,
+        metrics: m,
+        statementDates: {
+          income: financials.financials?.income_statement?.[0]?.date,
+          balanceSheet: financials.financials?.balance_sheet?.[0]?.date,
+          cashFlow: financials.financials?.cash_flow?.[0]?.date,
+        },
+        dataQuality: financials.dataQuality,
+        provenance: financials.sources,
+      }] : []),
+      ...Object.entries(peerData).map(([symbol, data]) => ({
+        symbol,
+        name: data.info?.shortName || symbol,
+        metrics: metrics(data),
+        statementDates: {
+          income: data.financials?.income_statement?.[0]?.date,
+          balanceSheet: data.financials?.balance_sheet?.[0]?.date,
+          cashFlow: data.financials?.cash_flow?.[0]?.date,
+        },
+        dataQuality: data.dataQuality,
+        provenance: data.sources,
+      })),
+    ],
+    savedAt: snapshot?.savedAt,
+  };
 
   return (
     <div className="research-app">
@@ -566,7 +616,7 @@ export function ResearchDashboard() {
       <nav className="research-nav" aria-label="Primary navigation">
         <div>
           {(
-            ["Markets", "Company", "Watchlist", "Saved research"] as View[]
+            ["Markets", "Small CAP", "Company", "Watchlist", "Saved research"] as View[]
           ).map((item) => (
             <button
               className={view === item ? "active" : ""}
@@ -634,7 +684,7 @@ export function ResearchDashboard() {
             onToggle={toggleWatch}
             onWatchlist={() => navigate("Watchlist")}
           />
-        ) : view === "Saved research" ? (
+        ) : view === "Small CAP" ? (<SmallCap onSelect={select} />) : view === "Saved research" ? (
           <section className="library-view">
             <div className="section-heading">
               <div>
@@ -643,6 +693,7 @@ export function ResearchDashboard() {
               </div>
               <Bookmark size={23} />
             </div>
+            <SavedConversations />
             {saved.length === 0 ? (
               <div className="large-empty">
                 <Bookmark size={32} />
@@ -1023,6 +1074,12 @@ export function ResearchDashboard() {
               <div className="tab-content" key={`${company.symbol}-${tab}`}>
                 {tab === "Overview" && (
                   <>
+                    <RelationshipResearch
+                      key={company.symbol}
+                      symbol={company.symbol}
+                      companyName={name}
+                      context={companyAssistantContext}
+                    />
                     <CompanyFinancials
                       key={company.symbol}
                       financials={financials}
@@ -1590,29 +1647,7 @@ export function ResearchDashboard() {
           scope={view === "Company" ? company.symbol : "MARKET"}
           context={
             view === "Company"
-              ? {
-                  symbol: company.symbol,
-                  financialMetrics: m,
-                  dataQuality: financials?.dataQuality,
-                  analysis: analysis
-                    ? {
-                        summary: analysis.summary,
-                        score: analysis.score,
-                        positives: analysis.positives,
-                        negatives: analysis.negatives,
-                      }
-                    : null,
-                  news: news.slice(0, 6).map((a) => ({
-                    headline: a.headline,
-                    summary: a.summary?.slice(0, 700),
-                    url: a.url,
-                  })),
-                  peers: Object.entries(peerData).map(([symbol, data]) => ({
-                    symbol,
-                    ...metrics(data),
-                  })),
-                  savedAt: snapshot?.savedAt,
-                }
+              ? companyAssistantContext
               : {
                   scope: "US markets",
                   quotes: market.data?.quotes || [],

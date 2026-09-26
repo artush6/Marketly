@@ -104,6 +104,7 @@ export type BackendNewsItem = {
 };
 
 export type BackendFollowUpResponse = {
+  sources?: {url: string; title: string}[];
   symbol: string;
   answer: string;
 };
@@ -414,6 +415,7 @@ export async function postFollowUp(
   question: string,
   analysisContext?: Record<string, unknown>,
   conversation: { role: "user" | "assistant"; content: string }[] = [],
+  research = false,
 ): Promise<BackendFollowUpResponse> {
   const res = await fetch(`${getBaseUrl()}/assistant/follow-up`, {
     signal: AbortSignal.timeout(90000),
@@ -426,6 +428,7 @@ export async function postFollowUp(
       symbol,
       question,
       analysis_context: analysisContext,
+      research,
       conversation,
     }),
   });

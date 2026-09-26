@@ -28,7 +28,45 @@ def test_follow_up_reuses_supplied_analysis_context(monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.json() == {"symbol": "AAPL", "answer": "Context score: 82"}
+    assert response.json() == {
+        "symbol": "AAPL",
+        "answer": "Context score: 82",
+        "sources": [],
+    }
+
+
+def test_research_follow_up_returns_citation_sources(monkeypatch):
+    captured = {}
+
+    def research(question, context, conversation):
+        captured.update(question=question, context=context, conversation=conversation)
+        return {
+            "answer": "TSMC manufactures advanced NVIDIA chips.",
+            "sources": [{"url": "https://example.com/filing", "title": "Issuer filing"}],
+        }
+
+    monkeypatch.setattr("app.integrations.research_chat.research_answer", research)
+    response = client.post(
+        "/assistant/follow-up",
+        json={
+            "symbol": "nvda",
+            "question": "Who supplies NVIDIA?",
+            "research": True,
+            "analysis_context": {"investorStrategy": "Balanced"},
+            "conversation": [{"role": "user", "content": "Focus on disclosed relationships."}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "symbol": "NVDA",
+        "answer": "TSMC manufactures advanced NVIDIA chips.",
+        "sources": [{"url": "https://example.com/filing", "title": "Issuer filing"}],
+    }
+    assert captured["context"] == {"symbol": "NVDA", "investorStrategy": "Balanced"}
+    assert captured["conversation"] == [
+        {"role": "user", "content": "Focus on disclosed relationships."}
+    ]
 
 
 def test_dependency_health_does_not_expose_credentials():
