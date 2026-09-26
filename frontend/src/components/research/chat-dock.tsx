@@ -77,7 +77,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   const [activeScope, setActiveScope] = useState(scope);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [open, setOpen] = useState(mode === "workspace");
+  const [open, setOpen] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const conversationId = useRef("");
@@ -130,7 +130,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     try {
       setStrategy(localStorage.getItem("marketly.strategy") || "Balanced");
       setHorizon(localStorage.getItem("marketly.horizon") || "3–5 years");
-      setPinned(localStorage.getItem("marketly.chat.pinned") === "true");
+      setPinned(localStorage.getItem("marketly.chat.pinned.v2") === "true");
     } catch { /* Defaults remain usable. */ }
 
     const resumeConversation = (event: Event) => openConversation((event as CustomEvent<Conversation>).detail);
@@ -158,7 +158,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
 
   useEffect(() => {
     document.body.classList.toggle("marketly-chat-pinned", mode === "dock" && pinned);
-    try { localStorage.setItem("marketly.chat.pinned", String(pinned)); } catch { /* Session only. */ }
+    try { localStorage.setItem("marketly.chat.pinned.v2", String(pinned)); } catch { /* Session only. */ }
     return () => document.body.classList.remove("marketly-chat-pinned");
   }, [mode, pinned]);
 
@@ -297,24 +297,23 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     }
   }
 
-  const panel = (
-    <section className={`chat-dock ${open ? "expanded" : ""} ${mode === "dock" && pinned ? "pinned" : ""} ${mode === "workspace" ? "workspace" : ""}`} aria-label="Research assistant">
+  const thread = (
+    <div className="chat-thread">
+      <div className="chat-thread-heading">
+        <span>
+          {mode === "workspace" && <button className="chat-back" aria-label="Back to Marketly" onClick={() => window.opener ? window.close() : window.location.assign("/")}><ArrowLeft size={16} /></button>}
+          <Sparkles size={14} /> Marketly assistant <small>{activeScope === "MARKET" ? "US MARKETS" : activeScope}</small>
+        </span>
+        <div>
+          {mode === "dock" && <button aria-label={pinned ? "Unpin conversation" : "Pin conversation to side"} onClick={() => { setPinned(!pinned); setOpen(true); }}><PanelRight size={16} /></button>}
+          {mode === "dock" && <button aria-label="Open full chat workspace" disabled={busy} onClick={() => openWorkspace(false)}><Maximize2 size={16} /></button>}
+          <button aria-label="Open chat in separate window" disabled={busy} onClick={() => openWorkspace(true)}><ExternalLink size={16} /></button>
+          <button aria-label="Start new conversation" disabled={busy} onClick={startNewConversation}><X size={15} /></button>
+          {mode === "dock" && <button aria-label={open ? "Minimize chat" : "Open conversation"} onClick={() => setOpen(!open)}><ChevronDown className={open ? "" : "chat-chevron-up"} size={17} /></button>}
+        </div>
+      </div>
       {open && (
-        <div className="chat-thread">
-          <div className="chat-thread-heading">
-            <span>
-              {mode === "workspace" && <button className="chat-back" aria-label="Back to Marketly" onClick={() => window.opener ? window.close() : window.location.assign("/")}><ArrowLeft size={16} /></button>}
-              <Sparkles size={14} /> Marketly assistant <small>{activeScope === "MARKET" ? "US MARKETS" : activeScope}</small>
-            </span>
-            <div>
-              {mode === "dock" && <button aria-label={pinned ? "Unpin conversation" : "Pin conversation to side"} onClick={() => { setPinned(!pinned); setOpen(true); }}><PanelRight size={16} /></button>}
-              {mode === "dock" && <button aria-label="Open full chat workspace" disabled={busy} onClick={() => openWorkspace(false)}><Maximize2 size={16} /></button>}
-              <button aria-label="Open chat in separate window" disabled={busy} onClick={() => openWorkspace(true)}><ExternalLink size={16} /></button>
-              <button aria-label="Start new conversation" disabled={busy} onClick={startNewConversation}><X size={15} /></button>
-              {mode === "dock" && <button aria-label="Minimize chat" onClick={() => setOpen(false)}><ChevronDown size={17} /></button>}
-            </div>
-          </div>
-          {mode === "dock" && <ChatHistory activeId={activeConversationId} mode="strip" onOpen={openConversation} onNew={startNewConversation} />}
+        <>
           <div className="chat-messages" role="log" aria-live="polite">
             {!messages.length && <p className="chat-empty">Ask about the market, challenge a thesis, or compare the companies that matter.</p>}
             {messages.map((message, index) => (
@@ -331,8 +330,12 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
             {error && <p role="alert" className="chat-error">{error}</p>}
             <div ref={bottom} />
           </div>
-        </div>
+        </>
       )}
+    </div>
+  );
+
+  const composer = (
       <form onSubmit={submit}>
         <div className="chat-preferences">
           <label>Strategy <select aria-label="Investor strategy" value={strategy} onChange={(event) => { setStrategy(event.target.value); try { localStorage.setItem("marketly.strategy", event.target.value); } catch { /* Session only. */ } }}>{["Conservative", "Balanced", "Aggressive growth"].map((value) => <option key={value}>{value}</option>)}</select></label>
@@ -351,6 +354,17 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
           {mode === "dock" && <button type="button" onClick={() => setOpen(!open)} aria-label={open ? "Minimize conversation" : "Open conversation"}><MessageSquare size={13} />{messages.length ? `${messages.length} messages` : "Chat"}</button>}
         </div>
       </form>
+  );
+
+  const panel = (
+    <section className={`chat-dock ${open ? "expanded" : ""} ${mode === "dock" && pinned ? "pinned" : ""} ${mode === "workspace" ? "workspace" : ""}`} aria-label="Research assistant">
+      <div className="chat-dock-layout">
+        {mode === "dock" && open && <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />}
+        <div className="chat-conversation-column">
+          {thread}
+          {composer}
+        </div>
+      </div>
     </section>
   );
   return mode === "workspace" ? (
