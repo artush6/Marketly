@@ -1,18 +1,18 @@
 /* Canonical terminal palette. Loaded after structural and legacy styles. */
 :root,
 .dark {
-  --primary: #f5a24b;
+  --primary: #00c805;
   --primary-foreground: #111111;
-  --ring: #f5a24b;
-  --chart-1: #f5a24b;
-  --sidebar-primary: #f5a24b;
-  --sidebar-ring: #f5a24b;
+  --ring: #00c805;
+  --chart-1: #00c805;
+  --sidebar-primary: #00c805;
+  --sidebar-ring: #00c805;
   --positive: #46d69a;
   --negative: #ff727c;
   --background: #090a0b;
   --foreground: #eceef0;
   --card: #111315;
-  --accent: #f5a24b;
+  --accent: #00c805;
 }
 html[data-marketly-theme="dark"],
 html[data-marketly-theme="dark"] body {
@@ -23,9 +23,9 @@ html[data-marketly-theme="dark"] .research-app,
   --ink: #eceef0;
   --muted-ink: #969da6;
   --line: #2a2d31;
-  --green: #f5a24b;
+  --green: #00c805;
   --paper: #090a0b;
-  --chart-primary: #f5a24b;
+  --chart-primary: #00c805;
   --chart-secondary: #64b5f6;
   --chart-tertiary: #b59af5;
   --chart-grid: #292d32;
@@ -73,13 +73,13 @@ html[data-marketly-theme="dark"]
   border-color: #2a2d31;
 }
 html[data-marketly-theme="dark"] .primary-button {
-  background: #f5a24b;
-  border-color: #f5a24b;
-  color: #14100b;
+  background: #00c805;
+  border-color: #00c805;
+  color: #041008;
   box-shadow: none;
 }
 html[data-marketly-theme="dark"] .primary-button:not(:disabled):hover {
-  background: #ffb66b;
+  background: #25e830;
 }
 html[data-marketly-theme="dark"] .secondary-button {
   background: #191b1f;
@@ -87,9 +87,9 @@ html[data-marketly-theme="dark"] .secondary-button {
   color: #e1e4e8;
 }
 html[data-marketly-theme="dark"] .secondary-button:hover {
-  background: #27211a;
-  border-color: #a5713e;
-  color: #ffb66b;
+  background: #13251a;
+  border-color: #169c46;
+  color: #25e830;
 }
 html[data-marketly-theme="dark"]
   :is(
@@ -98,11 +98,11 @@ html[data-marketly-theme="dark"]
     .text-button,
     .brand-period
   ) {
-  color: #f5a24b;
+  color: #00c805;
 }
 .brand-mark i,
 .company-tabs button.active:after {
-  background: #f5a24b;
+  background: #00c805;
 }
 .primary-button,
 .secondary-button {
@@ -139,14 +139,14 @@ html[data-marketly-theme="dark"] .article-link-form {
   color: #a9afb8;
 }
 html[data-marketly-theme="dark"] .article-link-form button {
-  color: #f5a24b;
+  color: #00c805;
   flex-shrink: 0;
 }
 html[data-marketly-theme="dark"] .article-link-form input::placeholder {
   color: #8f97a1;
 }
 html[data-marketly-theme="dark"] .selected-row {
-  background: #251d14;
+  background: #092615;
   color: #f1e4d3;
 }
 html[data-marketly-theme="dark"] .average-row {
@@ -188,7 +188,7 @@ html[data-marketly-theme="dark"] .average-row {
   flex-shrink: 0;
 }
 .mover-tabs button.active {
-  border-color: #f5a24b;
+  border-color: #00c805;
 }
 .company-fact-grid strong,
 .company-description,
@@ -224,7 +224,7 @@ html[data-marketly-theme="dark"] .average-row {
   font-size: 13px;
 }
 .relationship-map-heading .eyebrow {
-  color: #f5a24b;
+  color: #00c805;
   font-size: 10px;
   letter-spacing: 0.12em;
 }
@@ -293,7 +293,7 @@ html[data-marketly-theme="dark"] .average-row {
 .relationship-map-legend button[aria-pressed="true"] {
   background: #292018;
   border-color: #815b35;
-  color: #ffb66b;
+  color: #25e830;
 }
 .relationship-map-legend {
   gap: 3px;
@@ -336,7 +336,7 @@ html[data-marketly-theme="dark"] .average-row {
 }
 .relationship-core rect {
   fill: #302215;
-  stroke: #f5a24b;
+  stroke: #00c805;
 }
 .relationship-core text {
   fill: #ffb76f;
@@ -419,7 +419,7 @@ html[data-marketly-theme="dark"] .average-row {
   overflow-wrap: anywhere;
 }
 .relationship-evidence-panel a {
-  color: #ffb66b;
+  color: #25e830;
   font-size: 12px;
   margin-top: 10px;
 }

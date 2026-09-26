@@ -12,7 +12,6 @@ import {
   Bookmark,
   Building2,
   ChevronRight,
-  CircleHelp,
   ExternalLink,
   FileText,
   Globe2,
@@ -50,6 +49,7 @@ import { preloadFinancials } from "@/lib/api";
 import { CompanySearch } from "./company-search";
 import { EarningsReminders } from "./earnings-reminders";
 import { CompanyFinancials } from "./company-financials";
+import { CompanyResearchSnapshot } from "./company-research-snapshot";
 import { PriceChart } from "./price-chart";
 import { MarketOverview, useMarketSnapshot } from "./market-overview";
 import {
@@ -653,14 +653,6 @@ export function ResearchDashboard() {
         </span>
       </nav>
       <main className="research-main">
-        <div className="workspace-heading">
-          <div className="breadcrumb">
-            Workspace <ChevronRight size={12} /> {view}
-          </div>
-          <span className="local-label">
-            Saved on this device <CircleHelp size={13} />
-          </span>
-        </div>
         <EarningsReminders symbols={watchlist} ready={ready} />
         {notice && (
           <div className="notice" role="status">
@@ -1005,6 +997,11 @@ export function ResearchDashboard() {
                     {error}
                   </div>
                 )}
+                <CompanyResearchSnapshot
+                  financials={financials}
+                  analysis={analysis}
+                  loading={loading}
+                />
                 {!loading &&
                   financials?.dataQuality &&
                   financials.dataQuality.status !== "complete" && (

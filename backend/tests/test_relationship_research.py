@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.relationship_research import canonical_url, retrieved_urls, validate_evidence, research_relationships
+from app.services.relationship_research import BASELINE_LEADS, canonical_url, retrieved_urls, validate_evidence, research_relationships
 
 
 def evidence(**changes):
@@ -41,6 +41,10 @@ def test_deduplicates_sources_and_collects_retrieval_provenance():
     assert urls == {"https://issuer.example/filing"}
     assert len(validate_evidence([evidence(), evidence()], urls, "AAPL", "Apple")) == 1
     assert canonical_url("https://secret@issuer.example/report") == ""
+
+
+def test_historical_baseline_includes_samsung_as_an_apple_discovery_lead():
+    assert "Samsung Electronics" in BASELINE_LEADS["AAPL"]
 
 
 def test_persistence_failure_is_reported_not_claimed_as_success():

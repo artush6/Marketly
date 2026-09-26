@@ -47,7 +47,7 @@ function RichText({ content }: { content: string }) {
 
 function ComparisonVisual({ visual }: { visual: Extract<ChatVisual, { type: "comparison" }> }) {
   const charts = [
-    { key: "revenue", title: "Revenue", color: "#f5a24b", formatter: (value: number) => `$${(value / 1e9).toFixed(1)}B` },
+    { key: "revenue", title: "Revenue", color: "#00c805", formatter: (value: number) => `$${(value / 1e9).toFixed(1)}B` },
     { key: "marketCap", title: "Market cap", color: "#64b5f6", formatter: (value: number) => `$${(value / 1e9).toFixed(1)}B` },
     { key: "pe", title: "Trailing P/E", color: "#b59af5", formatter: (value: number) => `${value.toFixed(1)}×` },
     { key: "margin", title: "Net margin", color: "#58c7c2", formatter: (value: number) => `${value.toFixed(1)}%` },

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { ArrowLeft, ArrowUp, ChevronDown, ExternalLink, LoaderCircle, Maximize2, MessageSquare, PanelRight, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowUp, ChevronDown, ExternalLink, History, LoaderCircle, Maximize2, MessageSquare, PanelRight, Sparkles, X } from "lucide-react";
 import { BackendRequestError, getFinancials, postFollowUp, type BackendFinancialsResponse } from "@/lib/api";
 import { metrics, safeUrl, STARTER_COMPANIES } from "@/lib/research";
 import {
@@ -33,8 +33,9 @@ const COMPANY_ALIASES: Record<string, string> = {
   tesla: "TSLA",
 };
 const CHAT_CHANNEL = "marketly-chat-state";
-const CHAT_OPEN_KEY = "marketly.chat.open.v1";
-const CHAT_PINNED_KEY = "marketly.chat.pinned.v3";
+const CHAT_OPEN_KEY = "marketly.chat.open.v2";
+const CHAT_PINNED_KEY = "marketly.chat.pinned.v4";
+const CHAT_HISTORY_KEY = "marketly.chat.history-visible.v1";
 
 function comparisonSymbols(question: string, scope: string) {
   if (!/\b(compare|comparison|versus|vs\.?|choose between|better|revenue|sales|margin|valuation|market cap|metrics|financials|graph|chart|measure|performance)\b/i.test(question)) return [];
@@ -74,14 +75,15 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   mode?: "dock" | "workspace";
   initialConversationId?: string;
 }) {
-  const [pinned, setPinned] = useState(true);
+  const [pinned, setPinned] = useState(false);
+  const [historyVisible, setHistoryVisible] = useState(true);
   const [strategy, setStrategy] = useState("Balanced");
   const [horizon, setHorizon] = useState("3–5 years");
   const [research, setResearch] = useState(false);
   const [activeScope, setActiveScope] = useState(scope);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(mode === "workspace");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const conversationId = useRef("");
@@ -135,8 +137,9 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     try {
       setStrategy(localStorage.getItem("marketly.strategy") || "Balanced");
       setHorizon(localStorage.getItem("marketly.horizon") || "3–5 years");
-      setPinned(localStorage.getItem(CHAT_PINNED_KEY) !== "false");
-      setOpen(localStorage.getItem(CHAT_OPEN_KEY) !== "false");
+      setPinned(localStorage.getItem(CHAT_PINNED_KEY) === "true");
+      setHistoryVisible(localStorage.getItem(CHAT_HISTORY_KEY) !== "false");
+      setOpen(mode === "workspace" || localStorage.getItem(CHAT_OPEN_KEY) === "true");
     } catch { /* Defaults remain usable. */ }
 
     const applyState = (value: { open?: boolean; pinned?: boolean }) => {
@@ -147,7 +150,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     stateChannel.current = channel;
     if (channel) channel.onmessage = (event: MessageEvent<{ open?: boolean; pinned?: boolean }>) => applyState(event.data || {});
     const syncStorage = (event: StorageEvent) => {
-      if (event.key === CHAT_OPEN_KEY) setOpen(event.newValue !== "false");
+      if (mode === "dock" && event.key === CHAT_OPEN_KEY) setOpen(event.newValue === "true");
       if (event.key === CHAT_PINNED_KEY) setPinned(event.newValue === "true");
     };
     window.addEventListener("storage", syncStorage);
@@ -167,7 +170,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
       window.removeEventListener("marketly-resume-chat", resumeConversation);
       window.removeEventListener("marketly-research-question", askResearchQuestion);
     };
-  }, [openConversation]);
+  }, [mode, openConversation]);
 
   useEffect(() => {
     if (loadedInitialConversation.current || typeof window === "undefined") return;
@@ -181,12 +184,18 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   useEffect(() => {
     document.body.classList.toggle("marketly-chat-pinned", mode === "dock" && pinned);
     try {
-      localStorage.setItem(CHAT_OPEN_KEY, String(open));
-      if (mode === "dock") localStorage.setItem(CHAT_PINNED_KEY, String(pinned));
+      if (mode === "dock") {
+        localStorage.setItem(CHAT_OPEN_KEY, String(open));
+        localStorage.setItem(CHAT_PINNED_KEY, String(pinned));
+      }
     } catch { /* Session only. */ }
     stateChannel.current?.postMessage(mode === "dock" ? { open, pinned } : { open });
     return () => document.body.classList.remove("marketly-chat-pinned");
   }, [mode, open, pinned]);
+
+  useEffect(() => {
+    try { localStorage.setItem(CHAT_HISTORY_KEY, String(historyVisible)); } catch { /* Session only. */ }
+  }, [historyVisible]);
 
   useEffect(() => {
     if (!messages.some((message) => message.role === "assistant") || busy) return;
@@ -331,6 +340,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
           <Sparkles size={14} /> Marketly assistant <small>{activeScope === "MARKET" ? "US MARKETS" : activeScope}</small>
         </span>
         <div>
+          <button aria-label={historyVisible ? "Hide conversation history" : "Show conversation history"} aria-pressed={historyVisible} onClick={() => setHistoryVisible(!historyVisible)}><History size={16} /></button>
           {mode === "dock" && <button aria-label={pinned ? "Unpin conversation" : "Pin conversation to side"} onClick={() => { setPinned(!pinned); setOpen(true); }}><PanelRight size={16} /></button>}
           {mode === "dock" && <button aria-label="Open full chat workspace" disabled={busy} onClick={() => openWorkspace(false)}><Maximize2 size={16} /></button>}
           <button aria-label="Open chat in separate window" disabled={busy} onClick={() => openWorkspace(true)}><ExternalLink size={16} /></button>
@@ -384,8 +394,8 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
 
   const panel = (
     <section className={`chat-dock ${open ? "expanded" : ""} ${mode === "dock" && pinned ? "pinned" : ""} ${mode === "workspace" ? "workspace" : ""}`} aria-label="Research assistant">
-      <div className="chat-dock-layout">
-        {mode === "dock" && open && <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />}
+      <div className={`chat-dock-layout ${historyVisible ? "with-history" : "history-hidden"}`}>
+        {mode === "dock" && open && historyVisible && <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />}
         <div className="chat-conversation-column">
           {thread}
           {composer}
@@ -394,8 +404,8 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     </section>
   );
   return mode === "workspace" ? (
-    <div className="chat-workspace-shell">
-      <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />
+    <div className={`chat-workspace-shell ${historyVisible ? "with-history" : "history-hidden"}`}>
+      {historyVisible && <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />}
       <main className="chat-workspace-main">{panel}</main>
     </div>
   ) : panel;

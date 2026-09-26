@@ -67,7 +67,7 @@ export function ChartWidget({
             fontFamily: "Arial, sans-serif",
             fontSize: "11",
             chartType: "area",
-            lineColor: "#f5a24b",
+            lineColor: "#00c805",
             topColor: theme === "light" ? "rgba(47,118,88,0.14)" : "rgba(180,228,93,0.12)",
             bottomColor: theme === "light" ? "rgba(47,118,88,0)" : "rgba(180,228,93,0)",
             backgroundColor: "#111315",

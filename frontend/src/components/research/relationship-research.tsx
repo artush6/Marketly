@@ -6,7 +6,7 @@ import { getRelationships, refreshRelationships, type CompanyRelationship, type 
 import { safeUrl } from "@/lib/research";
 
 const GROUPS = ["supplier", "customer", "partner", "competitor", "investor", "subsidiary", "other"] as const;
-const COLORS: Record<string, string> = { supplier: "#f6aa50", customer: "#64b5f6", partner: "#58c7c2", competitor: "#b59af5", investor: "#e3b5df", subsidiary: "#e6ce79", other: "#939ba7" };
+const COLORS: Record<string, string> = { supplier: "#00c805", customer: "#64b5f6", partner: "#58c7c2", competitor: "#b59af5", investor: "#e3b5df", subsidiary: "#e6ce79", other: "#939ba7" };
 type Entity = CompanyRelationship & { evidence: CompanyRelationship[] };
 const nameKey = (name: string) => name.toLowerCase().replace(/\b(incorporated|inc|corporation|corp|limited|ltd|plc)\b/g, "").replace(/[^a-z0-9]/g, "");
 function consolidate(rows: CompanyRelationship[]): Entity[] {

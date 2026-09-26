@@ -1687,7 +1687,7 @@ html[data-marketly-theme="dark"] .research-app {
   --ink: #e2e2e2;
   --muted-ink: #8c8c8c;
   --line: #2a2a2a;
-  --green: #f5a24b;
+  --green: #00c805;
   --paper: #060606;
   color-scheme: dark;
   color: var(--ink);
@@ -1708,7 +1708,7 @@ html[data-marketly-theme="dark"] .search-menu button.highlighted { background:#1
 html[data-marketly-theme="dark"] .avatar,
 html[data-marketly-theme="dark"] .research-nav button small { color:#a9a9a9; background:#1a1a1a; border-color:#323232; }
 html[data-marketly-theme="dark"] .research-nav button { color:#878787; }
-html[data-marketly-theme="dark"] .research-nav button.active { color:#f5a24b; }
+html[data-marketly-theme="dark"] .research-nav button.active { color:#00c805; }
 
 /* These components are defined in this file after the shell theme, so keep
    their surfaces explicit instead of inheriting the light defaults. */
@@ -1721,7 +1721,7 @@ html[data-marketly-theme="dark"] .secondary-button:hover,
 html[data-marketly-theme="dark"] .secondary-button.selected {
   background:#333333;
   border-color:#595959;
-  color:#f5a24b;
+  color:#00c805;
 }
 html[data-marketly-theme="dark"] .article-link-form {
   background:#1a1a1a;
@@ -1733,7 +1733,7 @@ html[data-marketly-theme="dark"] .article-link-form input {
   color:#dcdcdc;
 }
 html[data-marketly-theme="dark"] .article-link-form input::placeholder { color:#919191; }
-html[data-marketly-theme="dark"] .article-link-form button { color:#f5a24b; }
+html[data-marketly-theme="dark"] .article-link-form button { color:#00c805; }
 html[data-marketly-theme="dark"] .discovery-filters input,
 html[data-marketly-theme="dark"] .styled-select-trigger {
   background:#151515!important;
