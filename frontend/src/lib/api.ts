@@ -23,7 +23,20 @@ export type BackendFinancialStatement = {
   [key: string]: unknown;
 };
 
+export type FinancialTrendPoint = {
+  value: number | null; unit: string; availability: string; kind: "reported" | "calculated";
+  source: string | null; sourceUrl?: string | null; period: string | null; currency: string | null;
+  updatedAt: string | null; filedAt?: string | null; methodology?: string | null;
+  inputs?: string[]; yoyChange: number | null; yoyBasePeriod: string | null;
+  cagr: Record<string, number | null>;
+};
+export type FinancialTrends = {
+  observations: Array<{ date: string; period: string; frequency: "annual" | "quarterly"; currency: string | null; metrics: Record<string, FinancialTrendPoint> }>;
+  updatedAt: string | null; excludedRows: number; methodology: string;
+};
+
 export type BackendFinancialsResponse = {
+  financialTrends?: FinancialTrends;
   symbol: string;
   info?: {
     shortName?: string | null;
@@ -565,4 +578,11 @@ export function getCompanyMetadata(symbols: string[]) {
   return requestJson<{ companies: CompanyMetadata[] }>(
     `/companies/metadata?symbols=${encodeURIComponent(symbols.join(","))}`,
   );
+}
+
+export type NewsBriefing = Record<"market" | "world", {
+  articles: BackendNewsItem[]; status: "available" | "empty" | "unavailable"; fetchedAt: string | null;
+}>;
+export function getNewsBriefing(): Promise<NewsBriefing> {
+  return requestJson<NewsBriefing>("/news/briefing");
 }

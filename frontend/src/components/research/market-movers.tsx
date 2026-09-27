@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, LoaderCircle } from "lucide-react";
 import type { Company } from "@/lib/research";
+import { MarketSectionHeading } from "./market-section-heading";
 import { CompanyLogo } from "./company-logo";
 
 type Mover = Company & { changePercent: number; marketCap?: number; sector?: string };
@@ -22,8 +23,8 @@ export function MarketMovers({ scope, onSelect }: { scope: "sp500" | "smallCap";
   }, []);
   const group = data?.[scope];
   const rows = group && (tab === "gainers" ? group.gainers : tab === "losers" ? group.losers : tab === "unusual" ? [...group.gainers, ...group.losers].toSorted((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent)).slice(0, 10) : []);
-  return <section className="movers-panel">
-    <div className="terminal-heading"><h2>{scope === "sp500" ? "Market movers" : "Small-cap attention list"}</h2><span>{scope === "sp500" ? "S&P 500" : "SMALL CAP"}</span></div>
+  return <section className="movers-panel market-panel">
+    <MarketSectionHeading number={scope === "sp500" ? "04" : undefined} title={scope === "sp500" ? "Market movers" : "Small-cap attention list"} context={scope === "sp500" ? "S&P 500" : "SMALL CAP"} />
     <nav className="mover-tabs" aria-label="Mover views">{(["gainers", "losers", "unusual", "earnings", "revisions"] as MoverTab[]).map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
     {error ? <div className="inline-error">{error}</div> : !group ? <div className="empty-state"><LoaderCircle className="spin" size={15} /> Loading movers…</div> : !rows?.length ? <div className="mover-empty"><strong>{tab === "earnings" ? "Earnings movers" : "Estimate revisions"}</strong><span>No verified {tab} feed is connected yet. Marketly will not manufacture this signal.</span></div> : <div className="mover-list">
       <h3 className={tab === "gainers" ? "positive" : tab === "losers" ? "negative" : ""}>{tab === "gainers" ? <ArrowUp size={14} /> : tab === "losers" ? <ArrowDown size={14} /> : null}{tab}</h3>

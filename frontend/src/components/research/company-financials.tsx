@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import { FinancialTrends } from "./financial-trends";
 import { FinancialDocuments } from "./financial-documents";
 import {
   Bar,
@@ -302,6 +303,7 @@ export function CompanyFinancials({
           ))}
         </dl>
       </section>
+      <FinancialTrends data={financials?.financialTrends} />
       <div className="financials-heading">
         <div>
           <div className="eyebrow">THE BUSINESS BEHIND {symbol}</div>

@@ -16,7 +16,7 @@ function load(relative, imports = {}, globals = {}) {
   } });
   const loadedModule = { exports: {} };
   vm.runInNewContext(outputText, { module: loadedModule, exports: loadedModule.exports,
-    require: (name) => imports[name] ?? loadDependency(name),
+    require: (name) => imports[name] ?? (name.startsWith("@/") ? load(`${name.slice(2)}.ts`, imports, globals) : loadDependency(name)),
     process: { env: {} }, Date, URL, AbortSignal, setTimeout, clearTimeout, ...globals });
   return loadedModule.exports;
 }

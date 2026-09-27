@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MarketSectionHeading } from "./market-section-heading";
 import { LoaderCircle } from "lucide-react";
 
 type Stock = { symbol: string; sector: string; marketCap: number; changePercent: number | null };
@@ -30,7 +31,7 @@ export function MarketBreadth() {
     return { stocks, advancing, declining, equalWeight, capWeight, sectors };
   }, [data]);
   return <section className="market-breadth-wide market-panel">
-    <div className="terminal-heading"><h2><span>03</span> Market breadth / internals</h2><span>US LISTINGS</span></div>
+    <MarketSectionHeading number="03" title="Market breadth / internals" context="US LISTINGS" />
     {error ? <div className="inline-error">{error}</div> : !data ? <div className="empty-state"><LoaderCircle className="spin" size={15} /> Loading market internals…</div> : <>
       <div className="breadth-stat-grid">
         <div><strong className="positive">{breadth.advancing.toLocaleString()}</strong><span>Advancing</span></div>

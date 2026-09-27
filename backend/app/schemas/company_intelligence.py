@@ -10,6 +10,10 @@ class IntelligenceMetric(BaseModel):
     source: Optional[str] = None
     period: Optional[str] = None
     asOf: Optional[str] = None
+    methodology: Optional[str] = None
+    kind: Optional[str] = None
+    currency: Optional[str] = None
+    updatedAt: Optional[str] = None
 
 
 class IntelligenceCompany(BaseModel):
@@ -32,3 +36,4 @@ class CompanyIntelligenceResponse(BaseModel):
     valuation: Dict[str, IntelligenceMetric] = Field(default_factory=dict)
     shareDilution: Dict[str, IntelligenceMetric] = Field(default_factory=dict)
     dividends: Dict[str, IntelligenceMetric] = Field(default_factory=dict)
+    financialTrends: Dict[str, Any] = Field(default_factory=dict)

@@ -1,4 +1,5 @@
 "use client";
+import { MarketSectionHeading } from "./market-section-heading";
 import { CompanyLogo } from "./company-logo";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -202,12 +203,7 @@ export function MarketOverview({
       <div className="market-home-columns">
         <div className="market-main-column">
           <section className="market-panel">
-            <div className="terminal-heading">
-              <h2>
-                <span>01</span> Market briefing
-              </h2>
-              <span>WHY MARKETS ARE MOVING</span>
-            </div>
+            <MarketSectionHeading number="01" title="Market briefing" context="WHY MARKETS ARE MOVING" />
             {loading && !data ? (
               <div className="empty-state">Loading market headlines…</div>
             ) : !data?.news.length ? (
@@ -240,12 +236,7 @@ export function MarketOverview({
             )}
           </section>
           <section className="market-panel heatmap-panel">
-            <div className="terminal-heading">
-              <h2>
-                <span>02</span> Market map
-              </h2>
-              <span>US LISTINGS / DAILY CHANGE</span>
-            </div>
+            <MarketSectionHeading number="02" title="Market map" context="US LISTINGS / DAILY CHANGE" />
             <FullMarketMap onSelect={onSelect} />
           </section>
         </div>
@@ -375,8 +366,8 @@ export function MarketOverview({
       </div>
       <MarketBreadth />
       <MarketMovers scope="sp500" onSelect={onSelect} />
-      <section className="market-discover">
-        <div className="terminal-heading"><h2><span>05</span> Beyond the ticker</h2><span>DEEPER RESEARCH / STORIES</span></div>
+      <section className="market-discover market-panel">
+        <MarketSectionHeading number="05" title="Beyond the ticker" context="DEEPER RESEARCH / STORIES" />
         <div className="news-grid">
           {data?.news.slice(6, 9).map((article, i) => <article className="market-story" key={article.url ?? i}>
             <a href={safeUrl(article.url)} target="_blank" rel="noreferrer">

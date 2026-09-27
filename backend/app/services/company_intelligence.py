@@ -4,13 +4,21 @@ from datetime import date
 from math import isfinite
 from typing import Any
 
+from app.services.financial_trends import build_financial_trends
+
 
 def _rows(financials: dict[str, Any], key: str) -> list[dict[str, Any]]:
     rows = financials.get(key)
     if not isinstance(rows, list):
         return []
     valid = [row for row in rows if isinstance(row, dict)]
-    return sorted(valid, key=lambda row: _period(row) or "", reverse=True)
+    valid = sorted(valid, key=lambda row: _period(row) or "", reverse=True)
+    # Compare only like fiscal periods; never combine FY totals and quarters.
+    if valid:
+        period = valid[0].get("period")
+        currency = valid[0].get("reportedCurrency")
+        valid = [row for row in valid if row.get("period") == period and row.get("reportedCurrency") == currency]
+    return valid
 
 
 def _period(row: dict[str, Any]) -> str | None:
@@ -88,7 +96,12 @@ def _growth(rows: list[dict[str, Any]], fields: tuple[str, ...], source: Any):
 def _cagr(rows: list[dict[str, Any]], fields: tuple[str, ...], source: Any):
     if len(rows) < 2:
         return _point(None, "ratio", source)
-    latest_row, oldest_row = rows[0], rows[-1]
+    latest_row = rows[0]
+    latest_date = _parse_period(_period(latest_row))
+    candidates = [row for row in rows[1:] if latest_date and _parse_period(_period(row)) and abs((latest_date - _parse_period(_period(row))).days / 365.25 - 3) < 0.15]
+    if not candidates:
+        return _point(None, "ratio", source)
+    oldest_row = min(candidates, key=lambda row: abs((latest_date - _parse_period(_period(row))).days / 365.25 - 3))
     latest = _value(latest_row, *fields)
     oldest = _value(oldest_row, *fields)
     latest_date, oldest_date = _parse_period(_period(latest_row)), _parse_period(_period(oldest_row))
@@ -161,8 +174,9 @@ def build_company_intelligence(symbol: str, payload: dict[str, Any]) -> dict[str
     buyback = _point(-share_change["value"] if share_change["value"] is not None else None,
                      "ratio", share_change["source"], share_change["period"])
     revenue_row_period = _period(latest_income)
-    capex_ratio = abs(capex) / revenue if capex is not None and revenue else None
-    fcf_margin = free_cash_flow / revenue if free_cash_flow is not None and revenue else None
+    aligned = bool(_period(latest_income)) and all(latest_income.get(key) == latest_cash.get(key) for key in ("period", "reportedCurrency")) and _period(latest_income) == _period(latest_cash)
+    capex_ratio = abs(capex) / revenue if aligned and capex is not None and revenue and revenue > 0 else None
+    fcf_margin = free_cash_flow / revenue if aligned and free_cash_flow is not None and revenue and revenue > 0 else None
 
     dividend_yield = _ratio_value(info.get("dividendYield"))
     if dividend_yield is None:
@@ -181,6 +195,7 @@ def build_company_intelligence(symbol: str, payload: dict[str, Any]) -> dict[str
     total_count = 0
     result: dict[str, Any] = {
         "symbol": symbol,
+        "financialTrends": build_financial_trends(payload),
         "company": {
             "name": info.get("shortName") or info.get("longName"),
             "sector": info.get("sector"),

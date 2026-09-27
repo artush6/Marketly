@@ -64,6 +64,12 @@ def mixed_news(
         )
 
 
+@router.get("/briefing")
+def news_briefing():
+    from app.services.news_briefing import get_briefing
+    return get_briefing()
+
+
 @router.get("/{symbol}")
 def company_news(
     symbol: str,

@@ -1752,3 +1752,11 @@ html[data-marketly-theme="light"] .article-link-form input {
   background:transparent!important;
   color:#454545!important;
 }
+
+/* Period-aware financial research: reuse existing chart and table surfaces. */
+.financial-trends { min-width: 0; padding-block: 24px; border-bottom: 1px solid var(--chart-grid); }
+.trend-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.trend-table-scroll { overflow-x: auto; }
+.financial-trends table { width: 100%; text-align: left; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.financial-trends th, .financial-trends td { padding: 10px 12px; border-bottom: 1px solid var(--chart-grid); }
+@media (max-width: 700px) { .financial-trends .financials-heading { align-items: flex-start; flex-direction: column; gap: 12px; } .trend-controls { width: 100%; } }
