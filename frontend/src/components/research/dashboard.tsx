@@ -1,6 +1,7 @@
 "use client";
-import { userStorage } from "@/lib/user-storage";
+import { accountId, userStorage } from "@/lib/user-storage";
 import { CompactComparison } from "../comparison/compact-comparison";
+import { DeferredSection } from "./deferred-section";
 import { Expectations } from "./expectations";
 import { CompanyLogo } from "./company-logo";
 
@@ -65,7 +66,6 @@ import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
 import { StyledSelect } from "./styled-select";
 
-type Tab = "Overview" | "Profile" | "Network" | "Compare" | "News" | "Evidence" | "Expectations";
 type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research";
 const STORAGE = "marketly.research.v1";
 const INITIAL_WATCHLIST = ["AAPL", "MSFT", "NVDA", "GOOGL"];
@@ -178,7 +178,6 @@ export function ResearchDashboard() {
   const [company, setCompany] = useState<Company>(STARTER_COMPANIES[0]);
   const [view, setView] = useState<View>("Markets");
   const [companyOpened, setCompanyOpened] = useState(false);
-  const [tab, setTab] = useState<Tab>("Overview");
   const [financials, setFinancials] = useState<BackendFinancialsResponse>();
   const [news, setNews] = useState<BackendNewsItem[]>([]);
   const [analysis, setAnalysis] = useState<BackendScoreResponse>();
@@ -362,7 +361,6 @@ export function ResearchDashboard() {
     setCompanyOpened(true);
     setSnapshot(null);
     setView("Company");
-    setTab("Overview");
     setAlertOpen(false);
     setNotice("");
     window.history.replaceState(
@@ -711,7 +709,6 @@ export function ResearchDashboard() {
                         setSnapshot(item);
                         setCompanyOpened(true);
                         setView("Company");
-                        setTab("Overview");
                       }}
                     >
                       <CompanyLogo symbol={item.symbol} size="medium" />
@@ -904,6 +901,7 @@ export function ResearchDashboard() {
                     </span>
                     {m.change !== null && (
                       <span
+                        title="Daily change from previous close"
                         className={`quote-change ${positive ? "positive" : "negative"}`}
                       >
                         {positive ? (
@@ -1024,34 +1022,24 @@ export function ResearchDashboard() {
                       <ArrowUpRight size={11} />
                     </a>
                   ) : (
-                    <button onClick={() => setTab("Evidence")}>
+                    <button onClick={() => { location.hash="company-evidence"; }}>
                       Check source availability <ArrowUpRight size={11} />
                     </button>
                   )}
                 </div>
               </section>
-              <nav className="company-tabs" aria-label="Company sections">
-                {(["Overview", "Profile", "Network", "Compare", "Expectations", "News", "Evidence"] as Tab[]).map(
-                  (t) => (
-                    <button
-                      key={t}
-                      className={tab === t ? "active" : ""}
-                      onClick={() => setTab(t)}
-                    >
-                      {t}
-                      {t === "Evidence" && <span className="tab-dot" />}
-                    </button>
-                  ),
-                )}
+              <nav className="company-tabs ticker-section-nav" aria-label="Company sections">
+                {(["Financials", "Expectations", "Network", "Compare", "News", "Profile", "Evidence"] as const).map((t) => <a key={t} href={`#company-${t.toLowerCase()}`}>{t}</a>)}
               </nav>
-              <div className="tab-content" key={`${company.symbol}-${tab}`}>
-                {tab === "Overview" && (
+              <div className="tab-content" key={company.symbol}>
+                {companyOpened && (
                   <>
                     <CompanyFinancials
                       key={company.symbol}
                       financials={financials}
                       symbol={company.symbol}
                     />
+                    {!snapshot && <DeferredSection id="company-expectations" title="Expectations vs actuals"><Expectations symbol={company.symbol} /></DeferredSection>}
                     <section className="research-section analyst-section">
                       <div className="section-heading">
                         <h2>
@@ -1149,8 +1137,8 @@ export function ResearchDashboard() {
                     </section>
                   </>
                 )}
-                {tab === "Profile" && (
-                  <section className="research-section company-facts">
+                {companyOpened && (
+                  <section id="company-profile" className="research-section company-facts">
                     <div className="section-heading"><div><h2><Building2 size={17} /> Company profile</h2><p>Leadership, scale, and operating footprint from the latest available profile.</p></div></div>
                     <div className="company-fact-grid">
                       <div><small><Users size={13} /> Employees</small><strong>{financials?.info?.fullTimeEmployees?.toLocaleString() || "Not reported"}</strong></div>
@@ -1165,18 +1153,17 @@ export function ResearchDashboard() {
                     {financials?.info?.companyOfficers?.length ? <div className="company-description"><h3>Leadership</h3><div className="officer-list">{financials.info.companyOfficers.slice(0, 10).map((officer, index) => <div key={`${officer.name}-${index}`}><b>{officer.name || "Name unavailable"}</b><span>{officer.title || "Title unavailable"}</span></div>)}</div></div> : null}
                   </section>
                 )}
-                {tab === "Network" && <RelationshipResearch key={company.symbol} symbol={company.symbol} companyName={name} />}
-                {tab === "Compare" && snapshot && (
+                {!snapshot && <DeferredSection id="company-network" title="Business relationships"><RelationshipResearch key={company.symbol} symbol={company.symbol} companyName={name} /></DeferredSection>}
+                {snapshot && (
                   <div className="notice">
                     Comparisons use current peer data. Return to current data to
                     compare companies.
                   </div>
                 )}
-                {tab === "Compare" && !snapshot && <CompactComparison symbol={company.symbol} base={financials} peers={peerData} add={addPeer} remove={(symbol) => setPeerData((items) => { const next = { ...items }; delete next[symbol]; return next; })} reset={discoverPeers} busy={peersLoading || peerBusy.length > 0} message={peerBusy.length ? `Loading ${peerBusy.join(", ")}…` : peerMessage} />}
+                {!snapshot && <div id="company-compare"><CompactComparison symbol={company.symbol} base={financials} peers={peerData} add={addPeer} remove={(symbol) => setPeerData((items) => { const next = { ...items }; delete next[symbol]; return next; })} reset={discoverPeers} busy={peersLoading || peerBusy.length > 0} message={peerBusy.length ? `Loading ${peerBusy.join(", ")}…` : peerMessage} /></div>}
 
-                {tab === "Expectations" && <Expectations symbol={company.symbol} />}
-                {tab === "Evidence" && (
-                  <section className="research-section">
+                {companyOpened && (
+                  <section id="company-evidence" className="research-section">
                     <div className="section-heading">
                       <div>
                         <h2>Evidence behind the numbers</h2>
@@ -1273,23 +1260,14 @@ export function ResearchDashboard() {
                     )}
                   </section>
                 )}
-                {(tab === "Overview" ||
-                  tab === "News" ||
-                  tab === "Evidence") && (
-                  <section className="research-section news-section">
+                {companyOpened && (
+                  <section id="company-news" className="research-section news-section">
                     <div className="section-heading">
                       <h2>
                         In the news{" "}
                         <span className="count-label">{news.length}</span>
                       </h2>
-                      {tab === "Overview" && (
-                        <button
-                          className="text-button"
-                          onClick={() => setTab("News")}
-                        >
-                          View all <ArrowUpRight size={14} />
-                        </button>
-                      )}
+
                     </div>
                     {!snapshot && (
                       <form className="article-link-form" onSubmit={addArticle}>
@@ -1334,7 +1312,7 @@ export function ResearchDashboard() {
                     ) : news.length ? (
                       <div className="news-grid">
                         {news
-                          .slice(0, tab === "Overview" ? 3 : 18)
+                          .slice(0, 18)
                           .map((article, i) => (
                             <NewsCard
                               key={`${article.url}-${i}`}
@@ -1448,7 +1426,7 @@ export function ResearchDashboard() {
                   <Bookmark size={15} />
                   Save research
                 </button>
-                <small>Stored locally · No account required</small>
+                <small>{accountId() ? "Saved to your private workspace" : "Saved on this device"}</small>
               </section>
               <Link
                 className="financials-link"

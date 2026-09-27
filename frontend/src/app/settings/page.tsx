@@ -1,4 +1,5 @@
 "use client";
+import { SelectControl } from "@/components/research/select-control";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { browserAuth } from "@/lib/supabase/client";
@@ -35,7 +36,7 @@ export default function Settings() {
   return <main className="account-page"><nav><Link href="/">← Research</Link><Link href="/portfolio">Portfolio</Link></nav><div className="eyebrow">YOUR WORKSPACE</div><h1>Profile & preferences</h1><p>All financial profile fields are optional. You can update them at any time.</p>
     <form className="account-form" onSubmit={save}>
       <div className="account-grid">{([['name','Name'],['occupation','Occupation'],['investableAssets','Investable assets (optional)'],['monthlyContribution','Monthly contribution (optional)']] as const).map(([key,label]) => <label key={key}>{label}<input maxLength={120} value={profile[key]} onChange={(e) => setProfile({ ...profile, [key]: e.target.value })} /></label>)}
-      {([['experience',['Learning','Some experience','Experienced']],['strategy',['Conservative','Balanced','Aggressive growth']],['horizon',['Under 1 year','1–3 years','3–5 years','5+ years']],['currency',['USD','EUR','GBP','CHF','CAD','JPY']]] as const).map(([key,options]) => <label key={key}>{key}<select value={profile[key]} onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}>{options.map((v) => <option key={v}>{v}</option>)}</select></label>)}</div>
+      {([['experience',['Learning','Some experience','Experienced']],['strategy',['Conservative','Balanced','Aggressive growth']],['horizon',['Under 1 year','1–3 years','3–5 years','5+ years']],['currency',['USD','EUR','GBP','CHF','CAD','JPY']]] as const).map(([key,options]) => <label key={key}>{key}<SelectControl value={profile[key]} onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}>{options.map((v) => <option key={v}>{v}</option>)}</SelectControl></label>)}</div>
       <label>Goals<textarea maxLength={2000} value={profile.goals} onChange={(e) => setProfile({ ...profile, goals: e.target.value })} /></label>
       <label className="account-check"><input type="checkbox" checked={profile.useProfile} onChange={(e) => setProfile({ ...profile, useProfile: e.target.checked })} />Use this profile as context for AI research</label>
       <label className="account-check"><input type="checkbox" checked={profile.useHoldings} onChange={(e) => setProfile({ ...profile, useHoldings: e.target.checked })} />Include my holdings when I ask for portfolio analysis</label>

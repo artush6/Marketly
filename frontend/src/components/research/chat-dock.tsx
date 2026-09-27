@@ -304,11 +304,14 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     return entry.id;
   }
 
-  function openWorkspace(popout = false) {
+  async function openWorkspace(popout = false) {
+    const popup = popout ? window.open("about:blank", "marketly-research-chat", "popup,width=1120,height=820,resizable=yes,scrollbars=yes") : null;
     const id = saveForTransfer();
+    await flushStorage();
+    if (hasPendingChanges()) { popup?.close(); setError("Synchronize this conversation before opening another window."); return; }
     const url = `/research-chat?conversation=${encodeURIComponent(id)}${popout ? "&popout=1" : ""}`;
     if (popout) {
-      window.open(url, "marketly-research-chat", "popup,width=1120,height=820,resizable=yes,scrollbars=yes");
+      if (popup) popup.location.href = url;
     } else {
       window.location.assign(url);
     }

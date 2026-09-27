@@ -22,11 +22,12 @@ export function StyledSelect({ value, options, onChange, ariaLabel }: {
   }, []);
   const current = options.find((option) => option.value === value) ?? options[0];
   const move = (offset: number) => {
+    if (!options.length) return;
     const index = Math.max(0, options.findIndex((option) => option.value === value));
     onChange(options[(index + offset + options.length) % options.length].value);
   };
   return <div className={`styled-select ${open ? "open" : ""}`} ref={root}>
-    <button type="button" className="styled-select-trigger" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open}
+    <button type="button" className="styled-select-trigger" aria-label={ariaLabel} disabled={!options.length} aria-haspopup="listbox" aria-expanded={open}
       onClick={() => setOpen((value) => !value)}
       onKeyDown={(event) => {
         if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); move(event.key === "ArrowDown" ? 1 : -1); }

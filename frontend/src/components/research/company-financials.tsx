@@ -291,7 +291,7 @@ export function CompanyFinancials({
           <span>Latest available quote & ratios</span>
         </div>
         <dl>
-          {facts.map(([name, value]) => (
+          {facts.filter(([, value]) => value !== null).map(([name, value]) => (
             <div key={name}>
               <dt>{name}</dt>
               <dd>

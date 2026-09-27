@@ -1,3 +1,6 @@
+import { serverAuth } from "@/lib/supabase/server";
+import { localWorkspaceAllowed } from "@/lib/supabase/config";
+import { backendServerUrl } from "@/lib/backend-config";
 import type {Metadata} from "next";
 import Link from "next/link";
 import { FinancialDocuments } from "@/components/research/financial-documents";
@@ -5,7 +8,6 @@ import {notFound} from "next/navigation";
 import {ArrowLeft, ArrowUpRight, Building2, Database, Radar} from "lucide-react";
 import {MarketlyNavbar} from "@/components/marketly";
 import {
-    getFinancials,
     type BackendFinancialStatement,
     type BackendFinancialsResponse,
 } from "@/lib/api";
@@ -317,7 +319,19 @@ function AnalystSummary({
 
 async function loadFinancials(symbol: string): Promise<BackendFinancialsResponse | null> {
     try {
-        return await getFinancials(symbol);
+        const client = await serverAuth();
+        const headers = new Headers();
+        if (client) {
+            const { data, error } = await client.auth.getUser();
+            if (error || !data.user) return null;
+            const { data: session } = await client.auth.getSession();
+            if (!session.session) return null;
+            headers.set("authorization", `Bearer ${session.session.access_token}`);
+        } else if (!localWorkspaceAllowed()) return null;
+        const response = await fetch(`${backendServerUrl()}/financials/${encodeURIComponent(symbol)}`, {
+            headers, cache: "no-store", signal: AbortSignal.timeout(115_000),
+        });
+        return response.ok ? await response.json() as BackendFinancialsResponse : null;
     } catch {
         return null;
     }

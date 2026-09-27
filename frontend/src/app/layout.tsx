@@ -3,6 +3,7 @@ import "./globals.css";
 import "../components/research/research.css";
 import "../components/research/terminal.css";
 import "../components/research/amber.css";
+import "../components/research/workspace-theme.css";
 import { AccountProvider } from "@/components/account/account-provider";
 import { localWorkspaceAllowed } from "@/lib/supabase/config";
 import { MarketTickerTape } from "@/components/research/market-ticker-tape";

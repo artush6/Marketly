@@ -24,10 +24,10 @@ export default function Login() {
     try { const { error } = await browserAuth().auth.signInWithOAuth({ provider, options: { redirectTo: `${location.origin}/auth/callback` } }); if (error) throw error; }
     catch (error) { setMessage(error instanceof Error ? error.message : "Provider unavailable."); setBusy(false); }
   }
-  return <main className="account-page login-page"><Link href="/" className="eyebrow">MARKETLY</Link><h1>{signup ? "Create your workspace" : "Welcome back"}</h1><p>Keep your research, preferences and portfolio together.</p>
-    {!authConfig() ? <p role="alert">Sign-in is not configured for this deployment. Set the Supabase project URL and publishable key before continuing.</p> : <>
+  return <main className="account-page login-page"><section className="login-intro"><Link href="/" className="login-brand">marketly<span>.</span></Link><div className="eyebrow">YOUR RESEARCH WORKSPACE</div><h1>See the business.<br/>Understand the price.</h1><p>Financials, expectations, company networks and market news. One place to form your own view.</p><div className="login-features"><span>01 / Compare companies</span><span>02 / Follow the evidence</span><span>03 / Keep your research</span></div></section><section className="login-access" aria-label="Account access"><h2>{signup ? "Create your workspace" : "Welcome back"}</h2><p>Keep your research, preferences and portfolio together.</p>
+    {!authConfig() ? <p role="alert">Account access is not available yet. Your workspace will be ready to sign in once setup is complete.</p> : <>
       <form onSubmit={submit} className="account-form"><label>Email<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label><label>Password<input type="password" minLength={8} autoComplete={signup ? "new-password" : "current-password"} required value={password} onChange={(e) => setPassword(e.target.value)} /></label><button className="primary-button" disabled={busy}>{busy ? "Please wait…" : signup ? "Create account" : "Sign in"}</button></form>
       <button className="text-button" onClick={() => setSignup(!signup)}>{signup ? "Already have an account? Sign in" : "Create an account"}</button>
       <div className="account-actions">{process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED === "true" && <button disabled={busy} className="secondary-button" onClick={() => void oauth("google")}>Continue with Google</button>}{process.env.NEXT_PUBLIC_AUTH_APPLE_ENABLED === "true" && <button disabled={busy} className="secondary-button" onClick={() => void oauth("apple")}>Continue with Apple</button>}</div>
-    </>}{message && <p role="status">{message}</p>}</main>;
+    </>}{message && <p role="status">{message}</p>}</section></main>;
 }
