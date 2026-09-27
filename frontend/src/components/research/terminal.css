@@ -1298,22 +1298,54 @@
   margin-bottom: 32px;
 }
 .ticker-facts {
-  padding: 24px 0;
-  border-bottom: 1px solid #3c3c3c;
+  overflow: hidden;
+  padding: 0;
+  background: #171717;
+  border: 1px solid #333333;
+  border-radius: 4px;
+}
+.ticker-facts .section-heading {
+  min-height: 52px;
+  margin: 0;
+  padding: 14px 18px;
+  background: inherit;
+  border-bottom: 1px solid #333333;
+}
+.ticker-facts .section-heading h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.ticker-facts .section-heading span {
+  color: #929292;
+  font-size: 12px;
 }
 .ticker-facts dl {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 22px;
-  margin-top: 22px;
+  gap: 0;
+  margin: 0;
+  padding: 0 18px;
+  background: inherit;
+}
+.ticker-facts dl > div {
+  min-width: 0;
+  padding: 18px 20px 20px;
+  border-left: 1px solid #2d2d2d;
+}
+.ticker-facts dl > div:nth-child(4n + 1) {
+  padding-left: 0;
+  border-left: 0;
+}
+.ticker-facts dl > div:nth-child(n + 5) {
+  border-top: 1px solid #2d2d2d;
 }
 .ticker-facts dt {
-  font-size: 14px;
-  color: #afafaf;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
+  color: #929292;
+  font-size: 12px;
 }
 .ticker-facts dd {
-  font-size: 20px;
+  font-size: 19px;
   font-family: var(--font-mono, monospace);
   margin: 0;
   color: #f3f3f3;
@@ -1423,8 +1455,25 @@
   }
 }
 @media (max-width: 540px) {
+  .ticker-facts .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
   .ticker-facts dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ticker-facts dl > div,
+  .ticker-facts dl > div:nth-child(4n + 1) {
+    padding: 16px 14px;
+    border-left: 1px solid #2d2d2d;
+  }
+  .ticker-facts dl > div:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .ticker-facts dl > div:nth-child(n + 3) {
+    border-top: 1px solid #2d2d2d;
   }
   .financials-heading {
     align-items: flex-start;
@@ -2099,6 +2148,8 @@ html[data-marketly-theme="light"],html[data-marketly-theme="light"] body{backgro
 }
 [data-marketly-theme="light"] .research-header,[data-marketly-theme="light"] .research-nav,[data-marketly-theme="light"] .research-main,[data-marketly-theme="light"] .company-overview,[data-marketly-theme="light"] .library-view,[data-marketly-theme="light"] .market-home{background:#f8f8f8;color:#2a2a2a;border-color:#e1e1e1}
 [data-marketly-theme="light"] .company-overview,[data-marketly-theme="light"] .sidebar-section,[data-marketly-theme="light"] .research-save,[data-marketly-theme="light"] .comparison-teaser,[data-marketly-theme="light"] .watchlist-grid>div,[data-marketly-theme="light"] .financial-chart-panel,[data-marketly-theme="light"] .ticker-facts,[data-marketly-theme="light"] .article-link-form,[data-marketly-theme="light"] .news-photo,[data-marketly-theme="light"] .selected-row,[data-marketly-theme="light"] .average-row{background:#fff;border-color:#dfdfdf}
+[data-marketly-theme="light"] .ticker-facts .section-heading,
+[data-marketly-theme="light"] .ticker-facts dl > div { border-color: #e6e6e6; }
 [data-marketly-theme="light"] .company-identity h1,[data-marketly-theme="light"] .quote>span:first-child,[data-marketly-theme="light"] .key-metrics strong,[data-marketly-theme="light"] .section-heading h2,[data-marketly-theme="light"] .brief-empty h3,[data-marketly-theme="light"] .comparison-teaser h2,[data-marketly-theme="light"] .research-save h2,[data-marketly-theme="light"] .news-card h3,[data-marketly-theme="light"] .financials-heading h2,[data-marketly-theme="light"] .financial-chart-heading h3,[data-marketly-theme="light"] .ticker-facts dd,[data-marketly-theme="light"] .comparison-table,[data-marketly-theme="light"] .company-fact-grid strong,[data-marketly-theme="light"] .company-description h3{color:#2d2d2d}
 [data-marketly-theme="light"] .company-profile-strip,[data-marketly-theme="light"] .company-profile-strip>div,[data-marketly-theme="light"] .company-tabs,[data-marketly-theme="light"] .data-footnote,[data-marketly-theme="light"] .financial-data-table td,[data-marketly-theme="light"] .financial-data-table th{border-color:#e1e1e1}
 [data-marketly-theme="light"] .company-profile-strip small,[data-marketly-theme="light"] .key-metrics small,[data-marketly-theme="light"] .section-kicker,[data-marketly-theme="light"] .section-heading p,[data-marketly-theme="light"] .analysis-factors p,[data-marketly-theme="light"] .analysis-footer,[data-marketly-theme="light"] .comparison-teaser p,[data-marketly-theme="light"] .research-save p,[data-marketly-theme="light"] .company-details dt,[data-marketly-theme="light"] .financials-heading p,[data-marketly-theme="light"] .financial-chart-panel>p,[data-marketly-theme="light"] .financial-source,[data-marketly-theme="light"] .ticker-facts dt,[data-marketly-theme="light"] .news-card p,[data-marketly-theme="light"] .disclosure,[data-marketly-theme="light"] .company-fact-grid small,[data-marketly-theme="light"] .company-description p{color:#6f6f6f}
