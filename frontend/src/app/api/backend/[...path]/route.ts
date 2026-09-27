@@ -1,4 +1,6 @@
 import {NextRequest, NextResponse} from "next/server";
+import { serverAuth } from "@/lib/supabase/server";
+import { localWorkspaceAllowed } from "@/lib/supabase/config";
 import {backendServerUrl} from "@/lib/backend-config";
 const REQUEST_TIMEOUT_MS = 115_000;
 
@@ -20,6 +22,16 @@ function buildTargetUrl(path: string[], request: NextRequest) {
 async function proxy(request: NextRequest, path: string[]) {
     const targetUrl = buildTargetUrl(path, request);
     const headers = new Headers();
+    const client = await serverAuth();
+    if (client) {
+        const { data, error } = await client.auth.getUser();
+        if (error || !data.user) return NextResponse.json({ error: "Sign in to continue." }, { status: 401 });
+        const { data: session } = await client.auth.getSession();
+        if (!session.session) return NextResponse.json({ error: "Session expired." }, { status: 401 });
+        headers.set("authorization", `Bearer ${session.session.access_token}`);
+    } else if (!localWorkspaceAllowed()) {
+        return NextResponse.json({ error: "Authentication is not configured." }, { status: 503 });
+    }
     const contentType = request.headers.get("content-type");
 
     if (contentType) {
@@ -43,6 +55,7 @@ async function proxy(request: NextRequest, path: string[]) {
         return new NextResponse(text, {
             status: response.status,
             headers: {
+                "cache-control": "private, no-store",
                 "content-type": response.headers.get("content-type") || "application/json",
             },
         });
@@ -80,3 +93,7 @@ export async function POST(
     const {path} = await context.params;
     return proxy(request, path);
 }
+
+export const PUT = POST;
+export const PATCH = POST;
+export const DELETE = POST;

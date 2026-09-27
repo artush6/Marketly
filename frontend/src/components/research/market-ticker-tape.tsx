@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Check, LoaderCircle, Plus, Search, Settings2, X } from "lucide-react";
+import { accountId } from "@/lib/user-storage";
+import { usePathname } from "next/navigation";
 import { format } from "@/lib/research";
 
 type TapeItem = {
@@ -18,6 +20,7 @@ type TapeResponse = { items: TapeItem[]; available: TapeItem[] };
 const WORKSPACE_KEY = "marketly.workspace.id";
 
 function workspaceId() {
+  if (accountId()) return accountId()!;
   const existing = localStorage.getItem(WORKSPACE_KEY);
   if (existing && /^[0-9a-f-]{36}$/i.test(existing)) return existing;
   const created = crypto.randomUUID();
@@ -26,6 +29,7 @@ function workspaceId() {
 }
 
 export function MarketTickerTape() {
+  const pathname = usePathname();
   const [data, setData] = useState<TapeResponse>({ items: [], available: [] });
   const [workspace, setWorkspace] = useState("");
   const [editing, setEditing] = useState(false);
@@ -46,7 +50,7 @@ export function MarketTickerTape() {
     }
   }, [workspace]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (pathname !== "/login") void load().catch(() => setError("Market tape is unavailable.")); }, [load, pathname]);
 
   const selected = useMemo(() => new Set(data.items.map((item) => item.symbol)), [data.items]);
   const loop = data.items.length > 4 ? [...data.items, ...data.items] : data.items;
@@ -91,6 +95,7 @@ export function MarketTickerTape() {
     }
   }
 
+  if (pathname === "/login") return null;
   return (
     <section className="market-tape" aria-label="Global market ticker">
       <div className="market-tape-viewport">
@@ -110,7 +115,7 @@ export function MarketTickerTape() {
         <p>Choose up to 13 instruments. Your selection follows this workspace.</p>
         <form className="market-tape-search" onSubmit={addCustom}><Search size={13} /><input aria-label="Add ticker to market tape" placeholder="Search or enter a ticker, e.g. SAP" value={query} onChange={(event) => setQuery(event.target.value)} maxLength={12} /><button type="submit" disabled={!query.trim() || busy}>Add</button></form>
         {error && <p className="market-tape-error" role="alert">{error}</p>}
-        <div className="market-tape-options">{data.available.filter((item) => !query || `${item.symbol} ${item.name}`.toLowerCase().includes(query.toLowerCase())).map((item) => <button disabled={busy || (!selected.has(item.symbol) && selected.size >= 13)} className={selected.has(item.symbol) ? "selected" : ""} key={item.symbol} onClick={() => void update(item.symbol)}>{selected.has(item.symbol) ? <Check size={13} /> : <Plus size={13} />}<span>{item.symbol}<small>{item.name}</small></span></button>)}</div>
+        <div className="market-tape-options">{data.available.filter((item) => !query || `${item.symbol} ${item.name}`.toLowerCase().includes(query.toLowerCase())).map((item) => <button disabled={busy || (!selected.has(item.symbol) && selected.size >= 13)} className={selected.has(item.symbol) ? "selected" : ""} key={item.symbol} onClick={() => void update(item.symbol).catch(() => setError("Ticker preferences could not be saved."))}>{selected.has(item.symbol) ? <Check size={13} /> : <Plus size={13} />}<span>{item.symbol}<small>{item.name}</small></span></button>)}</div>
       </div>}
     </section>
   );

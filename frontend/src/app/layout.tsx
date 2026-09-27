@@ -3,6 +3,8 @@ import "./globals.css";
 import "../components/research/research.css";
 import "../components/research/terminal.css";
 import "../components/research/amber.css";
+import { AccountProvider } from "@/components/account/account-provider";
+import { localWorkspaceAllowed } from "@/lib/supabase/config";
 import { MarketTickerTape } from "@/components/research/market-ticker-tape";
 
 export const metadata: Metadata = {
@@ -30,8 +32,8 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans">
-        <MarketTickerTape />
-        {children}
+        <AccountProvider localMode={localWorkspaceAllowed()}><MarketTickerTape />
+        {children}</AccountProvider>
       </body>
     </html>
   );

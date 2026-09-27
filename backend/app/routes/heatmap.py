@@ -123,3 +123,13 @@ def movers():
         }
     except (httpx.HTTPError, ValueError, KeyError, TypeError):
         raise HTTPException(503, "Market movers are temporarily unavailable. Please retry.")
+
+
+@router.get("/small-caps")
+def small_caps():
+    from app.services.discovery_screen import enrich_stocks
+    snapshot = heatmap()
+    candidates = [s for s in snapshot["stocks"] if 300 <= s["marketCap"] <= 2000]
+    stocks, status = enrich_stocks(candidates)
+    return {**snapshot, "stocks": stocks, "fundamentalsStatus": status,
+            "fundamentalsNote": "Existing cached annual statements only. Coverage varies; no per-card provider requests."}

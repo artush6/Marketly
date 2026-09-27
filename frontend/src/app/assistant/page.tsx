@@ -1,4 +1,5 @@
 "use client";
+import { userStorage } from "@/lib/user-storage";
 
 import {
   startTransition,
@@ -113,7 +114,7 @@ export default function Page() {
       const next = pushRecentQuery(query, current);
 
       if (typeof window !== "undefined") {
-        window.localStorage.setItem(
+        userStorage.setItem(
           RECENT_QUERIES_STORAGE_KEY,
           JSON.stringify(next),
         );
@@ -233,7 +234,7 @@ export default function Page() {
     }
 
     try {
-      const rawState = window.sessionStorage.getItem(ANALYSIS_STATE_STORAGE_KEY);
+      const rawState = userStorage.getItem(ANALYSIS_STATE_STORAGE_KEY);
       if (rawState) {
         const parsed = JSON.parse(rawState) as Partial<PersistedAnalysisState>;
         const restoredAnalysisBlocks = Array.isArray(parsed.analysisBlocks)
@@ -262,7 +263,7 @@ export default function Page() {
         });
       }
 
-      const rawRecentQueries = window.localStorage.getItem(
+      const rawRecentQueries = userStorage.getItem(
         RECENT_QUERIES_STORAGE_KEY,
       );
       if (rawRecentQueries) {
@@ -277,8 +278,8 @@ export default function Page() {
         }
       }
     } catch {
-      window.sessionStorage.removeItem(ANALYSIS_STATE_STORAGE_KEY);
-      window.localStorage.removeItem(RECENT_QUERIES_STORAGE_KEY);
+      userStorage.removeItem(ANALYSIS_STATE_STORAGE_KEY);
+      userStorage.removeItem(RECENT_QUERIES_STORAGE_KEY);
     } finally {
       hasRestoredStateRef.current = true;
       setIsRestoringState(false);
@@ -296,7 +297,7 @@ export default function Page() {
       pendingQueries: pendingBlocks.map((block) => block.query),
     };
 
-    window.sessionStorage.setItem(
+    userStorage.setItem(
       ANALYSIS_STATE_STORAGE_KEY,
       JSON.stringify(stateToPersist),
     );
@@ -427,7 +428,7 @@ export default function Page() {
     });
 
     if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem(ANALYSIS_STATE_STORAGE_KEY);
+      userStorage.removeItem(ANALYSIS_STATE_STORAGE_KEY);
     }
   }, [router]);
 

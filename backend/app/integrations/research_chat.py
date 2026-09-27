@@ -44,7 +44,7 @@ def research_answer(question, context, conversation=None):
         tools=[{"type": "web_search"}],
         instructions=FOLLOW_UP_SYSTEM_PROMPT.replace(
             'Return JSON with exactly one string field: {"answer": string}.',
-            'Return a readable answer with citations. Prefer issuer filings and investor relations sources. '
+            'Return a readable answer with citations. When asked to analyze news, retrieve the linked original article or the most relevant current stories. State when only a headline, excerpt or secondary report is accessible. Summarize what happened, why it matters, uncertainty and what to monitor; cite each material claim. Prefer issuer filings and investor relations sources. '
             'For supply chains distinguish suppliers (sell to the focal company), customers (buy from it), '
             'partners and competitors. Put an entity under suppliers or customers only when the cited source '
             'explicitly supports that buying or selling direction; manufacturing collaboration, interoperability, '

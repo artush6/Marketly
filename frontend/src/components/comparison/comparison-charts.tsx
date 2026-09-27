@@ -1,0 +1,40 @@
+"use client";
+import { useState } from "react";
+import { BarChart, Bar, Cell, CartesianGrid, LabelList, LineChart, Line, ResponsiveContainer, ScatterChart, Scatter, Tooltip, XAxis, YAxis } from "recharts";
+import type { BackendFinancialsResponse } from "@/lib/api";
+import { companyColors, compatible, metricLabels, metricText } from "@/lib/comparison";
+import { format } from "@/lib/research";
+type Props = { symbols: string[]; data: Record<string, BackendFinancialsResponse> };
+const tooltipStyle = { background: "#181a1b", border: "1px solid #444", color: "#eee" };
+export function MetricBars({ symbols, data, metric }: Props & { metric: string }) {
+  const anchor = data[symbols[0]]?.comparisonMetrics?.[metric];
+  const rows = symbols.map((s,i) => ({ symbol:s, value:data[s]?.comparisonMetrics?.[metric]?.value, color:companyColors[i] })).filter((r)=>r.value!=null && compatible(anchor,data[r.symbol]?.comparisonMetrics?.[metric]));
+  if (!rows.length) return <p className="empty-state">No comparable {metricLabels[metric].toLowerCase()} values.</p>;
+  return <div className="comparison-chart" role="img" aria-label={`${metricLabels[metric]} comparison. Exact values in the table.`}><ResponsiveContainer width="100%" height="100%"><BarChart data={rows} layout="vertical" margin={{ left: 0,right:25 }}><CartesianGrid horizontal={false} stroke="#303437" /><XAxis type="number" tickFormatter={(v)=>format(v,anchor?.unit || "number",anchor?.currency || "USD")} /><YAxis type="category" dataKey="symbol" width={65} /><Tooltip contentStyle={tooltipStyle} formatter={(v)=>metricText(anchor?{...anchor,value:Number(v)}:undefined)} /><Bar dataKey="value" isAnimationActive={false}>{rows.map((r)=><Cell key={r.symbol} fill={r.color} />)}</Bar></BarChart></ResponsiveContainer></div>;
+}
+export function GrowthScatter({ symbols,data }: Props) {
+  const [x,setX]=useState("revenueGrowth"); const [y,setY]=useState("trailingPE");
+  const anchorX=data[symbols[0]]?.comparisonMetrics?.[x]; const anchorY=data[symbols[0]]?.comparisonMetrics?.[y];
+  const rows=symbols.map((s,i)=>({ symbol:s,x:data[s]?.comparisonMetrics?.[x]?.value,y:data[s]?.comparisonMetrics?.[y]?.value,color:companyColors[i] })).filter((r)=>r.x!=null && r.y!=null && compatible(anchorX,data[r.symbol]?.comparisonMetrics?.[x]) && compatible(anchorY,data[r.symbol]?.comparisonMetrics?.[y]));
+  return <><div className="compare-chart-controls"><label>Growth<select value={x} onChange={(e)=>setX(e.target.value)}>{["revenueGrowth","epsGrowth","fcfGrowth"].map((k)=><option value={k} key={k}>{metricLabels[k]}</option>)}</select></label><label>Valuation<select value={y} onChange={(e)=>setY(e.target.value)}>{["evSales","forwardPE","trailingPE","evEbitda"].map((k)=><option key={k} value={k}>{metricLabels[k]}</option>)}</select></label></div>{rows.length ? <div className="comparison-chart scatter-chart" role="img" aria-label={`${metricLabels[x]} versus ${metricLabels[y]}`}><ResponsiveContainer width="100%" height="100%"><ScatterChart margin={{ top:25,right:55,bottom:30,left:20 }}><CartesianGrid stroke="#303437" /><XAxis type="number" dataKey="x" name={metricLabels[x]} unit="%" label={{ value:metricLabels[x],position:"bottom",offset:10 }} /><YAxis type="number" dataKey="y" name={metricLabels[y]} unit="×" /><Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray:"3 3" }} /><Scatter data={rows} isAnimationActive={false}>{rows.map((r)=><Cell key={r.symbol} fill={r.color} />)}<LabelList dataKey="symbol" position="top" fill="#ccc" /></Scatter></ScatterChart></ResponsiveContainer></div> : <p className="empty-state">No companies have both compatible metrics for this view.</p>}<p className="disclosure">{rows.length} of {symbols.length} companies plotted. Position shows a relationship between reported metrics, not a recommendation.</p></>;
+}
+export function FinancialHistory({ symbols,data }: Props) {
+  const [metric,setMetric]=useState("revenue"); const [mode,setMode]=useState("absolute"); const [years,setYears]=useState(5); const [frequency,setFrequency]=useState("annual"); const [currency,setCurrency]=useState("");
+  const observations=symbols.flatMap((s)=>data[s]?.financialTrends?.observations || []);
+  const currencies=[...new Set(observations.map((o)=>o.currency).filter((c):c is string=>!!c))]; const selectedCurrency=currencies.includes(currency)?currency:currencies[0];
+  const latestYear=Math.max(0,...observations.map((o)=>Number(o.date.slice(0,4))));
+  const periods=new Map<string,Record<string,string|number|null>>();
+  symbols.forEach((s)=>{ for(const o of data[s]?.financialTrends?.observations || []) {
+    if(o.frequency!==frequency || Number(o.date.slice(0,4))<latestYear-years || (mode==="absolute" && o.currency!==selectedCurrency)) continue;
+    const key=`${o.date.slice(0,4)} ${o.period}`; const point=o.metrics[metric]; const revenue=o.metrics.revenue?.value;
+    const value=mode==="growth" ? point?.yoyChange==null?null:point.yoyChange*100 : mode==="margin" ? point?.value!=null && revenue!=null && revenue>0 ? point.value/revenue*100 : null : point?.value ?? null;
+    const row=periods.get(key)||{period:key}; row[s]=value; row[`${s}Date`]=o.date; periods.set(key,row);
+  }});
+  const rows=[...periods.values()].sort((a,b)=>String(a.period).localeCompare(String(b.period)));
+  const options=["revenue","grossProfit","operatingIncome","ebitda","netIncome","eps","operatingCashFlow","capex","freeCashFlow","cash","debt","totalAssets","equity"];
+  const marginAllowed=["grossProfit","operatingIncome","ebitda","netIncome","operatingCashFlow","freeCashFlow"].includes(metric);
+  return <><div className="compare-chart-controls"><label>Metric<select value={metric} onChange={(e)=>{setMetric(e.target.value);setMode("absolute");}}>{options.map((k)=><option key={k} value={k}>{metricLabels[k]}</option>)}</select></label><label>View<select value={mode} onChange={(e)=>setMode(e.target.value)}><option value="absolute">Absolute</option><option value="growth">YoY growth %</option>{marginAllowed&&<option value="margin">Margin %</option>}</select></label><label>Frequency<select value={frequency} onChange={(e)=>setFrequency(e.target.value)}><option value="annual">Annual</option><option value="quarterly">Quarterly</option></select></label><label>Range<select value={years} onChange={(e)=>setYears(Number(e.target.value))}>{[1,3,5,10].map((y)=><option key={y} value={y}>{y} years</option>)}</select></label>{mode==="absolute"&&<label>Currency<select value={selectedCurrency||""} onChange={(e)=>setCurrency(e.target.value)}>{currencies.map((c)=><option key={c}>{c}</option>)}</select></label>}</div>
+    {rows.length ? <div className="comparison-chart history-chart" role="img" aria-label={`${metricLabels[metric]} history; exact dates and values below`}><ResponsiveContainer width="100%" height="100%"><LineChart data={rows} margin={{ top:12,right:20,left:10,bottom:15 }}><CartesianGrid vertical={false} stroke="#303437" /><XAxis dataKey="period" /><YAxis tickFormatter={(v)=>mode==="absolute"?format(v):`${format(v)}%`} /><Tooltip contentStyle={tooltipStyle} formatter={(v)=>mode==="absolute"?format(v):`${format(v)}%`} />{symbols.map((s,i)=><Line key={s} dataKey={s} stroke={companyColors[i]} strokeWidth={2} dot={{r:3}} connectNulls={false} isAnimationActive={false} />)}</LineChart></ResponsiveContainer></div>:<p className="empty-state">No matching financial history.</p>}
+    <details><summary>Exact values & reporting dates</summary><div className="comparison-table-wrap"><table className="comparison-table"><thead><tr><th>Fiscal period</th>{symbols.map((s)=><th key={s}>{s}</th>)}</tr></thead><tbody>{rows.map((r)=><tr key={String(r.period)}><th>{r.period}</th>{symbols.map((s)=><td key={s}>{r[s]==null?"—":format(r[s],mode==="absolute"?"number":"percent")}<small>{r[`${s}Date`] || "No observation"}</small></td>)}</tr>)}</tbody></table></div></details><p className="disclosure">Aligned by fiscal year and quarter; actual year-end dates can differ. Absolute values include only {selectedCurrency || "known-currency"} statements. Missing periods are not interpolated. Requested range does not imply complete coverage.</p>
+  </>;
+}

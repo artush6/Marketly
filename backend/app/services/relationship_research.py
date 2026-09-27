@@ -14,7 +14,9 @@ from app.integrations import supabase_store as store
 from app.integrations.gpt import _get_client
 
 PASSES = {
-    "supply_chain": "Suppliers and named customers. Search historical supplier lists, procurement disclosures, annual reports, manufacturing and distribution agreements. Establish who sells what to whom.",
+    "component_suppliers": "Named component, material and technology suppliers. Inspect official supplier lists, procurement disclosures and counterparty annual reports. Work through each major product category, including long-established suppliers. Resolve listed names and ticker aliases using the sources.",
+    "manufacturing_distribution": "Contract manufacturing, assembly, logistics and distribution counterparties. Inspect manufacturing agreements and official supply-chain disclosures, including international subsidiaries. Distinguish suppliers from distributors buying finished products.",
+    "named_customers": "Named business customers, carriers, distributors, enterprise buyers and licensees. Search customer concentration disclosures and counterparty purchase announcements. Identify what is purchased. Exclude generic consumer categories and do not classify partners as customers without explicit buying evidence.",
     "ecosystem": "Strategic partnerships, licensing, technology integrations and joint ventures. Search both parties' investor relations and archived announcements, including long-established relationships.",
     "ownership_competition": "Named competitors, subsidiaries, acquisitions and corporate investors. Search annual-report competition sections, subsidiary exhibits, transaction filings and ownership disclosures. Institutional fund holdings alone are not strategic investment relationships.",
 }
@@ -166,7 +168,7 @@ def research_relationships(symbol):
             except Exception as exc:
                 failures.append({"scope": key, "error": type(exc).__name__})
     report = {"completedAt": datetime.now(timezone.utc).isoformat(), "passes": results,
-              "failures": failures, "status": "partial" if failures else "complete"}
+              "expectedPasses": len(PASSES), "failures": failures, "status": "partial" if failures else "complete"}
     store.set_json("relationship_research", symbol, report, 365 * 86400, strict=True)
     if len(failures) == len(PASSES):
         raise ValueError("All relationship research passes failed")

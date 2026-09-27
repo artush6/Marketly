@@ -1,7 +1,8 @@
+import { PricePerformance } from "./price-performance";
 import { ChartWidget } from "./chart-widget";
 export function PriceChart({ symbol }: { symbol: string }) {
   return (
-    <div className="research-chart">
+    <><div className="research-chart">
       <ChartWidget kind="price" symbol={symbol} />
       <a
         href={`https://www.tradingview.com/symbols/${encodeURIComponent(symbol)}/`}
@@ -10,6 +11,6 @@ export function PriceChart({ symbol }: { symbol: string }) {
       >
         Chart by TradingView · Open chart ↗
       </a>
-    </div>
+    </div><PricePerformance symbol={symbol} /></>
   );
 }

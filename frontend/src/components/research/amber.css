@@ -633,3 +633,8 @@ html[data-marketly-theme] .research-app .section-heading { background: transpare
   .research-app .market-discover > .news-grid { padding: 16px; }
   .research-app .market-panel > .terminal-heading > span { font-size: 10px; }
 }
+/* Consistent reading sizes for compact breadth and relationship evidence. */
+.sector-breadth { gap: 12px; padding: 18px 0; }
+.sector-breadth > span { min-width: 155px; padding: 14px; gap: 9px; }
+.sector-breadth b { font-size: 12px; }.sector-breadth small { font-size: 13px; }
+.relationship-node text { font-size: 13px; }.relationship-node .relationship-node-type { font-size: 10px; }

@@ -40,6 +40,10 @@ export function FinancialTrends({ data }: { data?: TrendData }) {
   const chart = rows.map((o) => ({ label: `${o.date} ${o.period}`, value: o.metrics[metric]?.value == null ? null : o.metrics[metric].value! * (point?.unit === "ratio" ? 100 : 1) }));
   const hasValues = chart.some((o) => o.value != null);
   const sourceUrl = safeUrl(point?.sourceUrl);
+  const availableRows = rows.filter((o) => o.metrics[metric]?.value != null);
+  const first = availableRows[0];
+  const span = first && latest ? Number(latest.date.slice(0,4)) - Number(first.date.slice(0,4)) : 0;
+  const cagrReason = selectedFrequency === "quarterly" ? "CAGR requires annual observations" : point?.unit === "ratio" ? "CAGR is not meaningful for this ratio" : span < Number(horizon) ? `Only ${span} years of history available; ${horizon} years required` : point?.cagr[horizon] != null ? "Calculated from matching annual endpoints" : "Matching positive annual endpoints unavailable";
 
   return <section className="financial-trends" aria-labelledby="financial-trends-title">
     <div className="financials-heading">
@@ -54,8 +58,9 @@ export function FinancialTrends({ data }: { data?: TrendData }) {
     <div className="research-snapshot-summary">
       <div><small>{labels[metric]}</small><strong>{display(point)}</strong><span>{latest ? `${latest.period} · ${latest.date} · ${point?.unit === "shares" ? "shares" : point?.unit === "ratio" ? "%" : currency}` : "No classified reporting periods"}</span></div>
       <div><small>Year-over-year change</small><strong>{percent(point?.yoyChange)}</strong><span>{point?.yoyBasePeriod ? `Compared with ${point.yoyBasePeriod}` : "Comparable prior period unavailable"}</span></div>
-      <div><small>{horizon}-year CAGR</small><strong>{percent(point?.cagr[horizon])}</strong><span>{selectedFrequency === "quarterly" ? "Annual observations required" : "Positive annual endpoints required"}</span></div>
+      <div><small>{horizon}-year CAGR</small><strong>{percent(point?.cagr[horizon])}</strong><span>{cagrReason}</span></div>
     </div>
+    <p className="trend-coverage">{first && latest ? `${availableRows.length} observations · ${first.date} to ${latest.date} · ${horizon}-year requested range` : "No observations available"}</p>
     {hasValues ? <div className="financial-chart" role="img" aria-label={`${labels[metric]} history; exact values available in the table below`}>
       <ResponsiveContainer width="100%" height="100%"><LineChart data={chart} margin={{ top: 12, right: 20, bottom: 8, left: 0 }}>
         <CartesianGrid stroke="var(--chart-grid)" vertical={false} />

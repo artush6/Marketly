@@ -35,7 +35,10 @@ export type FinancialTrends = {
   updatedAt: string | null; excludedRows: number; methodology: string;
 };
 
+export type ComparisonMetric = { value: number | null; unit: "money" | "number" | "percent" | "multiple"; basis: string; period: string | null; currency: string | null; source: string | null; asOf: string | null; note?: string | null };
+
 export type BackendFinancialsResponse = {
+  comparisonMetrics?: Record<string, ComparisonMetric>;
   financialTrends?: FinancialTrends;
   symbol: string;
   info?: {
@@ -451,7 +454,7 @@ export type RelationshipResponse = {
   loadedAt: string;
   coverageNote: string;
   researchState?: "idle" | "queued" | "running" | "failed";
-  researchReport?: { completedAt: string; status: string; passes: { scope: string; saved: number; coverageGaps: string[] }[]; failures: { scope: string; error: string }[] } | null;
+  researchReport?: { expectedPasses?: number; completedAt: string; status: string; passes: { scope: string; saved: number; coverageGaps: string[] }[]; failures: { scope: string; error: string }[] } | null;
 };
 
 export function getRelationships(symbol: string) {

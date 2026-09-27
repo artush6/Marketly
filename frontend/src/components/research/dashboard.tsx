@@ -1,4 +1,7 @@
 "use client";
+import { userStorage } from "@/lib/user-storage";
+import { CompactComparison } from "../comparison/compact-comparison";
+import { Expectations } from "./expectations";
 import { CompanyLogo } from "./company-logo";
 
 import { useEffect, useRef, useState } from "react";
@@ -41,7 +44,6 @@ import {
   discovery,
   format,
   metrics,
-  peerMean,
   safeUrl,
   STARTER_COMPANIES,
 } from "@/lib/research";
@@ -63,7 +65,7 @@ import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
 import { StyledSelect } from "./styled-select";
 
-type Tab = "Overview" | "Profile" | "Network" | "Compare" | "News" | "Evidence";
+type Tab = "Overview" | "Profile" | "Network" | "Compare" | "News" | "Evidence" | "Expectations";
 type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research";
 const STORAGE = "marketly.research.v1";
 const INITIAL_WATCHLIST = ["AAPL", "MSFT", "NVDA", "GOOGL"];
@@ -167,6 +169,7 @@ function NewsCard({ article }: { article: BackendNewsItem }) {
         </h3>
       </a>
       {article.summary && <p>{article.summary}</p>}
+      <button className="text-button" onClick={() => window.dispatchEvent(new CustomEvent("marketly-research-question", {detail: `Analyze this article: ${url}. ${article.headline || ""} Read the source if accessible, summarize the key facts and implications, and clearly state if only an excerpt is available.`}))}>Analyze in chat ↗</button>
     </article>
   );
 }
@@ -215,7 +218,7 @@ export function ResearchDashboard() {
 
   useEffect(() => {
     try {
-      const value = JSON.parse(localStorage.getItem(STORAGE) || "null");
+      const value = JSON.parse(userStorage.getItem(STORAGE) || "null");
       if (value) {
         if (Array.isArray(value.watchlist))
           setWatchlist(
@@ -273,7 +276,7 @@ export function ResearchDashboard() {
   useEffect(() => {
     if (!ready) return;
     try {
-      localStorage.setItem(
+      userStorage.setItem(
         STORAGE,
         JSON.stringify({ watchlist, saved, alerts }),
       );
@@ -415,9 +418,9 @@ export function ResearchDashboard() {
       peerBusy.includes(c.symbol)
     )
       return;
-    if (Object.keys(peerData).length + peerBusy.length >= 6) {
+    if (Object.keys(peerData).length + peerBusy.length >= 5) {
       setPeerMessage(
-        "Compare up to six peers. Remove a company to add another.",
+        "Compare up to six companies. Remove a company to add another.",
       );
       return;
     }
@@ -523,7 +526,6 @@ export function ResearchDashboard() {
     latestFiling?.acceptedForm || "financial filing",
   );
   const isWatching = watchlist.includes(company.symbol);
-  const selectedPeers = Object.values(peerData);
   const triggeredAlerts = snapshot
     ? []
     : alerts.filter(
@@ -533,20 +535,7 @@ export function ResearchDashboard() {
           (a.direction === "above" ? m.price >= a.price : m.price <= a.price),
       );
   const positive = (m.change ?? 0) >= 0;
-  const stats = [
-    { label: "Market cap", value: format(m.marketCap, "money", m.currency) },
-    { label: "P/E ratio", value: format(m.pe, "multiple") },
-    {
-      label: "Reported revenue",
-      value: format(
-        m.revenue,
-        "money",
-        financials?.financials?.income_statement?.[0]?.reportedCurrency ||
-          m.currency,
-      ),
-    },
-    { label: "Net margin", value: format(m.margin, "percent") },
-  ];
+
   const companyAssistantContext = {
     symbol: company.symbol,
     watchlist,
@@ -616,7 +605,7 @@ export function ResearchDashboard() {
         <CompanySearch onSelect={select} />
         <div className="header-context">
           <span className="device-dot" />
-          Personal workspace<span className="avatar">M</span>
+          <Link href="/settings">Profile & settings</Link><Link href="/portfolio">Portfolio</Link><Link href="/compare">Compare</Link>
         </div>
       </header>
       <nav className="research-nav" aria-label="Primary navigation">
@@ -997,11 +986,6 @@ export function ResearchDashboard() {
                     {error}
                   </div>
                 )}
-                <CompanyResearchSnapshot
-                  financials={financials}
-                  analysis={analysis}
-                  loading={loading}
-                />
                 {!loading &&
                   financials?.dataQuality &&
                   financials.dataQuality.status !== "complete" && (
@@ -1022,20 +1006,11 @@ export function ResearchDashboard() {
                 ) : (
                   <PriceChart symbol={company.symbol} />
                 )}
-                <div className="key-metrics">
-                  {stats.map((stat) => (
-                    <div key={stat.label}>
-                      <small>{stat.label}</small>
-                      <strong>
-                        {loading ? (
-                          <span className="text-skeleton" />
-                        ) : (
-                          stat.value
-                        )}
-                      </strong>
-                    </div>
-                  ))}
-                </div>
+                <CompanyResearchSnapshot
+                  financials={financials}
+                  analysis={analysis}
+                  loading={loading}
+                />
                 <div className="data-footnote">
                   Statement period: {String(m.period)}{" "}
                   {latestFilingUrl ? (
@@ -1056,7 +1031,7 @@ export function ResearchDashboard() {
                 </div>
               </section>
               <nav className="company-tabs" aria-label="Company sections">
-                {(["Overview", "Profile", "Network", "Compare", "News", "Evidence"] as Tab[]).map(
+                {(["Overview", "Profile", "Network", "Compare", "Expectations", "News", "Evidence"] as Tab[]).map(
                   (t) => (
                     <button
                       key={t}
@@ -1197,149 +1172,9 @@ export function ResearchDashboard() {
                     compare companies.
                   </div>
                 )}
-                {tab === "Compare" && !snapshot && (
-                  <section className="research-section">
-                    <div className="section-heading">
-                      <div>
-                        <h2>Company comparison</h2>
-                        <p>Your company vs selected competitors.</p>
-                      </div>
-                      <button
-                        className="secondary-button"
-                        disabled={peersLoading || peerBusy.length > 0}
-                        onClick={discoverPeers}
-                      >
-                        {peersLoading ? (
-                          <LoaderCircle size={14} className="spin" />
-                        ) : (
-                          <Layers3 size={14} />
-                        )}
-                        Find peers
-                      </button>
-                    </div>
-                    <CompanySearch compact onSelect={addPeer} />
-                    {(peerMessage || peerBusy.length > 0) && (
-                      <p className="disclosure" role="status">
-                        {peerBusy.length
-                          ? `Loading ${peerBusy.join(", ")}…`
-                          : peerMessage}
-                      </p>
-                    )}
-                    <div className="comparison-table-wrap">
-                      <table className="comparison-table">
-                        <thead>
-                          <tr>
-                            <th>Company</th>
-                            <th>P/E</th>
-                            <th>Net margin</th>
-                            <th>Statement period</th>
-                            <th aria-label="Actions" />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="selected-row">
-                            <td>
-                              <b>{company.symbol}</b>
-                              <small>{name}</small>
-                            </td>
-                            <td>{format(m.pe, "multiple")}</td>
-                            <td>{format(m.margin, "percent")}</td>
-                            <td>{String(m.period)}</td>
-                            <td>You</td>
-                          </tr>
-                          {Object.entries(peerData).map(([symbol, data]) => {
-                            const peer = metrics(data);
-                            return (
-                              <tr key={symbol}>
-                                <td>
-                                  <b>{symbol}</b>
-                                  <small>
-                                    {data.info?.shortName || symbol}
-                                  </small>
-                                </td>
-                                <td>{format(peer.pe, "multiple")}</td>
-                                <td>{format(peer.margin, "percent")}</td>
-                                <td>{String(peer.period)}</td>
-                                <td>
-                                  <button
-                                    className="icon-button"
-                                    aria-label={`Remove ${symbol} comparison`}
-                                    onClick={() =>
-                                      setPeerData((items) => {
-                                        const next = { ...items };
-                                        delete next[symbol];
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    <X size={13} />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {selectedPeers.length > 0 && (
-                            <tr className="average-row">
-                              <td>
-                                <b>Selected peer average</b>
-                                <small>Excludes {company.symbol}</small>
-                              </td>
-                              <td>
-                                {format(
-                                  peerMean(
-                                    selectedPeers.map((d) => metrics(d).pe),
-                                  ).value,
-                                  "multiple",
-                                )}
-                                <small>
-                                  n=
-                                  {
-                                    peerMean(
-                                      selectedPeers.map((d) => metrics(d).pe),
-                                    ).count
-                                  }
-                                </small>
-                              </td>
-                              <td>
-                                {format(
-                                  peerMean(
-                                    selectedPeers.map((d) => metrics(d).margin),
-                                  ).value,
-                                  "percent",
-                                )}
-                                <small>
-                                  n=
-                                  {
-                                    peerMean(
-                                      selectedPeers.map(
-                                        (d) => metrics(d).margin,
-                                      ),
-                                    ).count
-                                  }
-                                </small>
-                              </td>
-                              <td>Latest available</td>
-                              <td />
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                    {!selectedPeers.length && (
-                      <div className="empty-state">
-                        <Layers3 size={22} />
-                        Find suggested peers or search for a competitor to build
-                        your comparison.
-                      </div>
-                    )}
-                    <p className="disclosure">
-                      Simple unweighted averages of available values. Missing
-                      fields are excluded. This is a selected peer group, not an
-                      industry-wide benchmark. Reporting dates and fiscal
-                      periods may differ.
-                    </p>
-                  </section>
-                )}
+                {tab === "Compare" && !snapshot && <CompactComparison symbol={company.symbol} base={financials} peers={peerData} add={addPeer} remove={(symbol) => setPeerData((items) => { const next = { ...items }; delete next[symbol]; return next; })} reset={discoverPeers} busy={peersLoading || peerBusy.length > 0} message={peerBusy.length ? `Loading ${peerBusy.join(", ")}…` : peerMessage} />}
+
+                {tab === "Expectations" && <Expectations symbol={company.symbol} />}
                 {tab === "Evidence" && (
                   <section className="research-section">
                     <div className="section-heading">

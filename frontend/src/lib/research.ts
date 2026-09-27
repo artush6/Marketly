@@ -58,6 +58,7 @@ export function format(
   const options: Intl.NumberFormatOptions = { maximumFractionDigits: 2 };
   if (style === "money") {
     options.style = "currency";
+    options.minimumFractionDigits = 2;
     options.currency = /^[A-Z]{3}$/.test(currency) ? currency : "USD";
   }
   if (Math.abs(n) >= 1e6) {

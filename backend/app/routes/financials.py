@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from app.core.errors import MisconfigurationError
 from app.core.symbols import normalize_symbol_input
 from app.integrations.financials import fetch_ticker_financials
+from app.services.comparison import comparison_metrics
 from app.services.financial_trends import build_financial_trends
 from app.routes.market import track_symbols
 from app.routes.discovery import SYMBOL
@@ -42,7 +43,8 @@ def get_financials(symbol: str, background_tasks: BackgroundTasks, refresh: bool
                     })
             except (ValueError, TypeError, KeyError):
                 logger.warning("Ignored malformed cached quote for %s", symbol)
-        return {**payload, "financialTrends": build_financial_trends(payload)}
+        trends = build_financial_trends(payload)
+        return {**payload, "financialTrends": trends, "comparisonMetrics": comparison_metrics(payload, trends)}
     except HTTPException:
         raise
     except MisconfigurationError as exc:

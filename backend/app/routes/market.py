@@ -8,7 +8,8 @@ from uuid import UUID
 import json
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from app.core.auth import current_user, own_workspace, Identity
+from fastapi import Depends, APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel, Field
 from app.core.cache import CacheManager
 from app.services.market_refresh import register_symbols
@@ -114,8 +115,8 @@ def _workspace_key(value: str) -> str:
 
 
 @router.get("/tape")
-def market_tape(workspace_key: str = Query(max_length=36)):
-    workspace_key = _workspace_key(workspace_key)
+def market_tape(workspace_key: str = Query(max_length=36), user: Identity | None = Depends(current_user)):
+    workspace_key = own_workspace(_workspace_key(workspace_key), user)
     instruments = supabase_store.get_market_instruments() or [dict(item) for item in TRACKER_CATALOG]
     available = {item["symbol"]: item for item in instruments}
     selected = supabase_store.get_workspace_trackers(workspace_key)
@@ -139,8 +140,8 @@ def market_tape(workspace_key: str = Query(max_length=36)):
 
 
 @router.put("/tape/{workspace_key}")
-def update_market_tape(workspace_key: str, update: TrackerUpdate):
-    workspace_key = _workspace_key(workspace_key)
+def update_market_tape(workspace_key: str, update: TrackerUpdate, user: Identity | None = Depends(current_user)):
+    workspace_key = own_workspace(_workspace_key(workspace_key), user)
     instruments = supabase_store.get_market_instruments() or [dict(item) for item in TRACKER_CATALOG]
     available = {item["symbol"] for item in instruments}
     symbols = list(dict.fromkeys(symbol.strip().upper() for symbol in update.symbols))
@@ -155,8 +156,8 @@ def update_market_tape(workspace_key: str, update: TrackerUpdate):
 
 
 @router.post("/tape/{workspace_key}/instruments/{symbol}")
-def add_market_tape_instrument(workspace_key: str, symbol: str):
-    workspace_key = _workspace_key(workspace_key)
+def add_market_tape_instrument(workspace_key: str, symbol: str, user: Identity | None = Depends(current_user)):
+    workspace_key = own_workspace(_workspace_key(workspace_key), user)
     symbol = symbol.strip().upper()
     if not SYMBOL.fullmatch(symbol):
         raise HTTPException(422, "Enter a valid ticker symbol.")

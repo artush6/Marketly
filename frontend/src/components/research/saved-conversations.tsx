@@ -1,4 +1,5 @@
 "use client";
+import { userStorage } from "@/lib/user-storage";
 
 import { useEffect, useState } from "react";
 
@@ -12,10 +13,12 @@ export type ChatMessage = {
 export type ChatVisual =
   | {
       type: "comparison";
+      metric?: "revenue" | "marketCap" | "pe" | "margin";
       title: string;
       companies: Array<{
         symbol: string;
         name?: string;
+        currency?: string;
         pe?: number | null;
         margin?: number | null;
         marketCap?: number | null;
@@ -68,7 +71,7 @@ function validConversation(value: unknown): value is Conversation {
 
 export function readConversations(): Conversation[] {
   try {
-    const value: unknown = JSON.parse(localStorage.getItem(CHAT_STORAGE) || "[]");
+    const value: unknown = JSON.parse(userStorage.getItem(CHAT_STORAGE) || "[]");
     return Array.isArray(value)
       ? value.filter(validConversation).slice(0, 50)
       : [];
@@ -78,7 +81,7 @@ export function readConversations(): Conversation[] {
 }
 
 export function writeConversations(items: Conversation[]) {
-  localStorage.setItem(CHAT_STORAGE, JSON.stringify(items.slice(0, 50)));
+  userStorage.setItem(CHAT_STORAGE, JSON.stringify(items.slice(0, 50)));
   window.dispatchEvent(new Event("marketly-chat-saved"));
 }
 
@@ -113,7 +116,7 @@ export function SavedConversations() {
       <div className="section-heading">
         <div>
           <h2>Conversations</h2>
-          <p>Saved on this device with the strategy and research context used at the time.</p>
+          <p>Saved with the strategy and research context used at the time.</p>
         </div>
       </div>
       {error && <p role="alert" className="inline-error">{error}</p>}

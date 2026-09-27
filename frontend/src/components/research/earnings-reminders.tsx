@@ -1,4 +1,5 @@
 "use client";
+import { userStorage } from "@/lib/user-storage";
 import { CompanyLogo } from "./company-logo";
 
 import { useEffect, useState } from "react";
@@ -12,7 +13,7 @@ export function EarningsReminders({ symbols, ready }: { symbols: string[]; ready
   const [unavailable, setUnavailable] = useState(false);
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem("marketly-earnings-dismissed") || "[]");
+      const stored = JSON.parse(userStorage.getItem("marketly-earnings-dismissed") || "[]");
       if (Array.isArray(stored)) setDismissed(stored.filter((value): value is string => typeof value === "string"));
     }
     catch { /* Local storage is optional. */ }
@@ -48,7 +49,7 @@ export function EarningsReminders({ symbols, ready }: { symbols: string[]; ready
       <button type="button" aria-label={`Dismiss ${reminder.symbol} earnings reminder`} onClick={() => {
         const next = [...dismissed, reminder.id].slice(-200);
         setDismissed(next);
-        try { localStorage.setItem("marketly-earnings-dismissed", JSON.stringify(next)); } catch { /* optional */ }
+        try { userStorage.setItem("marketly-earnings-dismissed", JSON.stringify(next)); } catch { /* optional */ }
       }}>Dismiss</button>
     </div>)}
     {unavailable && <p className="inline-notice">Earnings reminders are temporarily unavailable.</p>}

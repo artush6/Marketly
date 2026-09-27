@@ -1,7 +1,8 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from app.core.auth import current_user
 from app.integrations import supabase_store
 from app.services.market_refresh import RefreshWorker
 from app.routes import companies, analysis, assistant, discovery, econ_situation, financials, heatmap, market, news, relationships
@@ -26,15 +27,15 @@ async def lifespan(app):
 app = FastAPI(title="Marketly Backend 🚀", lifespan=lifespan)
 
 # Include routers
-app.include_router(companies.router)
-app.include_router(financials.router)
-app.include_router(news.router)
-app.include_router(relationships.router)
-app.include_router(analysis.router)
-app.include_router(assistant.router)
-app.include_router(econ_situation.router)
-app.include_router(discovery.router)
-app.include_router(market.router)
+app.include_router(companies.router, dependencies=[Depends(current_user)])
+app.include_router(financials.router, dependencies=[Depends(current_user)])
+app.include_router(news.router, dependencies=[Depends(current_user)])
+app.include_router(relationships.router, dependencies=[Depends(current_user)])
+app.include_router(analysis.router, dependencies=[Depends(current_user)])
+app.include_router(assistant.router, dependencies=[Depends(current_user)])
+app.include_router(econ_situation.router, dependencies=[Depends(current_user)])
+app.include_router(discovery.router, dependencies=[Depends(current_user)])
+app.include_router(market.router, dependencies=[Depends(current_user)])
 
 
 @app.get("/")
@@ -80,4 +81,4 @@ def dependency_healthz():
         },
     }
 
-app.include_router(heatmap.router)
+app.include_router(heatmap.router, dependencies=[Depends(current_user)])

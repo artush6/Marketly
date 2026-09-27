@@ -1,0 +1,31 @@
+"use client";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getFinancials, type BackendFinancialsResponse } from "@/lib/api";
+import { categories, companyColors, comparisonUrl, metricLabels, parseSymbols } from "@/lib/comparison";
+import { format } from "@/lib/research";
+import { CompanySearch } from "../research/company-search";
+import { CompanyLogo } from "../research/company-logo";
+import { MetricTable } from "./metric-table";
+import { FinancialHistory, GrowthScatter, MetricBars } from "./comparison-charts";
+function Panel({ title, children, wide=false }: { title:string; children:React.ReactNode; wide?:boolean }) { const [expanded,setExpanded]=useState(false); return <section className={`comparison-panel ${wide||expanded?"wide":""}`}><header><h2>{title}</h2><button className="text-button" aria-label={`${expanded?"Reduce":"Expand"} ${title}`} onClick={()=>setExpanded(!expanded)}>{expanded?"Reduce":"Expand"}</button></header>{children}</section>; }
+export function ComparisonWorkspace() {
+  const params=useSearchParams(); const router=useRouter(); const raw=params.get("symbols")||""; const symbols=parseSymbols(raw); const symbolKey=symbols.join(",");
+  const [data,setData]=useState<Record<string,BackendFinancialsResponse>>({}); const [errors,setErrors]=useState<Record<string,string>>({}); const [loading,setLoading]=useState<string[]>([]); const [notice,setNotice]=useState(""); const [retry,setRetry]=useState(0);
+  const [barMetric,setBarMetric]=useState("trailingPE"); const cache=useRef<Record<string,BackendFinancialsResponse>>({});
+  useEffect(()=>{let alive=true; const list=parseSymbols(symbolKey);setLoading(list.filter((s)=>!cache.current[s]));setErrors({});
+    void Promise.allSettled(list.map(async(s)=>{if(cache.current[s])return;try{const result=await getFinancials(s);if(alive){cache.current[s]=result;setData({...cache.current});}}catch{if(alive)setErrors((e)=>({...e,[s]:"Financial data unavailable"}));}finally{if(alive)setLoading((l)=>l.filter((v)=>v!==s));}}));return()=>{alive=false;};
+  },[symbolKey,retry]);
+  function select(next:string[]){router.replace(comparisonUrl(next),{scroll:false});}
+  async function share(){try{await navigator.clipboard.writeText(location.href);setNotice("Comparison link copied.");}catch{setNotice("Copy the comparison URL from your address bar.");}}
+  return <main className="comparison-workspace"><nav className="workspace-links"><Link href="/">← Research</Link><Link href="/portfolio">Portfolio</Link><Link href="/settings">Settings</Link></nav><div className="section-heading"><div><div className="eyebrow">RESEARCH WORKSPACE</div><h1>Company comparison</h1><p>Valuation, growth and financial strength in one view.</p></div><button className="secondary-button" onClick={()=>void share()}>Copy link</button></div>
+    <div className="compare-selection">{symbols.map((s,i)=><span key={s} style={{borderColor:companyColors[i]}}><i style={{background:companyColors[i]}} />{s}{i===0&&<small>Base</small>}<button aria-label={`Remove ${s}`} onClick={()=>select(symbols.filter((v)=>v!==s))}>×</button></span>)}{symbols.length<6&&<CompanySearch compact onSelect={(c)=>select([...symbols,c.symbol])} />}</div>
+    {raw&&parseSymbols(raw).join(",")!==raw.toUpperCase()&&<p className="disclosure">Invalid or duplicate tickers were excluded. Comparisons support up to six companies.</p>}
+    <p className="disclosure" role="status">{loading.length?`Loading ${loading.join(", ")}…`:notice}</p>{Object.entries(errors).map(([s,error])=><p className="inline-error" key={s}>{s}: {error}. <button onClick={()=>setRetry(retry+1)}>Retry</button></p>)}
+    {symbols.length<2&&<p className="empty-state">Add at least two companies to build a comparison. The first company is the reference for peer medians.</p>}
+    {!!symbols.length&&<><div className="comparison-snapshots">{symbols.map((s,i)=>{const d=data[s];return <article key={s} style={{borderTopColor:companyColors[i]}}><CompanyLogo symbol={s}/><a href={`/?symbol=${encodeURIComponent(s)}`}><h2>{s}</h2></a><p>{d?.info?.shortName||s}</p><strong>{format(d?.quote?.c??d?.quote?.currentPrice,"money",d?.info?.currency||"USD")}</strong><dl>{[["Market cap",format(d?.info?.marketCap,"money",d?.info?.currency||"USD")],["Sector",d?.info?.sector],["Industry",d?.info?.industry],["Country",d?.info?.country],["CEO",d?.info?.chiefExecutive],["Employees",format(d?.info?.fullTimeEmployees)]].map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v||"—"}</dd></div>)}</dl><details><summary>Business overview</summary><p>{d?.info?.longBusinessSummary||"Description unavailable."}</p></details></article>;})}</div>
+    <div className="comparison-grid"><Panel title="Growth vs valuation" wide><GrowthScatter symbols={symbols} data={data}/></Panel><Panel title="Valuation"><label className="compare-chart-controls">Visualize<select value={barMetric} onChange={(e)=>setBarMetric(e.target.value)}>{categories.Valuation.map((k)=><option key={k} value={k}>{metricLabels[k]}</option>)}</select></label><MetricBars symbols={symbols} data={data} metric={barMetric}/><MetricTable symbols={symbols} data={data} metrics={categories.Valuation}/></Panel><Panel title="Growth & profitability"><MetricBars symbols={symbols} data={data} metric="revenueGrowth"/><MetricTable symbols={symbols} data={data} metrics={[...categories.Growth,...categories.Profitability]}/></Panel><Panel title="Financial history" wide><FinancialHistory symbols={symbols} data={data}/></Panel><Panel title="Balance sheet"><MetricTable symbols={symbols} data={data} metrics={["cash","debt","netDebt","netDebtEbitda","totalAssets","equity"]}/></Panel><Panel title="Business scale"><MetricBars symbols={symbols} data={data} metric="revenue"/><MetricTable symbols={symbols} data={data} metrics={["marketCap","revenue","netIncome","freeCashFlow"]}/></Panel></div>
+    <footer className="disclosure">Peer medians exclude the reference company and incompatible fiscal years/currencies. FY figures use the latest classified annual statements; valuation multiples retain their provider basis. Historical valuation, ROIC and forward-growth series appear only when supported by reliable source data.</footer></>}
+  </main>;
+}

@@ -1,4 +1,5 @@
 "use client";
+import { accountId, flushStorage, hasPendingChanges, userStorage } from "@/lib/user-storage";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -55,6 +56,13 @@ function comparisonSymbols(question: string, scope: string) {
 
 function comparisonCompany(data: BackendFinancialsResponse) {
   const values = metrics(data);
+  const shared = data.comparisonMetrics;
+  if (shared) {
+    values.revenue = shared.revenue?.value ?? null;
+    values.margin = shared.netMargin?.value ?? null;
+    values.pe = shared.trailingPE?.value ?? null;
+    values.marketCap = shared.marketCap?.value ?? null;
+  }
   return {
     symbol: data.symbol,
     name: data.info?.shortName,
@@ -135,18 +143,18 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
 
   useEffect(() => {
     try {
-      setStrategy(localStorage.getItem("marketly.strategy") || "Balanced");
-      setHorizon(localStorage.getItem("marketly.horizon") || "3–5 years");
-      setPinned(localStorage.getItem(CHAT_PINNED_KEY) === "true");
-      setHistoryVisible(localStorage.getItem(CHAT_HISTORY_KEY) !== "false");
-      setOpen(mode === "workspace" || localStorage.getItem(CHAT_OPEN_KEY) === "true");
+      setStrategy(userStorage.getItem("marketly.strategy") || "Balanced");
+      setHorizon(userStorage.getItem("marketly.horizon") || "3–5 years");
+      setPinned(userStorage.getItem(CHAT_PINNED_KEY) === "true");
+      setHistoryVisible(userStorage.getItem(CHAT_HISTORY_KEY) !== "false");
+      setOpen(mode === "workspace" || userStorage.getItem(CHAT_OPEN_KEY) === "true");
     } catch { /* Defaults remain usable. */ }
 
     const applyState = (value: { open?: boolean; pinned?: boolean }) => {
       if (typeof value.open === "boolean") setOpen(value.open);
       if (typeof value.pinned === "boolean") setPinned(value.pinned);
     };
-    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(CHAT_CHANNEL) : null;
+    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(`${CHAT_CHANNEL}:${accountId() || "local"}`) : null;
     stateChannel.current = channel;
     if (channel) channel.onmessage = (event: MessageEvent<{ open?: boolean; pinned?: boolean }>) => applyState(event.data || {});
     const syncStorage = (event: StorageEvent) => {
@@ -185,8 +193,8 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     document.body.classList.toggle("marketly-chat-pinned", mode === "dock" && pinned);
     try {
       if (mode === "dock") {
-        localStorage.setItem(CHAT_OPEN_KEY, String(open));
-        localStorage.setItem(CHAT_PINNED_KEY, String(pinned));
+        userStorage.setItem(CHAT_OPEN_KEY, String(open));
+        userStorage.setItem(CHAT_PINNED_KEY, String(pinned));
       }
     } catch { /* Session only. */ }
     stateChannel.current?.postMessage(mode === "dock" ? { open, pinned } : { open });
@@ -194,7 +202,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   }, [mode, open, pinned]);
 
   useEffect(() => {
-    try { localStorage.setItem(CHAT_HISTORY_KEY, String(historyVisible)); } catch { /* Session only. */ }
+    try { userStorage.setItem(CHAT_HISTORY_KEY, String(historyVisible)); } catch { /* Session only. */ }
   }, [historyVisible]);
 
   useEffect(() => {
@@ -238,6 +246,11 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
       investorStrategy: strategy,
       investmentHorizon: horizon,
     };
+    try {
+      const profile = JSON.parse(userStorage.getItem("marketly.profile") || "{}");
+      if (profile.useProfile) nextContext.investorProfile = profile;
+      if (profile.useHoldings && /portfolio|holdings|allocation|exposure/i.test(text)) nextContext.holdings = JSON.parse(userStorage.getItem("marketly.holdings") || "[]");
+    } catch { /* Optional private context is omitted when invalid. */ }
     const visuals: ChatVisual[] = [];
     const symbols = comparisonSymbols(text, activeScopeRef.current);
     if (symbols.length) {
@@ -246,7 +259,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
       nextContext.comparisonDataFailures = results.flatMap((result, index) => result.status === "rejected" ? [symbols[index]] : []);
     }
     const comparison = Array.isArray(nextContext.comparisonCompanies)
-      ? nextContext.comparisonCompanies as Array<{ symbol: string; name?: string; metrics?: { pe?: number | null; margin?: number | null; marketCap?: number | null; revenue?: number | null } }>
+      ? nextContext.comparisonCompanies as Array<{ symbol: string; name?: string; metrics?: { pe?: number | null; margin?: number | null; marketCap?: number | null; revenue?: number | null; currency?: string } }>
       : [];
     if (comparison.length >= 2 && /\b(compare|comparison|versus|vs\.?|choose|better|revenue|sales|margin|valuation|market cap|metrics|financials|graph|chart|measure|performance)\b/i.test(text)) {
       visuals.push({
@@ -314,7 +327,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     setMessages((items) => [...items, { role: "user", content: text }]);
     try {
       const { requestContext, visuals } = await assistantContext(text);
-      const response = await postFollowUp(activeScopeRef.current, text, requestContext, history, research);
+      const response = await postFollowUp(activeScopeRef.current, text, requestContext, history, research || /\b(news|article|headline)\b/i.test(text));
       if (mounted.current) {
         setMessages((items) => [...items, { role: "assistant", content: response.answer, sources: response.sources, visuals }]);
       }
@@ -374,8 +387,8 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   const composer = (
       <form onSubmit={submit}>
         <div className="chat-preferences">
-          <label>Strategy <StyledSelect ariaLabel="Investor strategy" value={strategy} options={["Conservative", "Balanced", "Aggressive growth"].map((item) => ({ value: item, label: item }))} onChange={(value) => { setStrategy(value); try { localStorage.setItem("marketly.strategy", value); } catch { /* Session only. */ } }} /></label>
-          <label>Horizon <StyledSelect ariaLabel="Investment horizon" value={horizon} options={["Under 1 year", "1–3 years", "3–5 years", "5+ years"].map((item) => ({ value: item, label: item }))} onChange={(value) => { setHorizon(value); try { localStorage.setItem("marketly.horizon", value); } catch { /* Session only. */ } }} /></label>
+          <label>Strategy <StyledSelect ariaLabel="Investor strategy" value={strategy} options={["Conservative", "Balanced", "Aggressive growth"].map((item) => ({ value: item, label: item }))} onChange={(value) => { setStrategy(value); try { userStorage.setItem("marketly.strategy", value); } catch { /* Session only. */ } }} /></label>
+          <label>Horizon <StyledSelect ariaLabel="Investment horizon" value={horizon} options={["Under 1 year", "1–3 years", "3–5 years", "5+ years"].map((item) => ({ value: item, label: item }))} onChange={(value) => { setHorizon(value); try { userStorage.setItem("marketly.horizon", value); } catch { /* Session only. */ } }} /></label>
           <label className="chat-checkbox"><input type="checkbox" checked={research} onChange={(event) => setResearch(event.target.checked)} /> Search web</label>
           {mode === "dock" && <button className="text-button" type="button" onClick={() => { setPinned(!pinned); setOpen(true); }}>{pinned ? "Unpin" : "Pin to side"}</button>}
         </div>

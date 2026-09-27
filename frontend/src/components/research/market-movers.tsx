@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, LoaderCircle } from "lucide-react";
+import { format } from "@/lib/research";
 import type { Company } from "@/lib/research";
 import { MarketSectionHeading } from "./market-section-heading";
 import { CompanyLogo } from "./company-logo";
@@ -28,7 +29,7 @@ export function MarketMovers({ scope, onSelect }: { scope: "sp500" | "smallCap";
     <nav className="mover-tabs" aria-label="Mover views">{(["gainers", "losers", "unusual", "earnings", "revisions"] as MoverTab[]).map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
     {error ? <div className="inline-error">{error}</div> : !group ? <div className="empty-state"><LoaderCircle className="spin" size={15} /> Loading movers…</div> : !rows?.length ? <div className="mover-empty"><strong>{tab === "earnings" ? "Earnings movers" : "Estimate revisions"}</strong><span>No verified {tab} feed is connected yet. Marketly will not manufacture this signal.</span></div> : <div className="mover-list">
       <h3 className={tab === "gainers" ? "positive" : tab === "losers" ? "negative" : ""}>{tab === "gainers" ? <ArrowUp size={14} /> : tab === "losers" ? <ArrowDown size={14} /> : null}{tab}</h3>
-      {rows.map((stock) => <button onClick={() => onSelect(stock)} key={stock.symbol}><CompanyLogo symbol={stock.symbol} /><span><b>{stock.symbol}</b><small>{stock.name}{stock.sector ? ` · ${stock.sector}` : ""}</small></span><strong className={stock.changePercent >= 0 ? "positive" : "negative"}>{stock.changePercent > 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%</strong></button>)}
-    </div>}
+      {rows.map((stock) => <button onClick={() => onSelect(stock)} key={stock.symbol}><CompanyLogo symbol={stock.symbol} /><span><b>{stock.symbol}</b><small>{stock.name}{stock.sector ? ` · ${stock.sector}` : ""}</small>{stock.marketCap != null && <small>{format(stock.marketCap*1e6,"money")} market cap</small>}</span><strong className={stock.changePercent >= 0 ? "positive" : "negative"}>{stock.changePercent > 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%</strong></button>)}
+    </div>}{tab === "unusual" && <p className="disclosure">Largest absolute daily price moves among the displayed gainers and losers. This is not an unusual-volume signal.</p>}
   </section>;
 }

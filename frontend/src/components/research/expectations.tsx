@@ -1,0 +1,9 @@
+"use client";
+import { useEffect,useState } from "react";
+import { format } from "@/lib/research";
+type Earnings = {period:string;actual:number|null;estimate:number|null;surprise:number|null;surprisePercent:number|null;currency:string|null};
+export function Expectations({symbol}:{symbol:string}) {
+  const [data,setData]=useState<{earnings:Earnings[];note:string;source:string;fetchedAt:string}>(); const [error,setError]=useState(""); const [retry,setRetry]=useState(0);
+  useEffect(()=>{const c=new AbortController();setData(undefined);setError("");void fetch(`/api/backend/companies/${encodeURIComponent(symbol)}/expectations`,{signal:c.signal}).then(async r=>{if(!r.ok)throw Error("Earnings expectations are unavailable from the configured provider.");setData(await r.json());}).catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();},[symbol,retry]);
+  return <section className="research-section"><h2>Expectations vs actuals</h2><p className="disclosure">Consensus EPS and reported EPS paired by fiscal period.</p>{error?<p role="alert">{error} <button className="text-button" onClick={()=>setRetry(retry+1)}>Retry</button></p>:!data?<p>Loading expectations…</p>:<><div className="comparison-table-wrap"><table className="comparison-table"><thead><tr><th>Period</th><th>EPS estimate</th><th>EPS actual</th><th>Provider surprise</th><th>Surprise %</th></tr></thead><tbody>{data.earnings.map((e)=><tr key={e.period}><th>{e.period}</th><td>{format(e.estimate)}</td><td>{format(e.actual)}</td><td>{format(e.surprise)}</td><td>{format(e.surprisePercent,"percent")}</td></tr>)}</tbody></table></div>{!data.earnings.length&&<p>No verified earnings pairs were returned.</p>}<p className="disclosure">{data.note}</p><p className="disclosure">{data.source} · Retrieved {new Date(data.fetchedAt).toLocaleString()}. Currency and estimate timestamp are unavailable when not supplied.</p></>}</section>;
+}

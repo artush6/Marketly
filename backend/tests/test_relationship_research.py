@@ -57,5 +57,5 @@ def test_persistence_failure_is_reported_not_claimed_as_success():
          patch("app.services.relationship_research.store.set_json") as report:
         with pytest.raises(ValueError):
             research_relationships("AAPL")
-        assert len(report.call_args.args[2]["failures"]) == 3
+        assert len(report.call_args.args[2]["failures"]) == report.call_args.args[2]["expectedPasses"] == 5
         assert report.call_args.args[2]["passes"] == []
