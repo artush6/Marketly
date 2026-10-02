@@ -87,6 +87,16 @@ def test_calendar_updates_schedule_for_release():
     assert update.call_args.kwargs['params']['kind'] == 'eq.financials'
 
 
+def test_calendar_refresh_requests_longer_earnings_window():
+    today = datetime.now(timezone.utc).date()
+    with patch('app.routes.discovery.provider_get', return_value={'earningsCalendar': []}) as provider, \
+         patch.object(refresh.store, 'set_json'), patch.object(refresh.requests, 'patch'):
+        refresh.refresh_calendar('AAPL')
+    params = provider.call_args.args[1]
+    assert params['from'] == (today - timedelta(days=90)).isoformat()
+    assert params['to'] == (today + timedelta(days=365)).isoformat()
+
+
 def test_provider_failure_does_not_discard_other_financials():
     from app.integrations import financials
     with patch.object(financials, 'fetch_finnhub_payload', side_effect=RuntimeError), \

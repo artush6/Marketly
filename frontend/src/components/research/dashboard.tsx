@@ -8,6 +8,7 @@ import { CompanyLogo } from "./company-logo";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ArrowUpRight,
   Bell,
@@ -65,8 +66,9 @@ import { RelationshipResearch } from "./relationship-research";
 import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
 import { StyledSelect } from "./styled-select";
+import { ResearchCalendar } from "./research-calendar";
 
-type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research";
+type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research" | "Calendar";
 const STORAGE = "marketly.research.v1";
 const INITIAL_WATCHLIST = ["AAPL", "MSFT", "NVDA", "GOOGL"];
 
@@ -174,9 +176,10 @@ function NewsCard({ article }: { article: BackendNewsItem }) {
   );
 }
 
-export function ResearchDashboard() {
+export function ResearchDashboard({ initialView = "Markets" }: { initialView?: View }) {
+  const pathname = usePathname();
   const [company, setCompany] = useState<Company>(STARTER_COMPANIES[0]);
-  const [view, setView] = useState<View>("Markets");
+  const [view, setView] = useState<View>(initialView);
   const [companyOpened, setCompanyOpened] = useState(false);
   const [financials, setFinancials] = useState<BackendFinancialsResponse>();
   const [news, setNews] = useState<BackendNewsItem[]>([]);
@@ -427,26 +430,29 @@ export function ResearchDashboard() {
     setPeersLoading(true);
     setPeerMessage("");
     try {
-      const data = await discovery<{ symbols: string[] }>(
-        `peers/${encodeURIComponent(company.symbol)}`,
+      const data = await discovery<{ groups: { type: string; label: string; candidates: { symbol: string }[] }[] }>(
+        `comparables/${encodeURIComponent(company.symbol)}`,
       );
       if (id !== generation.current) return;
-      if (!data.symbols.length) {
+      const direct = data.groups.find((group) => group.type === "verified_competitor")?.candidates.map((item) => item.symbol) || [];
+      const industry = data.groups.find((group) => group.type === "industry_peer")?.candidates.map((item) => item.symbol) || [];
+      const symbols = [...new Set([...direct, ...industry])].filter((symbol) => symbol !== company.symbol);
+      if (!symbols.length) {
         setPeerMessage("No peers returned. Add companies using search.");
         return;
       }
       const results = await Promise.allSettled(
-        data.symbols.slice(0, 4).map((symbol) => getFinancials(symbol)),
+        symbols.slice(0, 4).map((symbol) => getFinancials(symbol)),
       );
       if (id !== generation.current) return;
       const loaded: Record<string, BackendFinancialsResponse> = {};
       results.forEach((result, i) => {
         if (result.status === "fulfilled")
-          loaded[data.symbols[i]] = result.value;
+          loaded[symbols[i]] = result.value;
       });
       setPeerData(loaded);
       setPeerMessage(
-        `Finnhub peer suggestions · ${Object.keys(loaded).length} of ${results.length} loaded. Review the group for business-model fit.`,
+        `${direct.length ? "Verified competitors first, then industry peers" : "Industry peer suggestions"} · ${Object.keys(loaded).length} of ${results.length} loaded. Review business-model fit before comparing.`,
       );
     } catch {
       if (id === generation.current)
@@ -618,7 +624,7 @@ export function ResearchDashboard() {
               )}
             </button>
           ))}
-          <Link className="research-nav-link" href="/calendar"><CalendarDays size={16} /> Calendar</Link>
+          <Link className={`research-nav-link${pathname === "/calendar" ? " active" : ""}`} href="/calendar" aria-current={pathname === "/calendar" ? "page" : undefined}><CalendarDays size={16} /> Calendar</Link>
         </div>
         <span>
           <span className="device-dot" />
@@ -646,7 +652,12 @@ export function ResearchDashboard() {
             the last fetched quote.
           </div>
         )}
-        {view === "Markets" ? (
+        {view === "Calendar" ? (
+          <ResearchCalendar symbols={watchlist} onSelectSymbol={(symbol) => select({
+            symbol,
+            name: STARTER_COMPANIES.find((item) => item.symbol === symbol)?.name || symbol,
+          })} />
+        ) : view === "Markets" ? (
           <MarketOverview
             data={market.data}
             loading={market.loading}

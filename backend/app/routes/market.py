@@ -207,7 +207,7 @@ def earnings(background_tasks: BackgroundTasks, symbols: str = Query(default="",
             except (KeyError, TypeError, ValueError):
                 continue
             days = (event_date - today).days
-            if -31 <= days <= 120:
+            if -90 <= days <= 365:
                 events.append({**event, "id": f"earnings:{symbol}:{event['date']}",
                     "symbol": event.get("symbol") or symbol, "source": "Finnhub", "estimated": True})
             if 0 <= days <= 7:

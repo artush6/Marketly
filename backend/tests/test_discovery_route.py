@@ -25,6 +25,22 @@ def test_peers_excludes_subject_duplicates_and_invalid_symbols(monkeypatch):
     assert client.get("/discovery/peers/aapl").json()["symbols"] == ["MSFT", "DELL"]
 
 
+def test_comparables_separates_sourced_competitors_from_provider_peers(monkeypatch):
+    monkeypatch.setattr(discovery, "provider_get", lambda *args: ["AAPL", "MSFT", "MSFT", "../bad"])
+    monkeypatch.setattr(discovery.supabase_store, "is_configured", lambda: True)
+    monkeypatch.setattr(discovery.supabase_store, "get_company_relationships", lambda symbol: [
+        {"relationship_type": "competitor", "related_symbol": "MSFT", "related_company_name": "Microsoft",
+         "evidence_summary": "Named competitor", "source_url": "https://example.com/report", "source_date": "2026-01-01", "confidence": 0.9},
+        {"relationship_type": "supplier", "related_symbol": "TSM"},
+        {"relationship_type": "competitor", "related_symbol": "../bad"},
+    ])
+    result = client.get("/discovery/comparables/aapl").json()
+    assert [item["symbol"] for item in result["groups"][0]["candidates"]] == ["MSFT"]
+    assert [item["symbol"] for item in result["groups"][1]["candidates"]] == ["MSFT"]
+    assert result["groups"][0]["candidates"][0]["sourceUrl"] == "https://example.com/report"
+    assert any("point-in-time" in note for note in result["limitations"])
+
+
 def test_search_rejects_blank_query_before_provider_call(monkeypatch):
     def unexpected(*args):
         pytest.fail("Provider should not be called")

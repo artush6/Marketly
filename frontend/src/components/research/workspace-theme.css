@@ -1,6 +1,6 @@
 /* Shared Marketly research typography, derived from the comparison workspace. */
 :root { --workspace-bg: #080b0c; --workspace-text: #dce1e2; --workspace-muted: #929b9e; --workspace-line: #2b3235; --workspace-accent: #9fc5b4; }
-body, .research-app, .research-app button, .research-app input, .research-app textarea, .research-app select, .account-page, .comparison-workspace { font-family: var(--font-mono); }
+body, .research-app, .research-app button, .research-app input, .research-app textarea, .research-app select, .account-page, .comparison-workspace { font-family: var(--font-sans); }
 .research-app, .account-page, .comparison-workspace { color: var(--workspace-text); background: var(--workspace-bg); }
 .research-app h1,.account-page h1,.comparison-workspace h1 { font-family: inherit; font-size: 28px; font-weight: 500; letter-spacing: -.035em; }
 .research-app h2,.account-page h2,.comparison-workspace h2 { font-family: inherit; font-size: 20px; font-weight: 500; letter-spacing: -.025em; line-height: 1.45; }
@@ -30,6 +30,7 @@ body, .research-app, .research-app button, .research-app input, .research-app te
 .financial-trends .financial-chart { height: 260px; }.trend-coverage { margin-top: 12px; font-size: 11px; }.financial-trends .financial-source { font-size: 11px; line-height: 1.6; }
 .expectations-chart { height: 310px; margin: 28px 0 18px; }.expectations-evidence summary { cursor: pointer; color: var(--workspace-muted); font-size: 12px; padding: 12px 0; }
 .comparison-start { font-size: 13px; color: var(--workspace-muted); padding: 18px 0; }.comparison-table td,.comparison-table th { font-family: inherit; }
+.research-app :is(.comparison-table td,.comparison-table th,.metric-value,.market-price,.financial-number) { font-variant-numeric: tabular-nums; }
 .compare-chart-controls .styled-select { min-width: 160px; }.comparison-snapshots .company-logo { margin-right: 9px; }
 .research-chart { height: 390px; }.company-profile-strip { display:flex; flex-wrap:wrap; gap: 8px 22px; padding-block:16px; }.company-profile-strip>div { border: 0; padding: 0; }.company-profile-strip small { display:none; }.company-profile-strip strong { font-size: 12px; color:var(--workspace-muted); font-weight:400; }
 @media(max-width:1100px) { .small-cap-workspace {grid-template-columns:minmax(0,1fr) 265px;gap:20px;}.small-cap-sidebar{padding-left:16px;}.small-cap-workspace .discovery-grid{grid-template-columns:1fr;}.financial-trends .financials-heading{grid-template-columns:1fr;}.financial-trends .trend-controls{justify-content:flex-start;} }
@@ -47,3 +48,75 @@ body, .research-app, .research-app button, .research-app input, .research-app te
 .login-intro p { max-width: 470px; font-size: 15px; }.login-features { display: grid; gap: 17px; border-top: 1px solid var(--workspace-line); padding-top: 25px; font-size: 12px; color: var(--workspace-muted); }
 .login-access { border-left: 1px solid var(--workspace-line); padding-left: 48px; }.login-access > h2 { font-size: 23px; }.login-access p { font-size: 13px; }.login-access button { min-height: 42px; }.login-access .text-button { text-decoration: underline; text-underline-offset: 5px; }.login-access [role=alert] { border-block: 1px solid var(--workspace-line); padding: 20px 0; }
 @media(max-width:760px) { .account-page.login-page { grid-template-columns: 1fr; gap: 44px; }.login-brand { margin-bottom: 36px; }.login-access { padding: 28px 0 0; border-left: 0; border-top: 1px solid var(--workspace-line); } }
+
+/* Navigation links share the same tab geometry and active state as nav buttons. */
+.research-nav .research-nav-link { display:flex; align-items:center; gap:8px; height:100%; padding:0 0 1px; border:0; border-bottom:2px solid transparent; color:#878787; font-size:13px; line-height:1; text-decoration:none; white-space:nowrap; transition:color 120ms ease,border-color 120ms ease; }
+.research-nav .research-nav-link:hover { color:#e2e2e2; }
+.research-nav .research-nav-link.active { color:#00c805; border-bottom-color:#00c805; }
+.research-nav .research-nav-link svg { width:15px; height:15px; }
+
+.calendar-view { --calendar-accent:#00c805; padding-bottom:48px; }
+.calendar-page-heading { align-items:flex-end; padding-bottom:22px; border-bottom:1px solid var(--line); }
+.calendar-page-heading h1 { margin-top:5px; }
+.calendar-page-heading p { margin-top:7px; color:var(--muted-ink); font-size:14px; }
+.calendar-refresh { display:flex; align-items:center; gap:8px; }
+.calendar-toolbar { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:19px 0; }
+.calendar-month-control { display:flex; align-items:center; gap:11px; }
+.calendar-month-control .icon-button { display:grid; place-items:center; width:34px; height:34px; border:1px solid var(--line); border-radius:7px; background:transparent; color:var(--ink); }
+.calendar-month-control h2 { min-width:170px; font-size:19px; font-weight:600; letter-spacing:-.025em; text-align:center; }
+.calendar-today { margin-left:6px; padding:8px 11px; border:1px solid var(--line); border-radius:7px; font-size:13px; }
+.calendar-symbol-filter { display:flex; align-items:center; gap:10px; color:var(--muted-ink); font-size:12px; }
+.calendar-symbol-filter select { min-width:168px; padding:9px 32px 9px 11px; border:1px solid var(--line); border-radius:7px; background:#111315; color:var(--ink); font-size:13px; }
+.calendar-feed-note { padding:10px 12px; border-left:2px solid #dba940; color:var(--muted-ink); font-size:12px; }
+.calendar-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,340px); gap:26px; align-items:start; }
+.calendar-grid-wrap { min-width:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#0d0f11; }
+.calendar-weekdays,.calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+.calendar-weekdays { border-bottom:1px solid var(--line); }
+.calendar-weekdays span { padding:12px 9px; color:var(--muted-ink); font-size:11px; font-weight:600; letter-spacing:.04em; text-align:center; }
+.calendar-day { position:relative; display:flex; min-width:0; min-height:90px; flex-direction:column; align-items:flex-start; gap:7px; padding:10px; border:0; border-right:1px solid #202326; border-bottom:1px solid #202326; background:transparent; color:var(--ink); text-align:left; transition:background 120ms ease; }
+.calendar-day:hover { background:#171a1d; }
+.calendar-day.selected { background:#142017; box-shadow:inset 0 0 0 1px #25723b; }
+.calendar-day-number { display:grid; width:26px; height:26px; place-items:center; border-radius:50%; font-size:13px; font-variant-numeric:tabular-nums; }
+.calendar-day.today .calendar-day-number { background:var(--calendar-accent); color:#071008; font-weight:700; }
+.calendar-day.outside { color:#62676d; }
+.calendar-day-count { color:#b8c1c7; font-size:10px; }
+.calendar-day-dots { display:flex; gap:3px; }
+.calendar-day-dots i,.calendar-grid-footer i { width:6px; height:6px; border-radius:50%; background:var(--calendar-accent); }
+.calendar-grid-footer { display:flex; justify-content:space-between; gap:12px; padding:12px 14px; color:var(--muted-ink); font-size:11px; }
+.calendar-grid-footer span:first-child { display:flex; align-items:center; gap:7px; }
+.calendar-agenda { position:sticky; top:24px; min-width:0; padding:19px 0; border-top:2px solid var(--calendar-accent); }
+.calendar-agenda-heading { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; padding-bottom:15px; border-bottom:1px solid var(--line); color:#9da5aa; }
+.calendar-agenda-heading span { font-size:10px; font-weight:700; letter-spacing:.1em; }
+.calendar-agenda-heading h2 { margin-top:7px; color:var(--ink); font-size:16px; font-weight:600; }
+.calendar-event { display:flex; align-items:center; gap:11px; padding:15px 0; border-bottom:1px solid #202326; }
+.calendar-event-main { display:grid; min-width:0; gap:3px; }
+.calendar-event-main button { justify-self:start; padding:0; border:0; background:transparent; color:var(--ink); font-size:13px; font-weight:700; }
+.calendar-event-main button:hover { color:var(--calendar-accent); }
+.calendar-event-main strong { font-size:12px; font-weight:500; }
+.calendar-event-main small { color:var(--muted-ink); font-size:11px; }
+.calendar-estimate { margin-left:auto; padding:4px 6px; border:1px solid #393d40; border-radius:4px; color:#a3abb1; font-size:9px; font-weight:700; letter-spacing:.07em; }
+.calendar-empty { display:grid; justify-items:center; gap:10px; padding:34px 14px; color:var(--muted-ink); font-size:12px; text-align:center; }
+.calendar-empty p { color:var(--ink); font-size:13px; }
+.calendar-empty small { max-width:240px; line-height:1.5; }
+.calendar-agenda-footer { padding-top:13px; color:var(--muted-ink); font-size:10px; line-height:1.5; }
+.calendar-feed-disclosure { margin-top:18px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted-ink); font-size:11px; line-height:1.55; }
+@media(max-width:900px) { .calendar-layout { grid-template-columns:minmax(0,1fr) 270px; gap:18px; }.calendar-day { min-height:76px; padding:8px; } }
+@media(max-width:700px) { .research-nav .research-nav-link { font-size:12px; gap:5px; }.research-nav .research-nav-link svg { display:none; }.calendar-layout { grid-template-columns:1fr; }.calendar-agenda { position:static; }.calendar-day { min-height:62px; padding:6px; }.calendar-day-count { font-size:9px; }.calendar-toolbar { align-items:flex-start; flex-direction:column; }.calendar-page-heading { align-items:flex-start; }.calendar-refresh { min-height:34px; }.calendar-weekdays span { padding:10px 3px; font-size:10px; } }
+@media(max-width:420px) { .calendar-day { min-height:52px; }.calendar-day-number { width:22px; height:22px; font-size:12px; }.calendar-day-count { display:none; }.calendar-grid-footer { font-size:10px; }.calendar-month-control h2 { min-width:138px; font-size:17px; } }
+
+.potential-discovery { margin:28px 0 30px; padding:22px 0 24px; border-block:1px solid var(--workspace-line); }
+.potential-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:22px; }
+.potential-heading h2 { margin:5px 0; font-size:19px; font-weight:600; }
+.potential-heading p { color:var(--workspace-muted); font-size:12px; }
+.potential-controls { display:flex; align-items:center; gap:9px; }
+.potential-controls .secondary-button { display:flex; align-items:center; gap:7px; min-height:38px; white-space:nowrap; }
+.potential-discovery>.disclosure { max-width:920px; margin:14px 0 18px; }
+.potential-list { display:grid; }
+.potential-row { display:grid; grid-template-columns:minmax(150px,1.3fr) minmax(90px,.5fr) minmax(150px,.8fr) minmax(160px,1fr) minmax(100px,.8fr); gap:16px; align-items:center; padding:14px 8px; border-top:1px solid #22282a; }
+.potential-company { display:grid; min-width:0; gap:3px; justify-items:start; border:0; padding:0; background:transparent; color:var(--workspace-text); text-align:left; cursor:pointer; }
+.potential-company strong { font-size:14px; }.potential-company span,.potential-company small { overflow:hidden; max-width:100%; color:var(--workspace-muted); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.potential-score { display:grid; gap:3px; }.potential-score strong { font-size:15px; font-variant-numeric:tabular-nums; }.potential-score small,.potential-evidence small { color:var(--workspace-muted); font-size:10px; }
+.potential-evidence { display:grid; gap:4px; font-size:11px; }.potential-evidence small { line-height:1.5; }
+.potential-risks { display:flex; flex-wrap:wrap; gap:5px; }.potential-risks span { padding:4px 6px; border:1px solid #4a3b31; border-radius:4px; color:#d6ad8b; font-size:9px; text-transform:capitalize; }
+@media(max-width:1000px) { .potential-row { grid-template-columns:minmax(130px,1fr) .5fr .8fr; }.potential-evidence,.potential-risks { grid-column:span 1; } }
+@media(max-width:650px) { .potential-heading { align-items:flex-start; flex-direction:column; }.potential-controls { width:100%; }.potential-controls .styled-select { flex:1; min-width:0; }.potential-row { grid-template-columns:minmax(0,1fr) auto; gap:11px; }.potential-score:nth-of-type(3) { grid-column:2; grid-row:1; }.potential-evidence,.potential-risks { grid-column:1/-1; } }

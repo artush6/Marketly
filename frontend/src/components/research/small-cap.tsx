@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
-import type { ComparisonMetric } from "@/lib/api";
+import { getSmallCapCandidates, getSmallCapProfilePresets, getSmallCapScanStatus, queueSmallCapScan, type ComparisonMetric, type SmallCapCandidate, type SmallCapProfilePreset } from "@/lib/api";
 import { comparisonUrl, metricText } from "@/lib/comparison";
 import { format } from "@/lib/research";
 import { type Company } from "@/lib/research";
@@ -40,6 +40,13 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
   const [cap,setCap] = useState("");
   const [selected,setSelected] = useState<string[]>([]);
   const [limit, setLimit] = useState(30);
+  const [shortlist, setShortlist] = useState<SmallCapCandidate[]>([]);
+  const [profiles, setProfiles] = useState<SmallCapProfilePreset[]>([]);
+  const [profileName, setProfileName] = useState("small");
+  const [scanStatus, setScanStatus] = useState<Awaited<ReturnType<typeof getSmallCapScanStatus>>>();
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanError, setScanError] = useState("");
+  const activeScanStatus = scanStatus?.scan?.status;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,6 +67,41 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  const loadShortlist = useCallback(async () => {
+    const [result, presetResult, statusResult] = await Promise.all([
+      getSmallCapCandidates({ limit: 50 }), getSmallCapProfilePresets(), getSmallCapScanStatus(),
+    ]);
+    setShortlist(result.candidates);
+    setProfiles(presetResult.profiles);
+    setScanStatus(statusResult);
+  }, []);
+  useEffect(() => {
+    void loadShortlist().catch((reason) => setScanError(reason instanceof Error ? reason.message : "Saved discovery shortlist is unavailable."));
+  }, [loadShortlist]);
+  useEffect(() => {
+    if (!activeScanStatus || !["queued", "running", "retrying"].includes(activeScanStatus)) return;
+    const timer = window.setInterval(() => {
+      void Promise.all([getSmallCapScanStatus(), getSmallCapCandidates({ limit: 50 })]).then(([status, result]) => {
+        setScanStatus(status);
+        setShortlist(result.candidates);
+      }).catch(() => undefined);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [activeScanStatus]);
+  const startScan = async () => {
+    const profile = profiles.find((item) => item.name === profileName);
+    if (!profile) return;
+    setScanBusy(true);
+    setScanError("");
+    try {
+      await queueSmallCapScan(profile);
+      setScanStatus(await getSmallCapScanStatus());
+    } catch (reason) {
+      setScanError(reason instanceof Error ? reason.message : "Could not queue the discovery scan.");
+    } finally {
+      setScanBusy(false);
+    }
+  };
   useEffect(() => { setLimit(30); }, [query, sector, industry, sort, ascending, cap]);
 
   const stocks = useMemo(() => snapshot?.stocks || [], [snapshot]);
@@ -101,6 +143,31 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
         <button className="secondary-button" onClick={()=>setAscending(!ascending)}>{ascending?"Ascending ↑":"Descending ↓"}</button>
         <button className="secondary-button" onClick={() => window.dispatchEvent(new CustomEvent("marketly-research-question", { detail: `Research smaller public companies in ${query || industry || sector || "my watchlist sectors"}. Verify current market caps, identify concrete catalysts and traction, assess cash runway, dilution, trading liquidity and downside. Compare 3 candidates for my strategy and cite issuer sources. Do not describe any candidate as a guaranteed winner.` }))}>Research opportunities ↗</button>
       </div>
+      <section className="potential-discovery" aria-labelledby="potential-title">
+        <div className="potential-heading">
+          <div><div className="eyebrow">RANKED RESEARCH QUEUE</div><h2 id="potential-title">Potential shortlist</h2><p>Structured fundamentals, valuation, balance-sheet signals, and available relationship evidence.</p></div>
+          <div className="potential-controls">
+            <StyledSelect ariaLabel="Discovery universe" value={profileName} onChange={setProfileName} options={profiles.map((item) => ({ value: item.name, label: item.name.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) }))} />
+            <button className="secondary-button" disabled={scanBusy || ["queued", "running", "retrying"].includes(scanStatus?.scan?.status || "")} onClick={() => void startScan()}>
+              {scanBusy || ["queued", "running", "retrying"].includes(scanStatus?.scan?.status || "") ? <LoaderCircle size={14} className="spin" /> : <RefreshCw size={14} />}
+              {scanBusy ? "Queueing…" : ["queued", "running", "retrying"].includes(scanStatus?.scan?.status || "") ? `Scan ${scanStatus?.scan?.status}` : "Run scan"}
+            </button>
+          </div>
+        </div>
+        <p className="disclosure">Potential scores are deterministic research heuristics. Any outperformance probability is uncalibrated, has no historical outcome validation, and is not an investment forecast. This scan does not provide a point-in-time universe.</p>
+        {scanError && <div className="inline-error" role="alert">{scanError}</div>}
+        {!scanStatus?.available && <p className="disclosure">Durable scan status is unavailable. Configure the discovery worker and Supabase to run scans.</p>}
+        {scanStatus?.scan?.last_error && <p className="inline-error" role="status">Last scan issue: {scanStatus.scan.last_error}</p>}
+        {shortlist.length ? <div className="potential-list">
+          {shortlist.map((candidate) => <article className="potential-row" key={candidate.symbol}>
+            <button className="potential-company" onClick={() => onSelect({ symbol: candidate.symbol, name: candidate.company_name || candidate.symbol })}><strong>{candidate.symbol}</strong><span>{candidate.company_name || candidate.symbol}</span><small>{[candidate.sector, candidate.industry].filter(Boolean).join(" · ") || "Sector unavailable"}</small></button>
+            <div className="potential-score"><strong>{candidate.potential_score == null ? "—" : Math.round(candidate.potential_score)}</strong><small>Potential score</small></div>
+            <div className="potential-score"><strong>{candidate.estimated_outperformance_probability == null ? "—" : `${Math.round(candidate.estimated_outperformance_probability * 100)}%`}</strong><small>Heuristic · {candidate.confidence || "low"} confidence</small></div>
+            <div className="potential-evidence"><span>{Math.round((candidate.evidence_coverage || 0) * 100)}% evidence coverage</span><small>{candidate.positives.slice(0, 2).join(" · ") || "Limited positive evidence"}</small></div>
+            <div className="potential-risks">{candidate.risk_flags.slice(0, 2).map((flag) => <span key={flag}>{flag.replaceAll("_", " ")}</span>)}</div>
+          </article>)}
+        </div> : <div className="empty-state">No saved scan results yet. Run a bounded scan to build the first ranked shortlist.</div>}
+      </section>
       {error && <div className="inline-error" role="alert">{error} <button className="text-button" onClick={() => void load()}>Try again</button></div>}
       {loading && !snapshot && <p><LoaderCircle size={14} className="spin" /> Loading market universe…</p>}
       {snapshot && (

@@ -101,6 +101,56 @@ def peers(symbol: str):
     return {"symbols": results, "source": "Finnhub", "benchmark": "Selected peer average"}
 
 
+@router.get("/comparables/{symbol}")
+def comparables(symbol: str):
+    """Return typed peer candidates while preserving why each company matched."""
+    symbol = symbol.strip().upper()
+    if not SYMBOL.fullmatch(symbol):
+        raise HTTPException(422, "Invalid ticker.")
+    provider_payload = provider_get("stock/peers", {"symbol": symbol})
+    if not isinstance(provider_payload, list):
+        raise HTTPException(502, "Invalid peer response.")
+    industry = list(dict.fromkeys(
+        item for item in provider_payload
+        if isinstance(item, str) and SYMBOL.fullmatch(item) and item != symbol
+    ))[:12]
+    verified_competitors = []
+    persistence_available = supabase_store.is_configured()
+    if persistence_available:
+        try:
+            for row in supabase_store.get_company_relationships(symbol):
+                related = row.get("related_symbol")
+                if (row.get("relationship_type") == "competitor" and isinstance(related, str)
+                        and SYMBOL.fullmatch(related.upper()) and related.upper() != symbol):
+                    verified_competitors.append({
+                        "symbol": related.upper(),
+                        "name": row.get("related_company_name") or related.upper(),
+                        "evidence": row.get("evidence_summary"),
+                        "sourceUrl": row.get("source_url"),
+                        "sourceDate": row.get("source_date"),
+                        "confidence": row.get("confidence"),
+                    })
+        except Exception:
+            persistence_available = False
+    # Deduplicate competitor evidence without losing a directly disclosed match.
+    by_symbol = {row["symbol"]: row for row in verified_competitors}
+    return {
+        "symbol": symbol,
+        "groups": [
+            {"type": "verified_competitor", "label": "Verified competitors", "candidates": list(by_symbol.values())[:12],
+             "method": "Named competitor relationships with stored source evidence."},
+            {"type": "industry_peer", "label": "Industry peers", "candidates": [{"symbol": value} for value in industry],
+             "method": "Finnhub peer suggestions; review business-model fit before comparison."},
+        ],
+        "coverage": {"verifiedRelationships": persistence_available, "industryProvider": "Finnhub"},
+        "limitations": [
+            "Peer membership is a discovery aid, not proof that operating models or accounting bases are comparable.",
+            "Business-model, valuation, growth-profile, historical-analog, and supply-chain groups require broader normalized coverage and remain unavailable.",
+            "No historical outcome calibration or point-in-time universe is provided.",
+        ],
+    }
+
+
 @router.get("/small-caps")
 def small_cap_candidates(
     limit: int = Query(default=30, ge=1, le=100),

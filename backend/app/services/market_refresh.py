@@ -49,8 +49,8 @@ def refresh_calendar(symbol):
     from app.routes.discovery import provider_get
     today = datetime.now(timezone.utc).date()
     payload = provider_get('calendar/earnings', {
-        'symbol': symbol, 'from': (today - timedelta(days=7)).isoformat(),
-        'to': (today + timedelta(days=90)).isoformat(),
+        'symbol': symbol, 'from': (today - timedelta(days=90)).isoformat(),
+        'to': (today + timedelta(days=365)).isoformat(),
     })
     if not isinstance(payload, dict) or not isinstance(payload.get('earningsCalendar'), list):
         raise ValueError('Invalid earnings calendar')
