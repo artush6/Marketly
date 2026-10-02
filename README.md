@@ -150,16 +150,21 @@ VAPID_PRIVATE_KEY= # private key; backend only, never add a NEXT_PUBLIC_ prefix
 VAPID_SUBJECT=mailto:you@example.com
 ```
 
-The `codex/background-alerts` branch adds the private `background_alerts`
-migration. Apply it to the Supabase project before opening `/alerts`. Web push
-needs a VAPID key pair and a running backend refresh worker. Keep the private
-VAPID key in the backend environment only. On iPhone, add Marketly to the Home
-Screen in Safari, open that installed app, then enable notifications in Alerts;
-subscribe separately on each device you want to notify.
+Background alerts use Supabase tables installed by the `small_cap_discovery`,
+`small_cap_scan_history`, and `background_alerts` migrations. After deploying
+the backend, generate one Web Push VAPID pair with
+`npx --yes web-push generate-vapid-keys --json`, then set `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT=mailto:you@example.com` in the Render
+service environment. Keep the private key on the backend only; never commit it
+or add it to a `NEXT_PUBLIC_` variable. Restart/redeploy the Render service
+after setting the values. The FastAPI service starts its bounded refresh worker
+automatically when `BACKGROUND_REFRESH_ENABLED=true` and Supabase is configured.
 
-Generate a VAPID pair once with `npx --yes web-push generate-vapid-keys --json`
-and copy its `publicKey` and `privateKey` into the backend environment values
-above. Never commit those values.
+To enable a device, sign in to Marketly, follow at least one company, open
+Alerts, and choose **Enable this device**. On iPhone, open the site in Safari,
+choose **Share → Add to Home Screen**, launch the installed app, then enable
+notifications in Alerts. Subscribe each device separately. Use **Send test
+notification** to check delivery.
 
 ### Frontend
 

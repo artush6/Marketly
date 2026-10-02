@@ -130,6 +130,40 @@ body, .research-app, .research-app button, .research-app input, .research-app te
 @media(max-width:1000px) { .potential-row { grid-template-columns:minmax(130px,1fr) .5fr .8fr; }.potential-evidence,.potential-risks { grid-column:span 1; } }
 @media(max-width:650px) { .potential-heading { align-items:flex-start; flex-direction:column; }.potential-controls { width:100%; }.potential-controls .styled-select { flex:1; min-width:0; }.potential-row { grid-template-columns:minmax(0,1fr) auto; gap:11px; }.potential-score:nth-of-type(3) { grid-column:2; grid-row:1; }.potential-evidence,.potential-risks { grid-column:1/-1; } }
 
+/* Keep long research sections aligned to one responsive content gutter. */
+.research-main { box-sizing:border-box; width:100%; margin-inline:auto; padding-inline:clamp(18px,4.3vw,64px); }
+.library-view,.news-hub,.news-hub-main { min-width:0; width:100%; }
+.news-section-heading,.news-ticker-tabs,.must-know-news,.news-ledger { box-sizing:border-box; max-width:100%; min-width:0; }
+.news-ticker-tabs { padding-inline:2px; scroll-padding-inline:2px; }
+.must-know-list { grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); }
+.must-know-list a { min-width:0; overflow-wrap:anywhere; }
+.must-know-list a strong { overflow-wrap:anywhere; }
+.news-ledger-row { min-width:0; grid-template-columns:minmax(64px,74px) minmax(0,1fr) minmax(90px,132px); padding-inline:12px; }
+.news-ledger-copy { min-width:0; overflow-wrap:anywhere; }
+.company-overview { min-width:0; }
+.company-title-row { align-items:center; gap:18px; }
+.company-title-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:10px; }
+.company-profile-strip { min-width:0; column-gap:clamp(14px,2.2vw,30px); padding-inline:2px; }
+.company-profile-strip > * { min-width:0; }
+.alert-center-heading,.alert-settings-grid,.alert-inbox-heading { min-width:0; }
+.alert-settings-grid { column-gap:clamp(20px,3vw,42px); }
+.alert-push-setup { max-width:520px; margin-top:12px; line-height:1.6; }
+.alert-push-setup code { color:var(--workspace-text); font-size:10px; }
+@media(max-width:760px) {
+  .research-main { padding-inline:18px; }
+  .news-section-heading { align-items:flex-start; padding:16px; }
+  .company-title-row { align-items:flex-start; }
+  .company-title-actions { justify-content:flex-start; }
+  .company-profile-strip { gap:12px 18px; }
+  .news-ledger-row { grid-template-columns:minmax(0,1fr) auto; gap:10px; padding-inline:8px; }
+  .news-ledger-row .news-ledger-company { grid-column:1/-1; }
+}
+@media(max-width:420px) {
+  .research-main { padding-inline:14px; }
+  .must-know-news { padding:12px; }
+  .alert-thresholds { flex-wrap:wrap; }
+}
+
 .research-nav>div { min-width:0; flex:1; overflow-x:auto; scrollbar-width:none; }.research-nav>div::-webkit-scrollbar { display:none; }
 .research-nav>div>button,.research-nav .research-nav-link { flex-shrink:0; white-space:nowrap; }
 .alert-center { padding-bottom:52px; }
