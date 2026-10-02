@@ -56,7 +56,10 @@ It uses defensive helpers such as `safe_get(...)`, `safe_update(...)`, and provi
 
 `economics.py` asks FRED for known indicator series, resamples them monthly, and returns compact date/value arrays.
 
-`news.py` fetches recent Finnhub company news and caches it by symbol and lookback window.
+`news.py` fetches recent Finnhub company news and caches it by symbol and lookback
+window. To reduce false symbol associations, company feeds retain articles only
+when the ticker/company name appears in the headline or the opening summary
+sentence; a passing mention later in the story is not enough.
 
 `gpt.py` builds compact JSON payloads, sends them to OpenAI with a strict JSON schema, parses the response, sanitizes it, and returns an error dictionary instead of crashing for normal model failures.
 

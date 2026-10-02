@@ -7,7 +7,7 @@ tables; the browser uses only the publishable key for Auth.
 
 ## Production project
 
-The production project ref is `gffskqucpyujimxaqzrp`. The seven migrations below
+The production project ref is `gffskqucpyujimxaqzrp`. All eight migrations below
 are applied to it as of October 2, 2026. Confirm a project's migration history
 before applying migrations to any other environment.
 
@@ -20,6 +20,7 @@ before applying migrations to any other environment.
 | 5 | `20261002102000_small_cap_discovery.sql` | Small-cap candidates and queue kind |
 | 6 | `20261002103000_small_cap_scan_history.sql` | Candidate history and scan payloads |
 | 7 | `20261002110000_background_alerts.sql` | Alert preferences, subscriptions and inbox |
+| 8 | `20261002213645_per_symbol_alert_rules.sql` | Private per-ticker price and daily-move conditions |
 
 For setup and deployment workflow, see [Account and deployment setup](../docs/account-and-deployment.md).
 Follow Supabase's [database migration guide](https://supabase.com/docs/guides/deployment/database-migrations)
@@ -32,6 +33,8 @@ migration as applied manually.
 - `user_alert_preferences`, `web_push_subscriptions`, and
   `user_alert_notifications` store private alert settings, device endpoints and
   notification history. VAPID private keys are never stored in Supabase.
+- `user_symbol_alert_rules` stores private threshold rules and the worker's most
+  recent observed value so price alerts fire when the value crosses its target.
 - `market_refresh_jobs`, `small_cap_candidates`, and
   `small_cap_candidate_snapshots` are server-managed data.
 - Private tables enable RLS and revoke browser-role access where the backend's

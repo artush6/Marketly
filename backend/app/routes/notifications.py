@@ -1,11 +1,14 @@
 """Account-scoped push setup and alert inbox."""
 from __future__ import annotations
 
+import re
+import logging
 from urllib.parse import urlparse
 from uuid import UUID
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core.auth import Identity, current_user
 from app.core.config import settings
@@ -13,6 +16,7 @@ from app.integrations import supabase_store
 from app.services import alert_delivery
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+logger = logging.getLogger(__name__)
 
 
 def _user(user: Identity | None) -> Identity:
@@ -49,6 +53,27 @@ class PreferencesUpdate(BaseModel):
         if len(set(values)) != len(values) or any(value not in (3, 5, 10) for value in values):
             raise ValueError("Choose unique 3%, 5%, or 10% thresholds.")
         return sorted(values)
+
+
+class SymbolAlertRuleInput(BaseModel):
+    symbol: str = Field(min_length=1, max_length=20)
+    trigger_type: Literal["price", "percent_change"]
+    direction: Literal["above", "below"]
+    threshold: float = Field(gt=0, le=1_000_000_000)
+
+    @field_validator("symbol")
+    @classmethod
+    def valid_symbol(cls, value: str) -> str:
+        value = value.strip().upper()
+        if not re.fullmatch(r"[A-Z0-9][A-Z0-9.:-]{0,19}", value):
+            raise ValueError("Enter a valid ticker symbol.")
+        return value
+
+    @model_validator(mode="after")
+    def valid_threshold(self):
+        if self.trigger_type == "percent_change" and self.threshold > 100:
+            raise ValueError("Daily percentage thresholds must be 100% or less.")
+        return self
 
 
 class SubscriptionInput(BaseModel):
@@ -88,10 +113,13 @@ def alert_inbox(user: Identity | None = Depends(current_user)):
     if not supabase_store.is_configured():
         raise HTTPException(503, "Background alerts need Supabase persistence to be configured.")
     try:
+        rules = alert_delivery.symbol_rules(identity.user_id)
+        followed = _followed_symbols(identity.user_id)
         return {
             "notifications": alert_delivery.list_notifications(identity.user_id),
             "preferences": alert_delivery.preferences(identity.user_id),
-            "followedSymbols": _followed_symbols(identity.user_id),
+            "followedSymbols": followed,
+            "ruleSymbols": sorted({rule["symbol"] for rule in rules}),
             "deviceCount": len(alert_delivery.subscriptions(identity.user_id)),
             "pushConfigured": bool(settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY),
         }
@@ -115,6 +143,48 @@ def update_preferences(values: PreferencesUpdate, user: Identity | None = Depend
         return {"preferences": result}
     except Exception as exc:
         raise HTTPException(503, "Alert preferences could not be saved.") from exc
+
+
+@router.get("/rules")
+def list_symbol_rules(user: Identity | None = Depends(current_user)):
+    identity = _user(user)
+    if not supabase_store.is_configured():
+        raise HTTPException(503, "Durable alerts need Supabase persistence to be configured.")
+    try:
+        return {"rules": alert_delivery.symbol_rules(identity.user_id)}
+    except Exception as exc:
+        raise HTTPException(503, "Ticker alert rules could not be loaded.") from exc
+
+
+@router.post("/rules", status_code=201)
+def create_symbol_rule(values: SymbolAlertRuleInput, user: Identity | None = Depends(current_user)):
+    identity = _user(user)
+    try:
+        rule = alert_delivery.save_symbol_rule(identity.user_id, values.model_dump())
+        from app.services.market_refresh import register_symbols
+        try:
+            register_symbols([values.symbol])
+        except Exception:
+            # The periodic worker also syncs enabled rule symbols, so a queue
+            # hiccup must not make an already-persisted rule look unsaved.
+            logger.warning("Ticker rule saved but immediate refresh registration failed", exc_info=True)
+        return {"rule": rule}
+    except Exception as exc:
+        raise HTTPException(503, "Ticker alert rule could not be saved.") from exc
+
+
+@router.delete("/rules/{rule_id}")
+def remove_symbol_rule(rule_id: str, user: Identity | None = Depends(current_user)):
+    identity = _user(user)
+    try:
+        parsed_id = UUID(rule_id)
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid alert rule ID.") from exc
+    try:
+        alert_delivery.delete_symbol_rule(identity.user_id, str(parsed_id))
+        return {"deleted": True}
+    except Exception as exc:
+        raise HTTPException(503, "Ticker alert rule could not be deleted.") from exc
 
 
 @router.post("/subscriptions", status_code=201)

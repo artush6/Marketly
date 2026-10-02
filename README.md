@@ -10,6 +10,7 @@ The current product includes:
 - business-model classification, event catalysts, scenarios, and trajectory layers
 - follow-up Q&A against the active symbol, score payload, financials, and news
 - Supabase-backed accounts, private research state, discovery and alert delivery
+- configurable per-ticker price and daily-move alerts with background checks
 - password, email-code and optional Google sign-in with account recovery
 
 ## Repository Layout

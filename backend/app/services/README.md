@@ -79,7 +79,11 @@ services/
 
 `market_refresh.py` runs the durable refresh worker from the FastAPI lifespan
 or as a standalone process. It refreshes prices, news, calendars and financials,
-and dispatches account-scoped alerts through `alert_delivery.py`. The worker
+and dispatches account-scoped alerts through `alert_delivery.py`. Per-symbol
+price and daily-move rules are evaluated from fresh quote jobs; their tickers are
+kept in the refresh queue even when not on a user's watchlist. Company news is
+filtered to focal-company mentions in the headline or lead sentence before alerts
+are generated. The worker
 requires Supabase persistence and is controlled by `BACKGROUND_REFRESH_ENABLED`.
 
 ## Standalone Service Files
@@ -94,8 +98,9 @@ requires Supabase persistence and is controlled by `BACKGROUND_REFRESH_ENABLED`.
 
 `metadata.py` creates versioning, analysis IDs, provenance, and refresh policy metadata for future Supabase storage.
 
-`alert_delivery.py` stores user preferences, device subscriptions and prepared
-notification context, then sends Web Push when backend VAPID keys are configured.
+`alert_delivery.py` stores user preferences, custom symbol rules, device
+subscriptions and prepared notification context, then sends Web Push when
+backend VAPID keys are configured.
 
 ## Important Rule
 

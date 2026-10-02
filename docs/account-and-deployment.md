@@ -18,10 +18,11 @@ migrations, in dependency order:
 5. `20261002102000_small_cap_discovery.sql`
 6. `20261002103000_small_cap_scan_history.sql`
 7. `20261002110000_background_alerts.sql`
+8. `20261002213645_per_symbol_alert_rules.sql`
 
-All seven are applied to the production project as of October 2, 2026. For a new
-Supabase environment, check its migration history before applying any schema;
-then apply missing migrations in order using the repository's Supabase workflow.
+All eight migrations are applied to the production project as of October 2,
+2026. For a new Supabase environment, check its migration history before
+applying any schema, then apply missing migrations in order.
 See [Supabase's migration guide](https://supabase.com/docs/guides/deployment/database-migrations).
 
 Configure these values in the indicated hosting environment:
@@ -70,11 +71,14 @@ SMTP provider.
 
 ## Web Push alerts
 
-Marketly stores alert preferences and notifications in Supabase and sends pushes
-from the Render backend using Web Push. Push is optional; the in-app alert inbox
-works without push keys. The worker checks followed tickers and configured news
-and discovery signals while the Render service is running. Provider updates may
-be delayed, and daily price movement is measured against the previous close.
+Marketly stores alert preferences, per-ticker rules and notifications in
+Supabase and sends pushes from the Render backend using Web Push. Push is
+optional; the in-app alert inbox works without push keys. The worker checks all
+watchlist tickers for configured daily drops and relevant important news, checks
+custom-rule tickers for price/daily-move thresholds, and runs the bounded
+small-cap discovery scan. It does not analyze every listed company or forecast
+future returns. Provider updates may be delayed; daily movement is measured
+against the previous close.
 
 Generate one VAPID key pair locally:
 

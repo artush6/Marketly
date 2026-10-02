@@ -14,11 +14,13 @@ export type SavedResearch = {
   analysis?: BackendScoreResponse;
   news: BackendNewsItem[];
 };
-export type PriceAlert = {
+export type SymbolAlertRule = {
   id: string;
   symbol: string;
+  trigger_type: "price" | "percent_change";
   direction: "above" | "below";
-  price: number;
+  threshold: number;
+  enabled: boolean;
 };
 export const STARTER_COMPANIES: Company[] = [
   { symbol: "AAPL", name: "Apple" },

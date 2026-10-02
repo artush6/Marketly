@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import json
 import logging
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from app.core.config import settings
 from app.integrations import supabase_store
@@ -46,6 +47,45 @@ def save_preferences(user_id: str, values: dict[str, Any]) -> dict[str, Any]:
     }
     supabase_store._upsert_rows("user_alert_preferences", [payload], on_conflict="user_id", strict=True)
     return preferences(user_id)
+
+
+def symbol_rules(user_id: str) -> list[dict[str, Any]]:
+    return supabase_store._select_rows("user_symbol_alert_rules", {
+        "user_id": f"eq.{user_id}", "select": "*", "order": "created_at.desc", "limit": "100",
+    })
+
+
+def save_symbol_rule(user_id: str, values: dict[str, Any]) -> dict[str, Any]:
+    if not supabase_store.is_configured():
+        raise RuntimeError("Durable alerts are not configured.")
+    payload = {
+        "user_id": user_id,
+        "symbol": values["symbol"],
+        "trigger_type": values["trigger_type"],
+        "direction": values["direction"],
+        "threshold": values["threshold"],
+        "enabled": True,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    conflict = "user_id,symbol,trigger_type,direction,threshold"
+    supabase_store._upsert_rows("user_symbol_alert_rules", [payload], on_conflict=conflict, strict=True)
+    rows = supabase_store._select_rows("user_symbol_alert_rules", {
+        "user_id": f"eq.{user_id}", "symbol": f"eq.{values['symbol']}",
+        "trigger_type": f"eq.{values['trigger_type']}", "direction": f"eq.{values['direction']}",
+        "threshold": f"eq.{values['threshold']}", "select": "*", "limit": "1",
+    })
+    if not rows:
+        raise RuntimeError("Alert rule was not returned after saving.")
+    return rows[0]
+
+
+def delete_symbol_rule(user_id: str, rule_id: str) -> None:
+    response = supabase_store.requests.delete(
+        supabase_store._rest_url("user_symbol_alert_rules"),
+        headers=supabase_store._headers(prefer="return=minimal"),
+        params={"user_id": f"eq.{user_id}", "id": f"eq.{rule_id}"}, timeout=10,
+    )
+    response.raise_for_status()
 
 
 def upsert_subscription(user_id: str, subscription: dict[str, Any], user_agent: str | None) -> None:
@@ -223,30 +263,118 @@ def followed_symbols_by_user() -> dict[str, set[str]]:
     return result
 
 
+def symbols_to_refresh() -> set[str]:
+    symbols = {symbol for followed in followed_symbols_by_user().values() for symbol in followed}
+    rows = supabase_store._select_rows("user_symbol_alert_rules", {
+        "enabled": "eq.true", "select": "symbol", "limit": "1000",
+    })
+    symbols.update(str(row.get("symbol", "")).upper() for row in rows if row.get("symbol"))
+    return symbols
+
+
 def recipients(symbol: str, category: str) -> list[tuple[str, dict[str, Any]]]:
-    prefs = supabase_store._select_rows("user_alert_preferences", {
+    rows = supabase_store._select_rows("user_alert_preferences", {
         "select": "user_id,price_drop_thresholds,important_news_enabled,discovery_enabled,discovery_min_score",
         "limit": "1000",
     })
+    prefs = {row["user_id"]: {**DEFAULT_PREFERENCES, **row} for row in rows}
     follows = followed_symbols_by_user()
     enabled_field = {"price_move": None, "important_news": "important_news_enabled"}.get(category)
     return [
-        (row["user_id"], row)
-        for row in prefs
-        if (enabled_field is None or row.get(enabled_field, True))
-        and symbol.upper() in follows.get(row["user_id"], set())
+        (user_id, preference)
+        for user_id, followed in follows.items()
+        for preference in [prefs.get(user_id, DEFAULT_PREFERENCES)]
+        if (enabled_field is None or preference.get(enabled_field, True))
+        and symbol.upper() in followed
     ]
 
 
 def discovery_recipients(score: float) -> list[tuple[str, dict[str, Any]]]:
-    prefs = supabase_store._select_rows("user_alert_preferences", {
+    rows = supabase_store._select_rows("user_alert_preferences", {
         "select": "user_id,discovery_enabled,discovery_min_score", "limit": "1000",
     })
+    prefs = {row["user_id"]: {**DEFAULT_PREFERENCES, **row} for row in rows}
+    users = set(followed_symbols_by_user()) | set(prefs)
     return [
-        (row["user_id"], row) for row in prefs
-        if row.get("discovery_enabled", True)
-        and score >= int(row.get("discovery_min_score", 70))
+        (user_id, preference) for user_id in users
+        for preference in [prefs.get(user_id, DEFAULT_PREFERENCES)]
+        if preference.get("discovery_enabled", True)
+        and score >= int(preference.get("discovery_min_score", 70))
     ]
+
+
+def notify_symbol_rules(symbol: str, quote: dict[str, Any], explanation: dict[str, Any]) -> list[dict[str, Any]]:
+    """Evaluate user-owned rules against a fresh quote observation."""
+    symbol = symbol.upper()
+    rows = supabase_store._select_rows("user_symbol_alert_rules", {
+        "symbol": f"eq.{symbol}", "enabled": "eq.true", "select": "*", "limit": "1000",
+    })
+    price = quote.get("price")
+    change = quote.get("changePercent")
+    price = float(price) if isinstance(price, (int, float)) else None
+    change = float(change) if isinstance(change, (int, float)) else None
+    session = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York")).date().isoformat()
+    sent: list[dict[str, Any]] = []
+
+    def store_observation(rule: dict[str, Any], observed: float) -> None:
+        response = supabase_store.requests.patch(
+            supabase_store._rest_url("user_symbol_alert_rules"),
+            headers=supabase_store._headers(prefer="return=minimal"),
+            params={"id": f"eq.{rule['id']}", "user_id": f"eq.{rule['user_id']}"},
+            json={"last_observed_value": observed, "last_observed_session": session,
+                  "last_observed_at": datetime.now(timezone.utc).isoformat()}, timeout=10,
+        )
+        response.raise_for_status()
+
+    for rule in rows:
+        threshold = float(rule["threshold"])
+        direction = rule["direction"]
+        trigger_type = rule["trigger_type"]
+        observed = price if trigger_type == "price" else change
+        if observed is None:
+            continue
+        target = threshold if trigger_type == "price" or direction == "above" else -threshold
+        condition = observed >= target if direction == "above" else observed <= target
+        previous_value = rule.get("last_observed_value")
+        try:
+            previous_value = float(previous_value) if previous_value is not None else None
+        except (TypeError, ValueError):
+            previous_value = None
+        same_session = rule.get("last_observed_session") == session
+        if trigger_type == "price":
+            crossed = previous_value is None or (previous_value < target if direction == "above" else previous_value > target)
+            matched = condition and crossed
+        elif same_session and previous_value is not None:
+            crossed = previous_value < target if direction == "above" else previous_value > target
+            matched = condition and crossed
+        else:
+            # A daily move starts fresh each session; its first observation may
+            # already be beyond the requested threshold.
+            matched = condition
+        if not matched:
+            store_observation(rule, observed)
+            continue
+        unit = "" if trigger_type == "price" else "% daily move"
+        value = f"{threshold:g}{unit}"
+        if trigger_type == "price":
+            detail = f"{symbol} is trading at {price:g}, {direction} your {threshold:g} price alert."
+        else:
+            detail = f"{symbol} moved {change:+.1f}% today, crossing your {direction} {threshold:g}% alert."
+        rule_key = f"symbol-rule:{rule['id']}:{session}:{trigger_type}:{direction}:{threshold:g}"
+        notification = create_notification(
+            rule["user_id"], dedupe_key=rule_key, category="price_move", symbol=symbol,
+            severity="critical" if trigger_type == "percent_change" and abs(change or 0) >= 10 else "important",
+            title=f"{symbol} {direction} alert · {value}", body=detail,
+            target_url=f"/alerts?symbol={symbol}",
+            explanation={**explanation, "rule": {
+                "type": trigger_type, "direction": direction, "threshold": threshold,
+                "observed": observed,
+            }},
+        )
+        if notification:
+            sent.append(notification)
+        store_observation(rule, observed)
+    return sent
 
 
 def notify_price_drop(symbol: str, quote: dict[str, Any], explanation: dict[str, Any]) -> list[dict[str, Any]]:

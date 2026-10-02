@@ -66,9 +66,13 @@ may still have no provider financials; missing values are not invented.
 Earnings reminders appear in the app from seven days before the calendar date
 through the release day, with stable IDs and device-local dismissal. They are based
 on durable calendar data. Optional Web Push alerts cover followed-stock daily drops
-(3%, 5%, 10%), important ticker news and high-scoring discovery candidates. Alerts
-are saved to the account inbox; push delivery requires VAPID keys in the Render
-backend environment. The site need not stay open after a device is subscribed.
+(3%, 5%, 10%), relevant important ticker news, custom price/daily-move crossings,
+and high-scoring small-cap discovery candidates. Custom-rule symbols remain in
+the refresh queue even when they are not on the user's watchlist. Alerts are saved
+to the account inbox; push delivery requires VAPID keys in the Render backend
+environment. The site need not stay open after a device is subscribed. The bounded
+small-cap scan is not a complete scan of every listed company or a calibrated return
+forecast.
 For iPhone, use the Home Screen web app on iOS 16.4 or later. See
 [Account and deployment setup](account-and-deployment.md). A missing calendar is
 unknown, not a confirmed absence of earnings.

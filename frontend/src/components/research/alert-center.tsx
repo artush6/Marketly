@@ -17,7 +17,7 @@ type Preferences = {
 };
 type Inbox = {
   notifications: AlertItem[]; preferences: Preferences;
-  followedSymbols: string[]; deviceCount: number; pushConfigured: boolean;
+  followedSymbols: string[]; ruleSymbols: string[]; deviceCount: number; pushConfigured: boolean;
 };
 const DEFAULTS: Preferences = { price_drop_thresholds: [3, 5, 10], important_news_enabled: true, discovery_enabled: true, discovery_min_score: 70 };
 
@@ -189,14 +189,14 @@ export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Comp
       </section>
       <section className="alert-settings-card">
         <span className="eyebrow">WHAT TO WATCH</span><h2>Alert preferences</h2>
-        <p>Price change uses the quote provider’s daily move from the prior close. Notifications are sent once per session at each crossed level.</p>
-        <div className="alert-thresholds" aria-label="Price drop thresholds">{[3, 5, 10].map((value) => <button key={value} aria-pressed={preferences.price_drop_thresholds.includes(value)} className={preferences.price_drop_thresholds.includes(value) ? "selected" : ""} onClick={() => toggleThreshold(value)}>{value}% drop</button>)}</div>
-        <label className="alert-toggle"><input type="checkbox" checked={preferences.important_news_enabled} onChange={(event) => void savePreferences({ ...preferences, important_news_enabled: event.target.checked })} /><span><strong>Important ticker news</strong><small>Only high-importance provider stories for followed companies.</small></span></label>
+        <p>These default drop levels apply to every company in your watchlist. Set custom price or daily percentage rules from that company’s page. Quote updates can be delayed.</p>
+        <div className="alert-thresholds" aria-label="Default watchlist price-drop thresholds">{[3, 5, 10].map((value) => <button key={value} aria-pressed={preferences.price_drop_thresholds.includes(value)} className={preferences.price_drop_thresholds.includes(value) ? "selected" : ""} onClick={() => toggleThreshold(value)}>{value}% drop</button>)}</div>
+        <label className="alert-toggle"><input type="checkbox" checked={preferences.important_news_enabled} onChange={(event) => void savePreferences({ ...preferences, important_news_enabled: event.target.checked })} /><span><strong>Important ticker news</strong><small>High-importance stories for followed companies, matched to the headline or opening sentence.</small></span></label>
         <label className="alert-toggle"><input type="checkbox" checked={preferences.discovery_enabled} onChange={(event) => void savePreferences({ ...preferences, discovery_enabled: event.target.checked })} /><span><strong>Small-cap candidates</strong><small>Research signals above your score threshold.</small></span></label>
         <label className="alert-score-threshold">Minimum potential score <select value={preferences.discovery_min_score} onChange={(event) => void savePreferences({ ...preferences, discovery_min_score: Number(event.target.value) })}>{[50, 60, 70, 80, 90, 95].map((score) => <option key={score} value={score}>{score}</option>)}</select></label>
       </section>
     </div>
-    <div className="alert-inbox-heading"><div><h2>Recent alerts</h2><p>{inbox?.followedSymbols.length ? `Watching ${inbox.followedSymbols.join(", ")}` : "Your followed companies will appear here."}</p></div><span>{inbox?.notifications.filter((item) => !item.read_at).length || 0} unread</span></div>
+    <div className="alert-inbox-heading"><div><h2>Recent alerts</h2><p>{inbox ? `Watchlist: ${inbox.followedSymbols.join(", ") || "none"}${inbox.ruleSymbols?.length ? ` · Custom rules: ${inbox.ruleSymbols.join(", ")}` : ""}` : "Your followed companies will appear here."}</p></div><span>{inbox?.notifications.filter((item) => !item.read_at).length || 0} unread</span></div>
     {loading && !inbox ? <p className="disclosure"><LoaderCircle className="spin" size={15} /> Loading alerts…</p> : inbox?.notifications.length ? <div className="alert-inbox-list">{inbox.notifications.map((item) => <article key={item.id} className={`alert-inbox-item ${item.read_at ? "read" : "unread"} ${item.severity}`}>
       <button className="alert-inbox-open" onClick={() => void openAlert(item)}><span className={`alert-category-dot ${item.category}`} /><span className="alert-inbox-copy"><strong>{item.title}</strong><small>{item.body}</small><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time></span><span className="alert-unread-mark" /></button>
       {Object.keys(item.explanation || {}).length ? <AlertContext item={item} expanded={Boolean(deepLinkSymbol && deepLinkSymbol === item.symbol)} /> : null}

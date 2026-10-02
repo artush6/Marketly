@@ -380,15 +380,6 @@
   background: #282828;
   color: #b7b7b7;
 }
-.alert-form {
-  background: #292929;
-}
-.alert-form input,
-.alert-form select {
-  background: #1b1b1b;
-  color: #dddddd;
-  border-color: #565656;
-}
 .snapshot-banner {
   color: #c1c1c1;
 }

@@ -100,14 +100,16 @@ def execute_job(job):
     if kind == 'quote':
         quote = refresh_quote(symbol, durable=True)
         try:
-            from app.services.alert_delivery import notify_price_drop
-            if (is_current_us_session_quote(quote)
-                    and quote.get('changePercent') is not None and quote['changePercent'] <= -3):
-                from app.integrations.news import get_news
-                try:
-                    articles = get_news(symbol, days=2, max_items=5)
-                except Exception:
-                    articles = []
+            from app.services.alert_delivery import notify_price_drop, notify_symbol_rules
+            if is_current_us_session_quote(quote):
+                change = quote.get('changePercent')
+                articles = []
+                if isinstance(change, (int, float)) and change <= -3:
+                    from app.integrations.news import get_news
+                    try:
+                        articles = get_news(symbol, days=2, max_items=5)
+                    except Exception:
+                        articles = []
                 explanation = {
                     'priceMovePercent': quote.get('changePercent'),
                     'price': quote.get('price'),
@@ -119,7 +121,9 @@ def execute_job(job):
                     'causeAttribution': 'A nearby headline is not proof of causation. Review the cited source.',
                     'note': 'Daily percentage comes from the quote provider and can be delayed. It is measured against the prior close, not a live intraday high.',
                 }
-                notify_price_drop(symbol, quote, explanation)
+                if isinstance(change, (int, float)) and change <= -3:
+                    notify_price_drop(symbol, quote, explanation)
+                notify_symbol_rules(symbol, quote, explanation)
         except Exception as exc:
             logger.warning('Price alert evaluation failed for %s: %s', symbol, type(exc).__name__)
         # A modest cadence avoids exhausting the provider's per-minute quota.
@@ -209,8 +213,8 @@ class RefreshWorker:
                     initialized = True
                 if monotonic() >= next_watchlist_sync:
                     try:
-                        from app.services.alert_delivery import followed_symbols_by_user
-                        symbols = sorted({symbol for values in followed_symbols_by_user().values() for symbol in values})
+                        from app.services.alert_delivery import symbols_to_refresh
+                        symbols = sorted(symbols_to_refresh())
                         register_symbols(symbols[:500])
                     except Exception as exc:
                         response = getattr(exc, 'response', None)

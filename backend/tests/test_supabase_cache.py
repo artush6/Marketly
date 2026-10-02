@@ -299,7 +299,7 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
     @patch("app.integrations.news.supabase_store.save_news_articles")
     @patch(
         "app.integrations.news.supabase_store.get_latest_snapshot",
-        return_value={"payload": [{"headline": "cached"}]},
+        return_value={"payload": [{"headline": "TMO shares move after company update"}]},
     )
     @patch("app.integrations.news._get_finnhub_client")
     def test_news_reads_supabase_snapshot_before_finnhub(
@@ -312,9 +312,9 @@ class SnapshotFirstIntegrationTests(unittest.TestCase):
     ):
         payload = get_news("TMO")
 
-        self.assertEqual(payload, [{"headline": "cached"}])
+        self.assertEqual(payload[0]["headline"], "TMO shares move after company update")
         mock_snapshot.assert_called_once_with("news", "TMO_3d_8")
-        mock_save_news_articles.assert_called_once_with("TMO", [{"headline": "cached"}])
+        mock_save_news_articles.assert_called_once_with("TMO", payload)
         mock_client.assert_not_called()
 
 

@@ -24,8 +24,14 @@ discovery, comparison, saved research and account settings. The older
 ## Alert subscriptions
 
 The alert page has an in-app inbox and push preferences for 3%, 5% and 10% daily
-price drops, important followed-company news and discovery candidates. Web Push
-requires VAPID keys on the FastAPI service. On iPhone, add Marketly to the Home
+drops across watched symbols, important followed-company news and bounded
+small-cap discovery candidates. On each company page, **Set alert** saves an
+account-level absolute price or custom daily percentage rule; a rule can also add
+that ticker to the general watchlist. Ticker news must mention the company in its
+headline or opening summary sentence, reducing false matches from incidental
+mentions later in a story. These are trigger rules and sourced research signals,
+not future-return forecasts or trading instructions. Web Push requires VAPID
+keys on the FastAPI service. On iPhone, add Marketly to the Home
 Screen in Safari, open the installed web app, then allow and enable notifications
 from Alerts. Each device subscribes separately. See
 [Account and deployment setup](../docs/account-and-deployment.md).

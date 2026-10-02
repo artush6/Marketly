@@ -5,7 +5,7 @@ import { DeferredSection } from "./deferred-section";
 import { Expectations } from "./expectations";
 import { CompanyLogo } from "./company-logo";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -40,7 +40,7 @@ import {
 } from "@/lib/api";
 import {
   type Company,
-  type PriceAlert,
+  type SymbolAlertRule,
   type SavedResearch,
   discovery,
   format,
@@ -65,7 +65,6 @@ import { SavedConversations } from "./saved-conversations";
 import { RelationshipResearch } from "./relationship-research";
 import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
-import { StyledSelect } from "./styled-select";
 import { ResearchCalendar } from "./research-calendar";
 import { AlertCenter } from "./alert-center";
 
@@ -193,7 +192,8 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
   const [analyzing, setAnalyzing] = useState(false);
   const [watchlist, setWatchlist] = useState<string[]>(INITIAL_WATCHLIST);
   const [saved, setSaved] = useState<SavedResearch[]>([]);
-  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [alertRules, setAlertRules] = useState<SymbolAlertRule[]>([]);
+  const [alertRulesError, setAlertRulesError] = useState("");
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState("");
   const [snapshot, setSnapshot] = useState<SavedResearch | null>(null);
@@ -203,6 +203,10 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
   const [peersLoading, setPeersLoading] = useState(false);
   const [peerMessage, setPeerMessage] = useState("");
   const [alertOpen, setAlertOpen] = useState(false);
+  const [alertBusy, setAlertBusy] = useState(false);
+  const [alertError, setAlertError] = useState("");
+  const [alertKind, setAlertKind] = useState<"price" | "percent_change">("price");
+  const [followFromAlert, setFollowFromAlert] = useState(false);
   const [alertDirection, setAlertDirection] = useState<"above" | "below">(
     "above",
   );
@@ -245,19 +249,6 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
               )
               .slice(0, 30),
           );
-        if (Array.isArray(value.alerts))
-          setAlerts(
-            value.alerts.filter(
-              (a: PriceAlert) =>
-                a &&
-                typeof a.id === "string" &&
-                typeof a.symbol === "string" &&
-                ["above", "below"].includes(a.direction) &&
-                typeof a.price === "number" &&
-                Number.isFinite(a.price) &&
-                a.price > 0,
-            ),
-          );
       }
     } catch {
       setNotice("Saved browser data could not be restored.");
@@ -278,17 +269,39 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
 
   useEffect(() => {
     if (!ready) return;
+    let active = true;
+    void fetch("/api/backend/notifications/rules", { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.detail || "Ticker alert rules could not be loaded.");
+        if (active) setAlertRules(Array.isArray(payload.rules) ? payload.rules : []);
+      })
+      .catch((reason) => {
+        if (active && reason instanceof Error && !reason.message.includes("Sign in")) setAlertRulesError(reason.message);
+      });
+    return () => { active = false; };
+  }, [ready]);
+
+  useEffect(() => {
+    if (!alertOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setAlertOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [alertOpen]);
+
+  useEffect(() => {
+    if (!ready) return;
     try {
       userStorage.setItem(
         STORAGE,
-        JSON.stringify({ watchlist, saved, alerts }),
+        JSON.stringify({ watchlist, saved }),
       );
     } catch {
       setNotice(
         "Browser storage is full or unavailable. Changes will last only for this visit.",
       );
     }
-  }, [ready, watchlist, saved, alerts]);
+  }, [ready, watchlist, saved]);
 
   useEffect(() => {
     if (!ready || !companyOpened) return;
@@ -379,6 +392,45 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
         ? items.filter((s) => s !== symbol)
         : [...items, symbol].slice(-50),
     );
+  }
+  async function saveTickerAlert(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const threshold = Number(alertPrice);
+    if (!Number.isFinite(threshold) || threshold <= 0 || (alertKind === "percent_change" && threshold > 100)) return;
+    setAlertBusy(true); setAlertError("");
+    try {
+      const response = await fetch("/api/backend/notifications/rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: company.symbol,
+          trigger_type: alertKind,
+          direction: alertDirection,
+          threshold,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || "Could not save this ticker alert.");
+      const rule = payload.rule as SymbolAlertRule;
+      setAlertRules((items) => [rule, ...items.filter((item) => item.id !== rule.id)]);
+      if (followFromAlert && !watchlist.includes(company.symbol)) toggleWatch(company.symbol);
+      setAlertOpen(false);
+      setNotice("Alert saved. Marketly will check it during background quote refreshes and notify your enabled devices.");
+    } catch (reason) {
+      setAlertError(reason instanceof Error ? reason.message : "Could not save this ticker alert.");
+    } finally {
+      setAlertBusy(false);
+    }
+  }
+  async function deleteTickerAlert(rule: SymbolAlertRule) {
+    try {
+      const response = await fetch(`/api/backend/notifications/rules/${encodeURIComponent(rule.id)}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || "Could not remove this ticker alert.");
+      setAlertRules((items) => items.filter((item) => item.id !== rule.id));
+    } catch (reason) {
+      setAlertRulesError(reason instanceof Error ? reason.message : "Could not remove this ticker alert.");
+    }
   }
   async function runAnalysis() {
     if (analysisPending.current) return;
@@ -517,15 +569,6 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
     latestFiling?.acceptedForm || "financial filing",
   );
   const isWatching = watchlist.includes(company.symbol);
-  const triggeredAlerts = snapshot
-    ? []
-    : alerts.filter(
-        (a) =>
-          a.symbol === company.symbol &&
-          m.price !== null &&
-          (a.direction === "above" ? m.price >= a.price : m.price <= a.price),
-      );
-
   const companyAssistantContext = {
     symbol: company.symbol,
     watchlist,
@@ -644,14 +687,6 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
             >
               <X size={15} />
             </button>
-          </div>
-        )}
-        {triggeredAlerts.length > 0 && (
-          <div className="notice alert-notice" role="status">
-            <Bell size={15} />
-            {triggeredAlerts.length} price condition
-            {triggeredAlerts.length > 1 ? "s" : ""} met for {company.symbol} at
-            the last fetched quote.
           </div>
         )}
         {view === "Alerts" ? (
@@ -795,39 +830,31 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
             )}
             <div className="section-heading">
               <div>
-                <h2>Price alerts</h2>
-                <p>
-                  Conditions are checked when you open or refresh a company. No
-                  background or email notifications.
-                </p>
+                <h2>Ticker alerts</h2>
+                <p>Custom rules are checked by the background market worker. Enable a device on Alerts to receive push notifications.</p>
               </div>
             </div>
-            {!alerts.length ? (
-              <div className="empty-state">
-                Use Set alert on a company to add a price condition.
-              </div>
-            ) : (
-              alerts.map((a) => (
-                <div className="alert-row" key={a.id}>
+            {alertRulesError && <div className="inline-error" role="alert">{alertRulesError}</div>}
+            {!alertRules.length ? (
+              <div className="empty-state">Use Set alert on a company to add a background price or daily-move condition.</div>
+            ) : alertRules.map((rule) => (
+                <div className="alert-row" key={rule.id}>
                   <Bell size={15} />
-                  <b>{a.symbol}</b>
+                  <b>{rule.symbol}</b>
                   <span>
-                    {a.direction} {format(a.price)}
+                    {rule.trigger_type === "price"
+                      ? `Price ${rule.direction} ${Number(rule.threshold).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+                      : `Daily move ${rule.direction === "above" ? "up" : "down"} ${rule.threshold}%`}
                   </span>
                   <button
                     className="icon-button"
-                    onClick={() =>
-                      setAlerts((items) =>
-                        items.filter((item) => item.id !== a.id),
-                      )
-                    }
-                    aria-label={`Delete ${a.symbol} alert`}
+                    onClick={() => void deleteTickerAlert(rule)}
+                    aria-label={`Delete ${rule.symbol} alert`}
                   >
                     <Trash2 size={15} />
                   </button>
                 </div>
-              ))
-            )}
+              ))}
           </section>
         ) : (
           <div className="research-columns">
@@ -865,8 +892,12 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
                       className="text-button"
                       disabled={loading || !financials || !!snapshot}
                       onClick={() => {
-                        setAlertOpen(!alertOpen);
+                        setAlertKind("price");
+                        setAlertDirection("above");
                         setAlertPrice(m.price?.toFixed(2) ?? "");
+                        setFollowFromAlert(!isWatching);
+                        setAlertError("");
+                        setAlertOpen(true);
                       }}
                     >
                       <Bell size={15} /> Set alert
@@ -909,43 +940,20 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
                   )}
                 </div>
                 {alertOpen && (
-                  <form
-                    className="alert-form"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const price = Number(alertPrice);
-                      if (!Number.isFinite(price) || price <= 0) return;
-                      setAlerts((items) => [
-                        ...items,
-                        {
-                          id: crypto.randomUUID(),
-                          symbol: company.symbol,
-                          direction: alertDirection,
-                          price,
-                        },
-                      ]);
-                      setAlertOpen(false);
-                      setNotice(
-                        "Price condition saved. Checked when this company is opened or refreshed.",
-                      );
-                    }}
-                  >
-                    <span>Notify in this workspace when price is</span>
-                    <StyledSelect ariaLabel="Alert direction" value={alertDirection} onChange={(value) => setAlertDirection(value as "above" | "below")} options={[{ value: "above", label: "Above" }, { value: "below", label: "Below" }]} />
-                    <input
-                      aria-label="Target price"
-                      type="number"
-                      min="0.0001"
-                      step="any"
-                      required
-                      value={alertPrice}
-                      onChange={(e) => setAlertPrice(e.target.value)}
-                    />
-                    <span>{m.currency}</span>
-                    <button className="primary-button" type="submit">
-                      Save alert
-                    </button>
-                  </form>
+                  <div className="alert-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setAlertOpen(false); }}>
+                    <section className="alert-modal" role="dialog" aria-modal="true" aria-labelledby="symbol-alert-title">
+                      <header><div><span className="eyebrow">BACKGROUND MARKET WATCH</span><h2 id="symbol-alert-title">Set alert for {company.symbol}</h2><p>Choose a price level or a daily percentage move to monitor.</p></div><button type="button" className="icon-button" aria-label="Close alert dialog" onClick={() => setAlertOpen(false)}><X size={17} /></button></header>
+                      <form className="alert-rule-form" onSubmit={(event) => void saveTickerAlert(event)}>
+                        <label>Alert type<select value={alertKind} onChange={(event) => { const next = event.target.value as "price" | "percent_change"; setAlertKind(next); setAlertPrice(next === "price" ? m.price?.toFixed(2) ?? "" : "5"); }}><option value="price">Price reaches</option><option value="percent_change">Daily change reaches</option></select></label>
+                        <label>{alertKind === "price" ? "Condition" : "Direction"}<select value={alertDirection} onChange={(event) => setAlertDirection(event.target.value as "above" | "below")}><option value="above">{alertKind === "price" ? "Above" : "Up by"}</option><option value="below">{alertKind === "price" ? "Below" : "Down by"}</option></select></label>
+                        <label>{alertKind === "price" ? `Target price (${m.currency})` : "Daily change (%)"}<input autoFocus type="number" min="0.01" max={alertKind === "percent_change" ? 100 : undefined} step={alertKind === "price" ? "any" : "0.1"} required value={alertPrice} onChange={(event) => setAlertPrice(event.target.value)} /></label>
+                        <label className="alert-modal-follow"><input type="checkbox" checked={isWatching || followFromAlert} disabled={isWatching} onChange={(event) => setFollowFromAlert(event.target.checked)} /><span><strong>{isWatching ? "In your watchlist" : "Also follow this company"}</strong><small>Followed stocks receive your general price-drop and important-news alerts.</small></span></label>
+                        <p className="disclosure">Rules are checked during background quote refreshes. Price changes use the provider’s daily move versus the previous close. Push delivery requires an enabled device.</p>
+                        {alertError && <div className="inline-error" role="alert">{alertError}</div>}
+                        <footer><button type="button" className="secondary-button" disabled={alertBusy} onClick={() => setAlertOpen(false)}>Cancel</button><button type="submit" className="primary-button" disabled={alertBusy}>{alertBusy ? "Saving…" : "Save alert"}</button></footer>
+                      </form>
+                    </section>
+                  </div>
                 )}
                 {error && (
                   <div className="inline-error" role="alert">

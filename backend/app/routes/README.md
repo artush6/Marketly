@@ -33,7 +33,7 @@ routes/
 
 Other routers include `relationships.py` and `notifications.py`.
 `notifications.py` exposes the signed-in user's alert inbox, preferences, push
-subscriptions, test notification and read state. All are registered in
+subscriptions, saved per-ticker price/daily-move rules, test notification and read state. All are registered in
 `app/main.py` with the verified current-user dependency.
 
 ## Example

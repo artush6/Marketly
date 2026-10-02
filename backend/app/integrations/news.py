@@ -1,6 +1,7 @@
 import json
 import datetime
 import logging
+import re
 from contextvars import ContextVar
 from functools import lru_cache
 from typing import Optional
@@ -14,6 +15,72 @@ import finnhub
 
 logger = logging.getLogger(__name__)
 LAST_DATA_SOURCE: ContextVar[str] = ContextVar("news_data_source", default="unknown")
+COMMON_COMPANY_ALIASES = {
+    "AAPL": ("Apple",), "MSFT": ("Microsoft",), "NVDA": ("NVIDIA",),
+    "GOOGL": ("Alphabet", "Google"), "GOOG": ("Alphabet", "Google"),
+    "AMZN": ("Amazon",), "META": ("Meta Platforms", "Meta"),
+    "TSLA": ("Tesla",), "AMD": ("Advanced Micro Devices",),
+    "NKE": ("Nike",), "JPM": ("JPMorgan", "JPMorgan Chase"),
+}
+
+
+def _plain(value) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]*>", " ", str(value or ""))).strip()
+
+
+def _company_aliases(symbol: str) -> list[str]:
+    """Read only already-cached identity data; news filtering must not trigger a quote fetch."""
+    values = [symbol, *COMMON_COMPANY_ALIASES.get(symbol, ())]
+    if symbol in COMMON_COMPANY_ALIASES:
+        return values
+    payload = None
+    try:
+        cached, _ = CacheManager.get_with_source(CacheManager.make_key("tickers", symbol))
+        if cached:
+            payload = json.loads(cached)
+        if payload is None:
+            payload = supabase_store.get_json("tickers", symbol)
+    except Exception:
+        payload = None
+    info = payload.get("info") if isinstance(payload, dict) else None
+    if not isinstance(info, dict):
+        info = {}
+    for key in ("shortName", "longName", "companyName", "name"):
+        name = _plain(info.get(key))
+        if name and name not in values:
+            values.append(name)
+        # Corporate suffixes are often absent from news headlines.
+        shortened = re.sub(r"\b(incorporated|corporation|corp|inc|limited|ltd|plc|company|co)\b\.?$", "", name, flags=re.I).strip(" ,.")
+        if shortened and shortened not in values:
+            values.append(shortened)
+    return values
+
+
+def _contains_company(text: str, alias: str) -> bool:
+    alias = _plain(alias)
+    if len(alias) < 3:
+        return False
+    escaped = re.escape(alias).replace(r"\ ", r"\s+")
+    return bool(re.search(rf"(?<![A-Z0-9]){escaped}(?![A-Z0-9])", text, flags=re.I))
+
+
+def _article_matches_symbol(article: dict, symbol: str, aliases: list[str] | None = None) -> bool:
+    """Require a focal-company mention in the headline or lead sentence.
+
+    Provider symbol association can be triggered by a passing comparison deep in
+    an article. Such a mention remains insufficient evidence that the story is
+    about the requested company.
+    """
+    aliases = aliases or _company_aliases(symbol)
+    headline = _plain(article.get("headline"))
+    summary = _plain(article.get("summary"))
+    lead = re.split(r"(?<=[.!?])\s+", summary, maxsplit=1)[0]
+    return any(_contains_company(headline, alias) or _contains_company(lead, alias) for alias in aliases)
+
+
+def _relevant_articles(articles: list[dict], symbol: str) -> list[dict]:
+    aliases = _company_aliases(symbol)
+    return [article for article in articles if isinstance(article, dict) and _article_matches_symbol(article, symbol, aliases)]
 
 
 @lru_cache(maxsize=1)
@@ -40,7 +107,7 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
     # Try to load from cache
     cached, cache_source = (None, None) if force_refresh else CacheManager.get_with_source(cache_key)
     if cached:
-        articles = enrich_articles(json.loads(cached))
+        articles = _relevant_articles(enrich_articles(json.loads(cached)), symbol)
         if isinstance(articles, list):
             supabase_store.save_news_articles(symbol, articles)
         LAST_DATA_SOURCE.set(cache_source or "cache")
@@ -50,9 +117,10 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
     snapshot = None if force_refresh else supabase_store.get_latest_snapshot("news", snapshot_key)
     if snapshot and isinstance(snapshot.get("payload"), list):
         LAST_DATA_SOURCE.set("supabase")
-        CacheManager.set(cache_key, json.dumps(snapshot["payload"]))
-        supabase_store.save_news_articles(symbol, snapshot["payload"])
-        return snapshot["payload"]
+        articles = _relevant_articles(enrich_articles(snapshot["payload"]), symbol)
+        CacheManager.set(cache_key, json.dumps(articles))
+        supabase_store.save_news_articles(symbol, articles)
+        return articles
 
     # Otherwise fetch fresh data
     date_start = (datetime.date.today() -
@@ -60,9 +128,9 @@ def get_news(symbol: str, days: int = 3, max_items: int = 8, output_file: Option
     date_end = datetime.date.today().isoformat()
 
     finnhub_client = _get_finnhub_client()
-    articles = enrich_articles(finnhub_client.company_news(
+    articles = _relevant_articles(enrich_articles(finnhub_client.company_news(
         symbol, _from=date_start, to=date_end)
-    )
+    ), symbol)
 
     if max_items:
         articles = articles[:max_items]
@@ -105,7 +173,7 @@ def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: 
     cache_key = CacheManager.make_key("news", f"{symbols_str}_{days}d")
 
     if cached := CacheManager.get(cache_key):
-        return {symbol: enrich_articles(articles) for symbol, articles in json.loads(cached).items()}
+        return {symbol: _relevant_articles(enrich_articles(articles), symbol) for symbol, articles in json.loads(cached).items()}
 
     date_start = (datetime.date.today() -
                   datetime.timedelta(days=days)).isoformat()
@@ -118,8 +186,8 @@ def get_news_grouped(symbols, max_items: int = 50, days: int = 30, output_file: 
 
     finnhub_client = _get_finnhub_client()
     for symbol in symbols:
-        articles = enrich_articles(finnhub_client.company_news(
-            symbol, _from=date_start, to=date_end))
+        articles = _relevant_articles(enrich_articles(finnhub_client.company_news(
+            symbol, _from=date_start, to=date_end)), symbol)
         logger.debug("%s: %s articles", symbol, len(articles))
         logger.debug("%s: type=%s, sample=%s", symbol, type(articles), articles[:1])
 
@@ -166,8 +234,8 @@ def get_news_mixed(symbols, max_items: int = 10, days: int = 3, output_file: Opt
 
     finnhub_client = _get_finnhub_client()
     for symbol in symbols:
-        articles = enrich_articles(finnhub_client.company_news(
-            symbol, _from=date_start, to=date_end))
+        articles = _relevant_articles(enrich_articles(finnhub_client.company_news(
+            symbol, _from=date_start, to=date_end)), symbol)
         if max_items:
             articles = articles[:max_items]
         supabase_store.save_news_articles(symbol, articles)
