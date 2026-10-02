@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authConfig, localWorkspaceAllowed } from "@/lib/supabase/config";
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  if (path === "/login" || path === "/manifest.webmanifest" || path === "/sw.js" || path.startsWith("/auth/")) return NextResponse.next();
+  if (path === "/login" || path === "/reset-password" || path === "/manifest.webmanifest" || path === "/sw.js" || path.startsWith("/auth/")) return NextResponse.next();
   const config = authConfig();
   if (!config && localWorkspaceAllowed()) return NextResponse.next();
   let response = NextResponse.next({ request });
