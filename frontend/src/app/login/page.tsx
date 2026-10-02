@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { browserAuth } from "@/lib/supabase/client";
 import { authConfig } from "@/lib/supabase/config";
 
@@ -22,6 +22,12 @@ export default function Login() {
   const [verificationKind, setVerificationKind] = useState<VerificationKind>("signup");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("error") === "callback") {
+      setMessage("Sign-in could not finish. Check that this app’s /auth/callback URL is allowed in Supabase and that the Google provider callback is configured, then try again.");
+    }
+  }, []);
 
   function changeMode(next: Mode) {
     setMode(next);
