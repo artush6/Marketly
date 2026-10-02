@@ -67,8 +67,9 @@ import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
 import { StyledSelect } from "./styled-select";
 import { ResearchCalendar } from "./research-calendar";
+import { AlertCenter } from "./alert-center";
 
-type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research" | "Calendar";
+type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research" | "Calendar" | "Alerts";
 const STORAGE = "marketly.research.v1";
 const INITIAL_WATCHLIST = ["AAPL", "MSFT", "NVDA", "GOOGL"];
 
@@ -625,6 +626,7 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
             </button>
           ))}
           <Link className={`research-nav-link${pathname === "/calendar" ? " active" : ""}`} href="/calendar" aria-current={pathname === "/calendar" ? "page" : undefined}><CalendarDays size={16} /> Calendar</Link>
+          <Link className={`research-nav-link${pathname === "/alerts" ? " active" : ""}`} href="/alerts" aria-current={pathname === "/alerts" ? "page" : undefined}><Bell size={16} /> Alerts</Link>
         </div>
         <span>
           <span className="device-dot" />
@@ -652,7 +654,9 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
             the last fetched quote.
           </div>
         )}
-        {view === "Calendar" ? (
+        {view === "Alerts" ? (
+          <AlertCenter onSelectSymbol={select} />
+        ) : view === "Calendar" ? (
           <ResearchCalendar symbols={watchlist} onSelectSymbol={(symbol) => select({
             symbol,
             name: STARTER_COMPANIES.find((item) => item.symbol === symbol)?.name || symbol,

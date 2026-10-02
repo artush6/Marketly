@@ -145,7 +145,21 @@ SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 SEC_USER_AGENT=Marketly/1.0 (contact: your-real-email@example.com)
+VAPID_PUBLIC_KEY= # public key from your Web Push VAPID key pair
+VAPID_PRIVATE_KEY= # private key; backend only, never add a NEXT_PUBLIC_ prefix
+VAPID_SUBJECT=mailto:you@example.com
 ```
+
+The `codex/background-alerts` branch adds the private `background_alerts`
+migration. Apply it to the Supabase project before opening `/alerts`. Web push
+needs a VAPID key pair and a running backend refresh worker. Keep the private
+VAPID key in the backend environment only. On iPhone, add Marketly to the Home
+Screen in Safari, open that installed app, then enable notifications in Alerts;
+subscribe separately on each device you want to notify.
+
+Generate a VAPID pair once with `npx --yes web-push generate-vapid-keys --json`
+and copy its `publicKey` and `privateKey` into the backend environment values
+above. Never commit those values.
 
 ### Frontend
 

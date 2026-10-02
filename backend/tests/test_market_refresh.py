@@ -97,6 +97,15 @@ def test_calendar_refresh_requests_longer_earnings_window():
     assert params['to'] == (today + timedelta(days=365)).isoformat()
 
 
+def test_price_alerts_require_a_fresh_quote_during_the_us_session():
+    quote = {'timestamp': datetime(2026, 10, 2, 14, 0, tzinfo=timezone.utc).timestamp()}
+    market_open = datetime(2026, 10, 2, 14, 1, tzinfo=timezone.utc)
+    assert refresh.is_current_us_session_quote(quote, now=market_open)
+    assert not refresh.is_current_us_session_quote(quote, now=market_open + timedelta(minutes=16))
+    weekend = datetime(2026, 10, 3, 14, 1, tzinfo=timezone.utc)
+    assert not refresh.is_current_us_session_quote(quote, now=weekend)
+
+
 def test_provider_failure_does_not_discard_other_financials():
     from app.integrations import financials
     with patch.object(financials, 'fetch_finnhub_payload', side_effect=RuntimeError), \

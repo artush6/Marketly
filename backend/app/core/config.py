@@ -28,6 +28,9 @@ class Settings:
     SUPABASE_ANON_KEY: Optional[str]
     SUPABASE_SERVICE_ROLE_KEY: Optional[str]
     SEC_USER_AGENT: Optional[str]
+    VAPID_PUBLIC_KEY: Optional[str]
+    VAPID_PRIVATE_KEY: Optional[str]
+    VAPID_SUBJECT: str
 
 
 @lru_cache(maxsize=1)
@@ -49,6 +52,9 @@ def get_settings() -> Settings:
         SUPABASE_ANON_KEY=os.getenv("SUPABASE_ANON_KEY"),
         SUPABASE_SERVICE_ROLE_KEY=os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
         SEC_USER_AGENT=os.getenv("SEC_USER_AGENT"),
+        VAPID_PUBLIC_KEY=os.getenv("VAPID_PUBLIC_KEY"),
+        VAPID_PRIVATE_KEY=os.getenv("VAPID_PRIVATE_KEY"),
+        VAPID_SUBJECT=os.getenv("VAPID_SUBJECT", "mailto:alerts@marketly.app"),
     )
 
 

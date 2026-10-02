@@ -5,7 +5,7 @@ from fastapi import FastAPI, Depends
 from app.core.auth import current_user
 from app.integrations import supabase_store
 from app.services.market_refresh import RefreshWorker
-from app.routes import companies, analysis, assistant, discovery, econ_situation, financials, heatmap, market, news, relationships
+from app.routes import companies, analysis, assistant, discovery, econ_situation, financials, heatmap, market, news, relationships, notifications
 from rich.traceback import install
 from app.core.cache import r as redis_client
 from app.core.config import settings
@@ -36,6 +36,7 @@ app.include_router(assistant.router, dependencies=[Depends(current_user)])
 app.include_router(econ_situation.router, dependencies=[Depends(current_user)])
 app.include_router(discovery.router, dependencies=[Depends(current_user)])
 app.include_router(market.router, dependencies=[Depends(current_user)])
+app.include_router(notifications.router, dependencies=[Depends(current_user)])
 
 
 @app.get("/")

@@ -15,6 +15,9 @@ export const metadata: Metadata = {
   },
   description:
     "A premium market intelligence workspace for company analysis, news flow, and financial drill-downs.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Marketly" },
+  icons: { icon: "/marketly-icon.svg", apple: "/apple-touch-icon.png" },
 };
 
 export default function RootLayout({

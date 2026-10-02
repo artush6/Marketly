@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import logging
+from time import monotonic
 from datetime import date, datetime, timedelta, timezone
 from threading import Event, Thread
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -11,6 +13,19 @@ from app.integrations import supabase_store as store
 
 logger = logging.getLogger(__name__)
 DEFAULT_SYMBOLS = ('SPY', 'QQQ', 'DIA', 'IWM', 'AAPL', 'MSFT', 'NVDA', 'GOOGL')
+NEW_YORK = ZoneInfo('America/New_York')
+
+
+def is_current_us_session_quote(quote, *, now=None):
+    """Avoid attributing stale after-hours or prior-session quotes to today."""
+    stamp = quote.get('timestamp') if isinstance(quote, dict) else None
+    if not isinstance(stamp, (int, float)) or stamp <= 0:
+        return False
+    now = now or datetime.now(timezone.utc)
+    local = now.astimezone(NEW_YORK)
+    if local.weekday() >= 5 or not (9 * 60 + 30 <= local.hour * 60 + local.minute < 16 * 60):
+        return False
+    return abs(now.timestamp() - stamp) <= 15 * 60
 
 
 def rpc(name, payload):
@@ -83,12 +98,41 @@ def execute_job(job):
     from app.integrations.financials import fetch_ticker_financials, make_json_safe
     kind, symbol = job['kind'], job['symbol']
     if kind == 'quote':
-        refresh_quote(symbol, durable=True)
+        quote = refresh_quote(symbol, durable=True)
+        try:
+            from app.services.alert_delivery import notify_price_drop
+            if (is_current_us_session_quote(quote)
+                    and quote.get('changePercent') is not None and quote['changePercent'] <= -3):
+                from app.integrations.news import get_news
+                try:
+                    articles = get_news(symbol, days=2, max_items=5)
+                except Exception:
+                    articles = []
+                explanation = {
+                    'priceMovePercent': quote.get('changePercent'),
+                    'price': quote.get('price'),
+                    'observedAt': quote.get('fetchedAt'),
+                    'recentArticles': [
+                        {key: item.get(key) for key in ('headline', 'summary', 'url', 'source', 'datetime')}
+                        for item in articles[:5] if isinstance(item, dict)
+                    ],
+                    'causeAttribution': 'A nearby headline is not proof of causation. Review the cited source.',
+                    'note': 'Daily percentage comes from the quote provider and can be delayed. It is measured against the prior close, not a live intraday high.',
+                }
+                notify_price_drop(symbol, quote, explanation)
+        except Exception as exc:
+            logger.warning('Price alert evaluation failed for %s: %s', symbol, type(exc).__name__)
         # A modest cadence avoids exhausting the provider's per-minute quota.
         return 300
     if kind == 'news':
-        refresh_news(durable=True)
-        return 900
+        if symbol == 'MARKET':
+            refresh_news(durable=True)
+            return 900
+        from app.integrations.news import get_news
+        articles = get_news(symbol, days=2, max_items=12, force_refresh=True)
+        from app.services.alert_delivery import notify_important_news
+        notify_important_news(symbol, articles)
+        return 1800
     if kind == 'calendar':
         refresh_calendar(symbol)
         return 86400
@@ -115,6 +159,8 @@ def execute_job(job):
         profile = SmallCapDiscoveryProfile(**profile_data).validate()
         scan = scan_small_caps(profile=profile)
         persist_small_cap_scan(scan)
+        from app.services.alert_delivery import notify_discovery_candidates
+        notify_discovery_candidates(scan)
         return 7 * 86400
     raise ValueError('Unknown refresh job')
 
@@ -154,12 +200,21 @@ class RefreshWorker:
 
     def run(self):
         initialized = False
+        next_watchlist_sync = 0.0
         while not self.stop_event.is_set():
             try:
                 if not initialized:
                     register_symbols(DEFAULT_SYMBOLS)
                     rpc('enqueue_market_refresh', {'p_kind': 'news', 'p_symbol': 'MARKET'})
                     initialized = True
+                if monotonic() >= next_watchlist_sync:
+                    try:
+                        from app.services.alert_delivery import followed_symbols_by_user
+                        symbols = sorted({symbol for values in followed_symbols_by_user().values() for symbol in values})
+                        register_symbols(symbols[:500])
+                    except Exception as exc:
+                        logger.warning('Alert watchlist sync failed: %s', type(exc).__name__)
+                    next_watchlist_sync = monotonic() + 300
                 tick()
             except Exception as exc:
                 logger.warning('Refresh queue unavailable: %s', type(exc).__name__)
