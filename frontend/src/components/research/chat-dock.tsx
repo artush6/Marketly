@@ -146,8 +146,8 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
       setStrategy(userStorage.getItem("marketly.strategy") || "Balanced");
       setHorizon(userStorage.getItem("marketly.horizon") || "3–5 years");
       setPinned(userStorage.getItem(CHAT_PINNED_KEY) === "true");
-      setHistoryVisible(userStorage.getItem(CHAT_HISTORY_KEY) !== "false");
-      setOpen(mode === "workspace" || userStorage.getItem(CHAT_OPEN_KEY) === "true");
+      setHistoryVisible(userStorage.getItem(CHAT_HISTORY_KEY) === "true");
+      setOpen(mode === "workspace" || (window.matchMedia("(min-width: 1024px)").matches ? userStorage.getItem(CHAT_OPEN_KEY) !== "false" : userStorage.getItem(CHAT_OPEN_KEY) === "true"));
     } catch { /* Defaults remain usable. */ }
 
     const applyState = (value: { open?: boolean; pinned?: boolean }) => {
@@ -380,6 +380,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
             ))}
             {busy && <div className="chat-thinking"><LoaderCircle size={13} className="spin" /> Reading the available context…</div>}
             {error && <p role="alert" className="chat-error">{error}</p>}
+            {!messages.length && <div className="assistant-suggestions">{["Why are markets moving today?", "Compare AAPL vs MSFT", "Summarize today’s market news", "Find undervalued large-cap stocks"].map((prompt) => <button key={prompt} type="button" onClick={() => { setQuestion(prompt); document.querySelector<HTMLInputElement>('[aria-label="Ask Marketly"]')?.focus(); }}><Sparkles size={14} />{prompt}</button>)}</div>}
             <div ref={bottom} />
           </div>
         </>
@@ -410,6 +411,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
 
   const panel = (
     <section className={`chat-dock ${open ? "expanded" : ""} ${mode === "dock" && pinned ? "pinned" : ""} ${mode === "workspace" ? "workspace" : ""}`} aria-label="Research assistant">
+      {mode === "dock" && !open && <button className="assistant-launcher" onClick={() => setOpen(true)} aria-label="Open Marketly assistant"><Sparkles size={19} /><span>Ask AI</span></button>}
       <div className={`chat-dock-layout ${historyVisible ? "with-history" : "history-hidden"}`}>
         {mode === "dock" && open && historyVisible && <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />}
         <div className="chat-conversation-column">
