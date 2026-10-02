@@ -18,9 +18,16 @@ export async function GET() {
     .from("user_research_state")
     .select("key,value,revision")
     .eq("user_id", auth.user.id);
-  return error
-    ? reply({ error: "Your workspace could not be loaded. Please retry." }, 503)
-    : reply({ userId: auth.user.id, email: auth.user.email, records: data });
+  if (error) {
+    console.error("[account/state] Workspace hydration failed", error.code, error.message);
+    const migrationMissing = error.code === "42P01" || error.code === "PGRST205";
+    return reply({
+      error: migrationMissing
+        ? "Your sign-in worked, but Marketly’s workspace table is not installed in Supabase yet. Apply the user_research_state migration, then retry."
+        : "Your sign-in worked, but the private workspace could not be read from Supabase. Check the user_research_state table and its row-level security policies, then retry.",
+    }, 503);
+  }
+  return reply({ userId: auth.user.id, email: auth.user.email, records: data || [] });
 }
 export async function PUT(request: NextRequest) {
   if (request.headers.get("origin") !== request.nextUrl.origin)

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { browserAuth } from "@/lib/supabase/client";
 import { authConfig } from "@/lib/supabase/config";
 
-type Mode = "login" | "signup" | "verify" | "forgot";
+type Mode = "login" | "signup" | "email-code" | "verify" | "forgot";
 type VerificationKind = "signup" | "login";
 
 function safeNext(value: string | null) {
@@ -148,6 +148,7 @@ export default function Login() {
   }
 
   const title = mode === "signup" ? "Create your workspace"
+    : mode === "email-code" ? "Sign in with an email code"
     : mode === "verify" ? "Enter your code"
       : mode === "forgot" ? "Reset your password" : "Welcome back";
 
@@ -164,6 +165,13 @@ export default function Login() {
         <h2>{title}</h2>
         <p>{mode === "verify" ? `Enter the code sent to ${email}.` : "Keep your research, preferences and portfolio together."}</p>
         {!authConfig() ? <p role="alert">Account access is not available yet. Your workspace will be ready to sign in once setup is complete.</p> : <>
+          {(mode === "login" || mode === "signup") && <>
+            <div className="account-actions login-social-actions">
+              {process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED === "true" && <button type="button" disabled={busy} className="secondary-button google-signin-button" onClick={() => void oauth("google")}><GoogleMark />Continue with Google</button>}
+              {process.env.NEXT_PUBLIC_AUTH_APPLE_ENABLED === "true" && <button type="button" disabled={busy} className="secondary-button google-signin-button" onClick={() => void oauth("apple")}>Continue with Apple</button>}
+            </div>
+            {(process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED === "true" || process.env.NEXT_PUBLIC_AUTH_APPLE_ENABLED === "true") && <div className="account-divider"><span>or continue with email</span></div>}
+          </>}
           {mode === "login" && <>
             <form onSubmit={submitPassword} className="account-form">
               <label>Email<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label>
@@ -171,10 +179,15 @@ export default function Login() {
               <button className="primary-button" disabled={busy}>{busy ? "Please wait…" : "Sign in"}</button>
             </form>
             <div className="login-shortcuts"><button type="button" className="text-button" onClick={() => changeMode("forgot")}>Forgot password?</button><button type="button" className="text-button" onClick={() => changeMode("signup")}>Create an account</button></div>
-            <form onSubmit={beginLoginCode} className="account-form login-code-form">
-              <label>Email code sign-in<input aria-label="Email for sign-in code" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-              <button type="submit" className="secondary-button" disabled={busy}>{busy ? "Please wait…" : "Send sign-in code"}</button>
+            <button type="button" className="text-button login-email-code-link" onClick={() => { changeMode("email-code"); }}>Continue with an email code</button>
+          </>}
+          {mode === "email-code" && <>
+            <p>We’ll email you a one-time code. You can use it to sign in without your password.</p>
+            <form onSubmit={(event) => { event.preventDefault(); void beginLoginCode(); }} className="account-form">
+              <label>Email<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+              <button type="submit" className="primary-button" disabled={busy}>{busy ? "Please wait…" : "Send sign-in code"}</button>
             </form>
+            <button type="button" className="text-button" onClick={() => changeMode("login")}>Back to password sign in</button>
           </>}
           {mode === "signup" && <>
             <form onSubmit={submitPassword} className="account-form">
@@ -200,13 +213,18 @@ export default function Login() {
             </form>
             <button type="button" className="text-button" onClick={() => changeMode("login")}>Back to sign in</button>
           </>}
-          <div className="account-actions">
-            {process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED === "true" && <button disabled={busy} className="secondary-button" onClick={() => void oauth("google")}>Continue with Google</button>}
-            {process.env.NEXT_PUBLIC_AUTH_APPLE_ENABLED === "true" && <button disabled={busy} className="secondary-button" onClick={() => void oauth("apple")}>Continue with Apple</button>}
-          </div>
         </>}
         {message && <p role="status" aria-live="polite">{message}</p>}
       </section>
     </main>
   );
+}
+
+function GoogleMark() {
+  return <svg aria-hidden="true" viewBox="0 0 48 48" width="19" height="19">
+    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" />
+    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.73 7.18l7.25 5.62c4.22-3.9 7.52-9.65 7.52-17.27Z" />
+    <path fill="#FBBC05" d="M10.54 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.75-4.59l-7.98-6.2A23.9 23.9 0 0 0 0 24c0 3.9.94 7.58 2.56 10.78l7.98-6.19Z" />
+    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.81l-7.25-5.62c-2.01 1.35-4.59 2.15-8.65 2.15-6.26 0-11.57-4.22-13.46-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z" />
+  </svg>;
 }
