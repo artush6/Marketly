@@ -213,7 +213,15 @@ class RefreshWorker:
                         symbols = sorted({symbol for values in followed_symbols_by_user().values() for symbol in values})
                         register_symbols(symbols[:500])
                     except Exception as exc:
-                        logger.warning('Alert watchlist sync failed: %s', type(exc).__name__)
+                        response = getattr(exc, 'response', None)
+                        status = getattr(response, 'status_code', None)
+                        try:
+                            detail = (response.json().get('message') or response.json().get('error') or '')[:180]
+                        except Exception:
+                            detail = ''
+                        logger.warning('Alert watchlist sync failed: %s%s',
+                                       f'HTTP {status}' if status else type(exc).__name__,
+                                       f' — {detail}' if detail else '')
                     next_watchlist_sync = monotonic() + 300
                 tick()
             except Exception as exc:

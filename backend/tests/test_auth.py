@@ -27,9 +27,14 @@ def test_rejects_invalid_bearer():
 def test_verified_user_and_rejected_session(monkeypatch):
     from types import SimpleNamespace
     import app.core.auth as auth
-    monkeypatch.setattr(auth,"settings",SimpleNamespace(SUPABASE_URL="https://project.supabase.co",SUPABASE_ANON_KEY="public"))
-    monkeypatch.setattr(auth.requests,"get",lambda *a,**k:SimpleNamespace(status_code=200,raise_for_status=lambda:None,json=lambda:{"id":"11111111-1111-4111-8111-111111111111"}))
+    monkeypatch.setattr(auth,"settings",SimpleNamespace(SUPABASE_URL="https://project.supabase.co/rest/v1/",SUPABASE_ANON_KEY="public"))
+    urls = []
+    def verified(*args, **kwargs):
+        urls.append(args[0])
+        return SimpleNamespace(status_code=200,raise_for_status=lambda:None,json=lambda:{"id":"11111111-1111-4111-8111-111111111111"})
+    monkeypatch.setattr(auth.requests,"get",verified)
     assert current_user("Bearer valid").user_id=="11111111-1111-4111-8111-111111111111"
+    assert urls == ["https://project.supabase.co/auth/v1/user"]
     monkeypatch.setattr(auth.requests,"get",lambda *a,**k:SimpleNamespace(status_code=401))
     with pytest.raises(HTTPException) as exc: current_user("Bearer invalid")
     assert exc.value.status_code==401

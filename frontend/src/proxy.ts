@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authConfig, localWorkspaceAllowed } from "@/lib/supabase/config";
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  if (path === "/login" || path.startsWith("/auth/")) return NextResponse.next();
+  if (path === "/login" || path === "/manifest.webmanifest" || path === "/sw.js" || path.startsWith("/auth/")) return NextResponse.next();
   const config = authConfig();
   if (!config && localWorkspaceAllowed()) return NextResponse.next();
   let response = NextResponse.next({ request });
@@ -33,4 +33,4 @@ export async function proxy(request: NextRequest) {
   response.headers.set("Cache-Control", "private, no-store");
   return response;
 }
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"] };
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"] };

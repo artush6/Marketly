@@ -21,7 +21,10 @@ def current_user(authorization: str | None = Header(default=None)) -> Identity |
     if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
         raise HTTPException(503, "Authentication is not configured.")
     try:
-        response = requests.get(f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user", headers={"apikey": settings.SUPABASE_ANON_KEY, "Authorization": f"Bearer {token}"}, timeout=10)
+        supabase_url = settings.SUPABASE_URL.rstrip("/")
+        if supabase_url.endswith("/rest/v1"):
+            supabase_url = supabase_url[:-len("/rest/v1")]
+        response = requests.get(f"{supabase_url}/auth/v1/user", headers={"apikey": settings.SUPABASE_ANON_KEY, "Authorization": f"Bearer {token}"}, timeout=10)
         if response.status_code in (401, 403):
             raise HTTPException(401, "Session expired. Sign in again.")
         response.raise_for_status()
