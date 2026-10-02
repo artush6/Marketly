@@ -16,7 +16,15 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || "/alerts", self.location.origin).href;
+  const data = event.notification.data || {};
+  const candidate = new URL(data.url || "/alerts", self.location.origin);
+  const targetUrl = candidate.origin === self.location.origin
+    ? candidate
+    : new URL("/alerts", self.location.origin);
+  // The alert ID selects the saved brief on the Alerts page. Keeping this in
+  // the URL also makes the destination survive a cold launch on iPhone.
+  if (data.id) targetUrl.searchParams.set("notification", String(data.id));
+  const target = targetUrl.href;
   event.waitUntil((async () => {
     const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of clientsList) {

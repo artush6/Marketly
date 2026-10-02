@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell, BellOff, Check, LoaderCircle, RefreshCw } from "lucide-react";
 import type { Company } from "@/lib/research";
+import { getTickerScore, type BackendScoreResponse } from "@/lib/api";
 
 type AlertItem = {
   id: string; category: "price_move" | "important_news" | "discovery";
@@ -44,9 +45,9 @@ function AlertContext({ item, expanded = false }: { item: AlertItem; expanded?: 
   const positives = Array.isArray(evidence.positives) ? evidence.positives : [];
   const risks = Array.isArray(evidence.riskFlags) ? evidence.riskFlags : [];
   const company = evidence.company && typeof evidence.company === "object" ? evidence.company as Record<string, unknown> : {};
-  return <details className="alert-explanation" open={expanded}><summary>Prepared context & evidence</summary>
+  return <details className="alert-explanation" open={expanded}><summary>Saved evidence & sources</summary>
     {item.category === "price_move" ? <div className="alert-context-body">
-      <p>Quote provider reported a {typeof evidence.priceMovePercent === "number" ? `${evidence.priceMovePercent.toFixed(1)}%` : "large"} daily move{typeof evidence.price === "number" ? ` to ${evidence.price}` : ""}. This is measured against the prior close; it may be delayed.</p>
+      <p>Quote provider reported a {typeof evidence.priceMovePercent === "number" ? `${evidence.priceMovePercent.toFixed(1)}%` : "large"} daily move{typeof evidence.price === "number" ? ` to ${evidence.price}` : ""}. This is measured against the prior close{evidence.observedAt ? `, observed ${new Date(String(evidence.observedAt)).toLocaleString()}` : ""}; quotes may be delayed.</p>
       <p className="disclosure">{String(evidence.causeAttribution || "A matching headline is context, not proof of cause.")}</p>
       {stories.length ? <ul>{stories.map((story, index) => <li key={`${String(story.url || story.headline)}-${index}`}>{typeof story.url === "string" && story.url.startsWith("https://") ? <a href={story.url} target="_blank" rel="noreferrer">{String(story.headline || "Read recent coverage")} ↗</a> : String(story.headline || "Recent coverage")}{story.source ? ` · ${String(story.source)}` : ""}</li>)}</ul> : <p>No matching recent company headlines were available when this alert was prepared.</p>}
     </div> : item.category === "important_news" ? <div className="alert-context-body">
@@ -63,6 +64,49 @@ function AlertContext({ item, expanded = false }: { item: AlertItem; expanded?: 
   </details>;
 }
 
+function AlertBrief({ item, analysis, loadingAnalysis, onOpenCompany }: {
+  item: AlertItem;
+  analysis?: BackendScoreResponse;
+  loadingAnalysis: boolean;
+  onOpenCompany: () => void;
+}) {
+  const cases = analysis?.scenarios?.cases || [];
+  const watchItems = [...new Set([
+    ...(analysis?.trajectory?.upcomingDrivers || []),
+    ...(analysis?.scenarios?.historicalContextNeeded || []),
+    ...(analysis?.scenarios?.anomalyFlags || []),
+  ])].slice(0, 5);
+  const categorySummary = item.category === "price_move"
+    ? "A price threshold was crossed. The move is a signal to investigate; nearby headlines do not establish its cause."
+    : item.category === "important_news"
+      ? "A company-related story passed Marketly’s importance filter. Review the source and check whether later filings or company updates confirm its significance."
+      : "A discovery scan surfaced this company for further research. The score is a heuristic screening signal, not an expected return.";
+  return <section className="alert-brief" aria-label="Selected alert brief">
+    <div className="alert-brief-heading"><div><span className="eyebrow">ALERT BRIEF</span><h3>{item.symbol || "Market research"} · {new Date(item.created_at).toLocaleString()}</h3></div>
+      {item.symbol ? <button className="text-button" onClick={onOpenCompany}>Open company research ↗</button> : null}</div>
+    <p className="alert-brief-summary">{categorySummary}</p>
+    {item.category === "discovery" && typeof item.explanation.estimatedOutperformanceProbability === "number" ? <p className="disclosure">The scan recorded a {(Number(item.explanation.estimatedOutperformanceProbability) * 100).toFixed(0)}% heuristic 12-month outperformance estimate. It has not been calibrated against historical outcomes and is not a forecast.</p> : null}
+    <AlertContext item={item} expanded />
+    <div className="alert-outcomes">
+      <h4>Possible paths in the company research model</h4>
+      {loadingAnalysis ? <p className="disclosure"><LoaderCircle className="spin" size={14} /> Loading current research context…</p>
+        : cases.length ? <>
+          <p className="disclosure">Scenario weights are heuristic and uncalibrated. These describe conditional cases, not price targets or expected returns.</p>
+          <div className="alert-scenario-list">{cases.map((scenario) => <section key={scenario.name}>
+            <strong>{scenario.name} · {Math.round(scenario.probability * 100)}% model weight</strong>
+            <p>{scenario.thesis}</p>
+            {scenario.mustGoRight?.length ? <small>Needs: {scenario.mustGoRight.join(" · ")}</small> : null}
+            {scenario.breaksIf?.length ? <small>Thesis weakens if: {scenario.breaksIf.join(" · ")}</small> : null}
+          </section>)}</div>
+        </> : <p className="disclosure">No scenario cases are available for this company right now. Use the saved evidence above and the original source to assess what may follow.</p>}
+      <h4>What to watch next</h4>
+      {watchItems.length ? <ul>{watchItems.map((entry) => <li key={entry}>{entry}</li>)}</ul> : <p className="disclosure">Watch for follow-up company statements, filings, and whether subsequent price and volume data confirm or reverse this signal.</p>}
+      {analysis?.dataTimestamp ? <small className="disclosure">Company research data timestamp: {new Date(analysis.dataTimestamp).toLocaleString()}. This context was retrieved when you opened the alert and may differ from the saved alert-time evidence.</small> : null}
+      <p className="disclosure">This is research context, not a recommendation. Market data and news can be delayed or incomplete.</p>
+    </div>
+  </section>;
+}
+
 export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Company) => void }) {
   const [inbox, setInbox] = useState<Inbox>();
   const [preferences, setPreferences] = useState<Preferences>(DEFAULTS);
@@ -74,6 +118,9 @@ export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Comp
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [deepLinkSymbol, setDeepLinkSymbol] = useState("");
+  const [selectedAlertId, setSelectedAlertId] = useState("");
+  const [selectedAnalysis, setSelectedAnalysis] = useState<BackendScoreResponse>();
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -94,7 +141,30 @@ export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Comp
   }, []);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { setDeepLinkSymbol(new URLSearchParams(window.location.search).get("symbol")?.toUpperCase() || ""); }, []);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    setDeepLinkSymbol(query.get("symbol")?.toUpperCase() || "");
+    setSelectedAlertId(query.get("notification") || "");
+  }, []);
+  useEffect(() => {
+    if (!selectedAlertId || loading || !inbox) return;
+    const item = inbox.notifications.find((entry) => entry.id === selectedAlertId);
+    if (!item) return;
+    if (!item.read_at) {
+      setInbox((current) => current && ({ ...current, notifications: current.notifications.map((entry) => entry.id === item.id ? { ...entry, read_at: new Date().toISOString() } : entry) }));
+      void api(`/${encodeURIComponent(item.id)}/read`, { method: "PATCH", body: "{}" }).catch(() => undefined);
+    }
+    requestAnimationFrame(() => document.getElementById(`alert-${CSS.escape(item.id)}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [inbox, loading, selectedAlertId]);
+  useEffect(() => {
+    const selected = inbox?.notifications.find((item) => item.id === selectedAlertId);
+    if (!selected?.symbol) { setSelectedAnalysis(undefined); return; }
+    let active = true;
+    setLoadingAnalysis(true);
+    setSelectedAnalysis(undefined);
+    getTickerScore(selected.symbol).then((result) => { if (active) setSelectedAnalysis(result); }).catch(() => undefined).finally(() => { if (active) setLoadingAnalysis(false); });
+    return () => { active = false; };
+  }, [inbox?.notifications, selectedAlertId]);
 
   async function enableDevice() {
     setBusy(true); setError(""); setNotice("");
@@ -152,11 +222,16 @@ export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Comp
   }
 
   async function openAlert(item: AlertItem) {
+    setSelectedAlertId(item.id);
+    if (item.symbol) setDeepLinkSymbol(item.symbol.toUpperCase());
+    const url = new URL(window.location.href);
+    url.searchParams.set("notification", item.id);
+    if (item.symbol) url.searchParams.set("symbol", item.symbol);
+    window.history.replaceState(null, "", url);
     if (!item.read_at) {
       setInbox((current) => current && ({ ...current, notifications: current.notifications.map((entry) => entry.id === item.id ? { ...entry, read_at: new Date().toISOString() } : entry) }));
       void api(`/${encodeURIComponent(item.id)}/read`, { method: "PATCH", body: "{}" }).catch(() => undefined);
     }
-    if (item.symbol) onSelectSymbol({ symbol: item.symbol, name: item.symbol });
   }
 
   const toggleThreshold = (value: number) => {
@@ -197,9 +272,10 @@ export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Comp
       </section>
     </div>
     <div className="alert-inbox-heading"><div><h2>Recent alerts</h2><p>{inbox ? `Watchlist: ${inbox.followedSymbols.join(", ") || "none"}${inbox.ruleSymbols?.length ? ` · Custom rules: ${inbox.ruleSymbols.join(", ")}` : ""}` : "Your followed companies will appear here."}</p></div><span>{inbox?.notifications.filter((item) => !item.read_at).length || 0} unread</span></div>
-    {loading && !inbox ? <p className="disclosure"><LoaderCircle className="spin" size={15} /> Loading alerts…</p> : inbox?.notifications.length ? <div className="alert-inbox-list">{inbox.notifications.map((item) => <article key={item.id} className={`alert-inbox-item ${item.read_at ? "read" : "unread"} ${item.severity}`}>
-      <button className="alert-inbox-open" onClick={() => void openAlert(item)}><span className={`alert-category-dot ${item.category}`} /><span className="alert-inbox-copy"><strong>{item.title}</strong><small>{item.body}</small><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time></span><span className="alert-unread-mark" /></button>
-      {Object.keys(item.explanation || {}).length ? <AlertContext item={item} expanded={Boolean(deepLinkSymbol && deepLinkSymbol === item.symbol)} /> : null}
+    {loading && !inbox ? <p className="disclosure"><LoaderCircle className="spin" size={15} /> Loading alerts…</p> : inbox?.notifications.length ? <div className="alert-inbox-list">{inbox.notifications.map((item) => <article id={`alert-${item.id}`} key={item.id} className={`alert-inbox-item ${item.read_at ? "read" : "unread"} ${item.severity} ${selectedAlertId === item.id ? "selected" : ""}`}>
+      <button className="alert-inbox-open" aria-expanded={selectedAlertId === item.id} onClick={() => void openAlert(item)}><span className={`alert-category-dot ${item.category}`} /><span className="alert-inbox-copy"><strong>{item.title}</strong><small>{item.body}</small><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time></span><span className="alert-unread-mark" /></button>
+      {selectedAlertId === item.id ? <AlertBrief item={item} analysis={selectedAnalysis} loadingAnalysis={loadingAnalysis} onOpenCompany={() => item.symbol && onSelectSymbol({ symbol: item.symbol, name: item.symbol })} /> : null}
+      {selectedAlertId !== item.id && Object.keys(item.explanation || {}).length ? <AlertContext item={item} expanded={Boolean(deepLinkSymbol && deepLinkSymbol === item.symbol)} /> : null}
     </article>)}</div> : <div className="empty-state alert-empty"><Bell size={19} /><strong>No alerts yet</strong><p>Once push is enabled, Marketly will check followed-stock moves, important news, and new high-scoring small-cap research.</p></div>}
     <p className="disclosure alert-method-note">Price moves and third-party calendars may be delayed. A nearby headline is not proof of a price move’s cause. Discovery scores and probabilities are heuristic, uncalibrated research signals—not forecasts.</p>
   </section>;
