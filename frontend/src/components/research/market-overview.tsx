@@ -6,7 +6,6 @@ import Image from "next/image";
 import { FullMarketMap } from "./full-market-map";
 import { MarketMovers } from "./market-movers";
 import { MarketBreadth } from "./market-breadth";
-import { MarketUpcoming } from "./market-upcoming";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -239,6 +238,7 @@ export function MarketOverview({
             <MarketSectionHeading number="02" title="Market map" context="US LISTINGS / DAILY CHANGE" />
             <FullMarketMap onSelect={onSelect} />
           </section>
+          <MarketBreadth />
         </div>
         <aside className="market-home-sidebar">
           <section className="market-panel">
@@ -317,7 +317,6 @@ export function MarketOverview({
               </p>
             )}
           </section>
-          <MarketUpcoming symbols={watchlist} />
           <section className="market-panel fixed-income-card">
             <div className="terminal-heading">
               <h2>Fixed income</h2>
@@ -362,10 +361,9 @@ export function MarketOverview({
               Liquid ETF proxies · quotes may be delayed
             </p>
           </section>
+          <MarketMovers scope="sp500" onSelect={onSelect} />
         </aside>
       </div>
-      <MarketBreadth />
-      <MarketMovers scope="sp500" onSelect={onSelect} />
       <section className="market-discover market-panel">
         <MarketSectionHeading number="05" title="Beyond the ticker" context="DEEPER RESEARCH / STORIES" />
         <div className="news-grid">

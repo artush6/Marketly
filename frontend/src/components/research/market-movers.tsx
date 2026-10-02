@@ -9,7 +9,7 @@ import { CompanyLogo } from "./company-logo";
 
 type Mover = Company & { changePercent: number; marketCap?: number; sector?: string };
 type MoversResponse = { sp500: { gainers: Mover[]; losers: Mover[] }; smallCap: { gainers: Mover[]; losers: Mover[] }; fetchedAt: string };
-type MoverTab = "gainers" | "losers" | "unusual" | "earnings" | "revisions";
+type MoverTab = "gainers" | "losers" | "unusual";
 
 export function MarketMovers({ scope, onSelect }: { scope: "sp500" | "smallCap"; onSelect: (company: Company) => void }) {
   const [data, setData] = useState<MoversResponse>();
@@ -23,11 +23,11 @@ export function MarketMovers({ scope, onSelect }: { scope: "sp500" | "smallCap";
     return () => controller.abort();
   }, []);
   const group = data?.[scope];
-  const rows = group && (tab === "gainers" ? group.gainers : tab === "losers" ? group.losers : tab === "unusual" ? [...group.gainers, ...group.losers].toSorted((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent)).slice(0, 10) : []);
+  const rows = group ? (tab === "gainers" ? group.gainers : tab === "losers" ? group.losers : [...group.gainers, ...group.losers].toSorted((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent)).slice(0, 10)) : [];
   return <section className="movers-panel market-panel">
     <MarketSectionHeading number={scope === "sp500" ? "04" : undefined} title={scope === "sp500" ? "Market movers" : "Small-cap attention list"} context={scope === "sp500" ? "S&P 500" : "SMALL CAP"} />
-    <nav className="mover-tabs" aria-label="Mover views">{(["gainers", "losers", "unusual", "earnings", "revisions"] as MoverTab[]).map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
-    {error ? <div className="inline-error">{error}</div> : !group ? <div className="empty-state"><LoaderCircle className="spin" size={15} /> Loading movers…</div> : !rows?.length ? <div className="mover-empty"><strong>{tab === "earnings" ? "Earnings movers" : "Estimate revisions"}</strong><span>No verified {tab} feed is connected yet. Marketly will not manufacture this signal.</span></div> : <div className="mover-list">
+    <nav className="mover-tabs" aria-label="Mover views">{(["gainers", "losers", "unusual"] as MoverTab[]).map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</nav>
+    {error ? <div className="inline-error">{error}</div> : !group ? <div className="empty-state"><LoaderCircle className="spin" size={15} /> Loading movers…</div> : <div className="mover-list">
       <h3 className={tab === "gainers" ? "positive" : tab === "losers" ? "negative" : ""}>{tab === "gainers" ? <ArrowUp size={14} /> : tab === "losers" ? <ArrowDown size={14} /> : null}{tab}</h3>
       {rows.map((stock) => <button onClick={() => onSelect(stock)} key={stock.symbol}><CompanyLogo symbol={stock.symbol} /><span><b>{stock.symbol}</b><small>{stock.name}{stock.sector ? ` · ${stock.sector}` : ""}</small>{stock.marketCap != null && <small>{format(stock.marketCap*1e6,"money")} market cap</small>}</span><strong className={stock.changePercent >= 0 ? "positive" : "negative"}>{stock.changePercent > 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%</strong></button>)}
     </div>}{tab === "unusual" && <p className="disclosure">Largest absolute daily price moves among the displayed gainers and losers. This is not an unusual-volume signal.</p>}

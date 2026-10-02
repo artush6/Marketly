@@ -1,5 +1,5 @@
 "use client";
-import { accountId, userStorage } from "@/lib/user-storage";
+import { userStorage } from "@/lib/user-storage";
 import { CompactComparison } from "../comparison/compact-comparison";
 import { DeferredSection } from "./deferred-section";
 import { Expectations } from "./expectations";
@@ -9,12 +9,11 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowDown,
-  ArrowUp,
   ArrowUpRight,
   Bell,
   Bookmark,
   Building2,
+  CalendarDays,
   ChevronRight,
   ExternalLink,
   FileText,
@@ -55,6 +54,7 @@ import { CompanyFinancials } from "./company-financials";
 import { CompanyResearchSnapshot } from "./company-research-snapshot";
 import { PriceChart } from "./price-chart";
 import { MarketOverview, useMarketSnapshot } from "./market-overview";
+import { MarketMovers } from "./market-movers";
 import {
   FinancialDocuments,
   financialDocumentUrl,
@@ -376,20 +376,6 @@ export function ResearchDashboard() {
         : [...items, symbol].slice(-50),
     );
   }
-  function saveResearch() {
-    if (!financials) return;
-    const item: SavedResearch = {
-      id: crypto.randomUUID(),
-      symbol: company.symbol,
-      name: financials.info?.shortName || company.name,
-      savedAt: new Date().toISOString(),
-      financials,
-      news: news.slice(0, 12),
-      analysis,
-    };
-    setSaved((items) => [item, ...items].slice(0, 30));
-    setNotice("Research snapshot saved on this device.");
-  }
   async function runAnalysis() {
     if (analysisPending.current) return;
     analysisPending.current = true;
@@ -532,7 +518,6 @@ export function ResearchDashboard() {
           m.price !== null &&
           (a.direction === "above" ? m.price >= a.price : m.price <= a.price),
       );
-  const positive = (m.change ?? 0) >= 0;
 
   const companyAssistantContext = {
     symbol: company.symbol,
@@ -633,6 +618,7 @@ export function ResearchDashboard() {
               )}
             </button>
           ))}
+          <Link className="research-nav-link" href="/calendar"><CalendarDays size={16} /> Calendar</Link>
         </div>
         <span>
           <span className="device-dot" />
@@ -852,16 +838,33 @@ export function ResearchDashboard() {
                       <h1>{name}</h1>
                     </div>
                   </div>
-                  <button
-                    className={`secondary-button watch-button ${isWatching ? "selected" : ""}`}
-                    onClick={() => toggleWatch(company.symbol)}
-                  >
-                    <Star
-                      size={15}
-                      fill={isWatching ? "currentColor" : "none"}
-                    />
-                    {isWatching ? "Watching" : "Watch"}
-                  </button>
+                  <div className="company-title-actions">
+                    <button
+                      className={`secondary-button watch-button ${isWatching ? "selected" : ""}`}
+                      onClick={() => toggleWatch(company.symbol)}
+                    >
+                      <Star size={15} fill={isWatching ? "currentColor" : "none"} />
+                      {isWatching ? "Watching" : "Watch"}
+                    </button>
+                    <button
+                      className="text-button"
+                      disabled={loading || !financials || !!snapshot}
+                      onClick={() => {
+                        setAlertOpen(!alertOpen);
+                        setAlertPrice(m.price?.toFixed(2) ?? "");
+                      }}
+                    >
+                      <Bell size={15} /> Set alert
+                    </button>
+                    <button
+                      className="icon-button"
+                      disabled={loading || !!snapshot}
+                      onClick={() => setRevision((n) => n + 1)}
+                      aria-label="Refresh company data"
+                    >
+                      <RefreshCw size={15} className={loading ? "spin" : ""} />
+                    </button>
+                  </div>
                 </div>
                 <div className="company-profile-strip" aria-label="Company details">
                   <div>
@@ -889,56 +892,6 @@ export function ResearchDashboard() {
                       Website <ArrowUpRight size={13} />
                     </a>
                   )}
-                </div>
-                <div className="quote-row">
-                  <div className="quote">
-                    <span>
-                      {loading ? (
-                        <span className="text-skeleton" />
-                      ) : (
-                        format(m.price, "money", m.currency)
-                      )}
-                    </span>
-                    {m.change !== null && (
-                      <span
-                        title="Daily change from previous close"
-                        className={`quote-change ${positive ? "positive" : "negative"}`}
-                      >
-                        {positive ? (
-                          <ArrowUp size={15} />
-                        ) : (
-                          <ArrowDown size={15} />
-                        )}
-                        {format(Math.abs(m.change), "percent")}
-                      </span>
-                    )}
-                    <small>
-                      {m.currency} ·{" "}
-                      {snapshot
-                        ? "Quote at save time"
-                        : "Latest available quote"}
-                    </small>
-                  </div>
-                  <div className="quote-actions">
-                    <button
-                      className="text-button"
-                      disabled={loading || !financials || !!snapshot}
-                      onClick={() => {
-                        setAlertOpen(!alertOpen);
-                        setAlertPrice(m.price?.toFixed(2) ?? "");
-                      }}
-                    >
-                      <Bell size={15} /> Set alert
-                    </button>
-                    <button
-                      className="icon-button"
-                      disabled={loading || !!snapshot}
-                      onClick={() => setRevision((n) => n + 1)}
-                      aria-label="Refresh company data"
-                    >
-                      <RefreshCw size={15} className={loading ? "spin" : ""} />
-                    </button>
-                  </div>
                 </div>
                 {alertOpen && (
                   <form
@@ -1408,26 +1361,7 @@ export function ResearchDashboard() {
                   <Plus size={14} /> Add company
                 </button>
               </section>
-              <section className="sidebar-section research-save">
-                <div className="save-illustration">
-                  <FileText size={28} />
-                  <Bookmark size={17} />
-                </div>
-                <h2>Build your research library.</h2>
-                <p>
-                  Keep a snapshot of the financials, headlines, and your latest
-                  brief.
-                </p>
-                <button
-                  className="primary-button"
-                  disabled={!financials || loading}
-                  onClick={saveResearch}
-                >
-                  <Bookmark size={15} />
-                  Save research
-                </button>
-                <small>{accountId() ? "Saved to your private workspace" : "Saved on this device"}</small>
-              </section>
+              <MarketMovers scope="sp500" onSelect={select} />
               <Link
                 className="financials-link"
                 href={`/financials/${encodeURIComponent(company.symbol)}`}

@@ -112,7 +112,7 @@ By default the browser talks to `/api/backend`, and that Next.js route proxies t
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.9+
 - Python 3.11+; Python 3.13 matches the backend tooling config
 - API keys for the provider features you plan to use
 - Redis and Supabase are optional for local development
@@ -121,9 +121,9 @@ By default the browser talks to `/api/backend`, and that Next.js route proxies t
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 cp .env.example .env
 python run.py
 ```
@@ -157,7 +157,12 @@ npm run dev
 
 This is the normal local launch command. It starts and health-checks the backend
 at `http://127.0.0.1:8000`, then starts the frontend at
-`http://localhost:3000`. Both processes stop together.
+`http://localhost:3000`. Both processes stop together. The launcher checks backend dependencies before starting.
+It selects `backend/.venv/bin/python`, then the legacy `backend/venv/bin/python`,
+then `python3`. Set `MARKETLY_PYTHON` to explicitly select an interpreter.
+If a Python upgrade breaks the virtual environment, move the old `.venv` aside,
+recreate it with `python3 -m venv backend/.venv` from the repository root, and
+install `backend/requirements.txt` using the new environment’s Python.
 
 Optional `frontend/.env.local`:
 

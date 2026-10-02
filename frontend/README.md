@@ -17,7 +17,10 @@ npm run dev
 
 `npm run dev` starts and health-checks the FastAPI backend on port 8000 before
 starting Next.js on port 3000. It uses `backend/.venv/bin/python` when available
-and shuts down both processes together. Open
+and shuts down both processes together. Install the backend dependencies first
+using the root README instructions. The launcher checks the Python environment
+and reports missing dependencies before starting either server. `MARKETLY_PYTHON`
+can select a custom interpreter; legacy `backend/venv` environments are also supported. Open
 [http://localhost:3000](http://localhost:3000).
 
 ## Scripts

@@ -195,13 +195,21 @@ def earnings(background_tasks: BackgroundTasks, symbols: str = Query(default="",
     background_tasks.add_task(track_symbols, watchlist)
     today = datetime.now(timezone.utc).date()
     notifications = []
+    events = []
     try:
         calendars = supabase_store.get_json_many("earnings_calendar", watchlist)
     except Exception:
         raise HTTPException(503, "Earnings calendar temporarily unavailable.")
     for symbol in watchlist:
         for event in calendars.get(symbol, {}).get("events", []):
-            days = (datetime.fromisoformat(event["date"]).date() - today).days
+            try:
+                event_date = datetime.fromisoformat(event["date"]).date()
+            except (KeyError, TypeError, ValueError):
+                continue
+            days = (event_date - today).days
+            if -31 <= days <= 120:
+                events.append({**event, "id": f"earnings:{symbol}:{event['date']}",
+                    "symbol": event.get("symbol") or symbol, "source": "Finnhub", "estimated": True})
             if 0 <= days <= 7:
                 notifications.append({**event, "id": f"earnings:{symbol}:{event['date']}",
                     "daysUntil": days,
@@ -209,6 +217,7 @@ def earnings(background_tasks: BackgroundTasks, symbols: str = Query(default="",
                                f"({'today' if days == 0 else 'in ' + str(days) + ' days'}).",
                     "source": "Finnhub", "estimated": True})
     return {"notifications": sorted(notifications, key=lambda e: e["date"]),
+            "events": sorted(events, key=lambda e: (e["date"], e.get("symbol", ""))),
             "pendingSymbols": [s for s in watchlist if s not in calendars],
             "note": "Provider calendar dates may change; no date means no reminder."}
 
