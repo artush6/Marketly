@@ -88,6 +88,22 @@ def list_notifications(user_id: str, limit: int = 50) -> list[dict[str, Any]]:
     })
 
 
+def unread_critical_count(user_id: str) -> int:
+    """Count all unread critical alerts, independent of inbox pagination."""
+    response = supabase_store.requests.head(
+        supabase_store._rest_url("user_alert_notifications"),
+        headers=supabase_store._headers(prefer="count=exact"),
+        params={"user_id": f"eq.{user_id}", "severity": "eq.critical",
+                "read_at": "is.null", "select": "id"},
+        timeout=10,
+    )
+    response.raise_for_status()
+    total = response.headers.get("Content-Range", "").rsplit("/", 1)[-1]
+    if not total.isdigit():
+        raise ValueError("Alert count unavailable")
+    return int(total)
+
+
 def mark_read(user_id: str, notification_id: str) -> None:
     response = supabase_store.requests.patch(
         supabase_store._rest_url("user_alert_notifications"),

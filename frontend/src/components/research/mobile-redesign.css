@@ -78,3 +78,10 @@
  .research-app .news-ledger-copy { overflow-wrap:anywhere; }
  .research-app .news-ledger-links { flex-direction:row; }
 }
+
+@media(max-width:1023px) { .research-app .research-nav { display:none; } }
+
+@media(max-width:1023px) {
+ .research-app .research-header { position:relative; }
+ .research-app .header-alert-bell { position:absolute; top:17px; right:20px; }
+}

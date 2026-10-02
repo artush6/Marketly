@@ -154,7 +154,7 @@ export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Comp
   async function openAlert(item: AlertItem) {
     if (!item.read_at) {
       setInbox((current) => current && ({ ...current, notifications: current.notifications.map((entry) => entry.id === item.id ? { ...entry, read_at: new Date().toISOString() } : entry) }));
-      void api(`/${encodeURIComponent(item.id)}/read`, { method: "PATCH", body: "{}" }).catch(() => undefined);
+      void api(`/${encodeURIComponent(item.id)}/read`, { method: "PATCH", body: "{}" }).then(() => window.dispatchEvent(new Event("marketly-alerts-updated"))).catch(() => undefined);
     }
     if (item.symbol) onSelectSymbol({ symbol: item.symbol, name: item.symbol });
   }

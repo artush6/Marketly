@@ -104,3 +104,11 @@
  .research-app .market-headlines details>a { display:inline-flex; margin-left:56px; }.research-app .market-headlines details:first-child>a { margin-left:100px; }
  .research-app .briefing-image .market-image-fallback { width:100%; height:100%; }
 }
+
+.header-alert-bell { position:relative; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:40px; height:40px; border:1px solid #293238; border-radius:50%; background:#11191c; color:#a8b8bd; }
+.header-alert-bell>span { position:absolute; top:-3px; right:-4px; min-width:17px; height:17px; padding:0 4px; display:grid; place-items:center; border-radius:10px; background:#c25763; color:white; font-size:10px; font-weight:600; }
+@media(min-width:1024px) {
+ .research-app .research-nav :is(button,.research-nav-link) svg { display:block; flex:0 0 16px; width:16px; height:16px; }
+ .research-app .research-nav :is(button,.research-nav-link) { gap:9px; padding-inline:8px; }
+ .research-app .header-alert-bell { order:3; }
+}

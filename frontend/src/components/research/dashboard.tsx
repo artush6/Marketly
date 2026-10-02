@@ -68,6 +68,7 @@ import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
 import { StyledSelect } from "./styled-select";
 import { ResearchCalendar } from "./research-calendar";
+import { AlertBell } from "./alert-bell";
 import { AlertCenter } from "./alert-center";
 
 type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research" | "Calendar" | "Alerts";
@@ -594,6 +595,7 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
           marketly<span className="brand-period">.</span>
         </button>
         <CompanySearch onSelect={select} />
+        <AlertBell onOpen={() => { navigate("Alerts"); window.scrollTo({ top: 0, behavior: "instant" }); }} />
         <div className="header-context">
           <span className="device-dot" />
           <Link href="/settings">Profile & settings</Link><Link href="/portfolio">Portfolio</Link><Link href="/compare">Compare</Link>

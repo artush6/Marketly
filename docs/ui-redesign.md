@@ -11,7 +11,7 @@ This branch includes the desktop redesign plus mobile and tablet navigation, edi
 - `mobile-redesign.css`: safe-area-aware fixed controls, two-column cards, tablet layout, touch targets and editorial images.
 - `layout.tsx` and `dashboard.tsx`: stylesheet/component wiring and safe-area viewport configuration.
 
-No backend, API, authentication, database, or market-data contracts changed.
+The original redesign preserved backend contracts. The follow-up adds the authenticated alert summary endpoint described below.
 
 ## Validation
 
@@ -25,3 +25,13 @@ No backend, API, authentication, database, or market-data contracts changed.
 ## Deliberate limits
 
 The map retains its actual daily data and existing sector/search/expand/refresh controls. Historical timeframe buttons, benchmark sparklines, and watchlist market caps were not fabricated because these modules do not supply the required data. The assistant uses a fixed desktop width and one mobile sheet height; resize handles and multiple snap heights remain optional follow-up enhancements. No new topic taxonomy was invented for the editorial feed. Branches are committed locally, not merged or deployed.
+
+
+## October 3 UX revision
+
+- Rebuilt assistant presentation using `assistant.css`: bounded viewport height (960px maximum on desktop), separate Chat/History views, a single close action, secondary window actions under an options menu, suggestions anchored near the composer, multiline drafting, Enter to send / Shift+Enter for a newline, compact settings below the input, and truthful context chips.
+- Preserved message delivery, saved conversations, source rendering, strategy, horizon, and web search. Browser verified a suggestion populates the draft, the draft survives History switching, web search toggles, and the header bell opens Alerts. Desktop assistant bounds were 46–990px in a 1000px viewport; Saved research icon measured 16px and visible.
+- Replaced SVG, ICO (16/32/48px), and Apple touch icon with the mint three-bar brand mark.
+- Header alert bell counts unread `critical` alerts only. `/notifications/summary` authenticates the user and requests an exact filtered count, independent of the inbox's 50-item page. Zero or unavailable counts show no badge. Mark-read success triggers a refresh; foreground polling runs every minute. No schema changes or deployment performed.
+- Four backend tests cover exact totals beyond one inbox page, zero, missing count, filtering/user scoping, and authentication. Live authenticated badge data remains unverified without backend credentials/services in the preview.
+- Mobile has only the bottom navigation: Markets, Small CAP, News, Watchlist, More. Alerts moved to the top-right bell; search remains in the header.

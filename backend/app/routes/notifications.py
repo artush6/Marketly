@@ -99,6 +99,17 @@ def alert_inbox(user: Identity | None = Depends(current_user)):
         raise HTTPException(503, "Alerts could not be loaded right now.") from exc
 
 
+@router.get("/summary")
+def alert_summary(user: Identity | None = Depends(current_user)):
+    identity = _user(user)
+    if not supabase_store.is_configured():
+        raise HTTPException(503, "Alert counts are unavailable.")
+    try:
+        return {"unreadCritical": alert_delivery.unread_critical_count(identity.user_id)}
+    except Exception as exc:
+        raise HTTPException(503, "Alert counts are unavailable.") from exc
+
+
 @router.get("/config")
 def notification_config():
     return {"configured": bool(settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY),

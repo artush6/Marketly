@@ -4,7 +4,7 @@ import { accountId, flushStorage, hasPendingChanges, userStorage } from "@/lib/u
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { ArrowLeft, ArrowUp, ChevronDown, ExternalLink, History, LoaderCircle, Maximize2, MessageSquare, PanelRight, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowUp, ExternalLink, History, LoaderCircle, Maximize2, MessageSquare, Sparkles, X, Plus, TrendingUp, Scale, FileText, Search, BarChart3, Globe2, MoreHorizontal } from "lucide-react";
 import { BackendRequestError, getFinancials, postFollowUp, type BackendFinancialsResponse } from "@/lib/api";
 import { metrics, safeUrl, STARTER_COMPANIES } from "@/lib/research";
 import {
@@ -15,7 +15,7 @@ import {
   type Conversation,
 } from "./saved-conversations";
 import { ChatHistory } from "./chat-history";
-import { StyledSelect } from "./styled-select";
+import "./assistant.css";
 
 const RichChatMessage = dynamic(
   () => import("./rich-chat-message").then((module) => module.RichChatMessage),
@@ -92,6 +92,17 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, [mode]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const optionsMenu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: PointerEvent) => { if (!optionsMenu.current?.contains(event.target as Node)) setMenuOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setMenuOpen(false); optionsMenu.current?.querySelector<HTMLButtonElement>("button")?.focus(); } };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
+  }, [menuOpen]);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
   const [pinned, setPinned] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [strategy, setStrategy] = useState("Balanced");
@@ -130,6 +141,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     setHorizon(conversation.horizon || "3–5 years");
     setResearch(Boolean(conversation.research));
     setError("");
+    setHistoryVisible(false);
     setOpen(true);
   }, []);
 
@@ -244,6 +256,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     activeContext.current = context;
     resumed.current = false;
     setActiveScope(scope);
+    setHistoryVisible(false);
     setMessages([]);
     setQuestion("");
     setError("");
@@ -357,77 +370,63 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     }
   }
 
-  const thread = (
-    <div className="chat-thread">
-      <div className="chat-thread-heading">
-        <span>
-          {mode === "workspace" && <button className="chat-back" aria-label="Back to Marketly" onClick={() => window.opener ? window.close() : window.location.assign("/")}><ArrowLeft size={16} /></button>}
-          <Sparkles size={14} /> Marketly assistant <small>{activeScope === "MARKET" ? "US MARKETS" : activeScope}</small>
-        </span>
-        <div>
-          <button aria-label={historyVisible ? "Hide conversation history" : "Show conversation history"} aria-pressed={historyVisible} onClick={() => setHistoryVisible(!historyVisible)}><History size={16} /></button>
-          {mode === "dock" && <button aria-label={pinned ? "Unpin conversation" : "Pin conversation to side"} onClick={() => { setPinned(!pinned); setOpen(true); }}><PanelRight size={16} /></button>}
-          {mode === "dock" && <button aria-label="Open full chat workspace" disabled={busy} onClick={() => openWorkspace(false)}><Maximize2 size={16} /></button>}
-          <button aria-label="Open chat in separate window" disabled={busy} onClick={() => openWorkspace(true)}><ExternalLink size={16} /></button>
-          <button aria-label="Start new conversation" disabled={busy} onClick={startNewConversation}><X size={15} /></button>
-          {mode === "dock" && <button aria-label={open ? "Minimize chat" : "Open conversation"} onClick={() => setOpen(!open)}><ChevronDown className={open ? "" : "chat-chevron-up"} size={17} /></button>}
-        </div>
-      </div>
-      {open && (
-        <>
-          <div className="chat-messages" role="log" aria-live="polite">
-            {!messages.length && <p className="chat-empty">Ask about the market, challenge a thesis, or compare the companies that matter.</p>}
-            {messages.map((message, index) => (
-              <div className={`chat-message ${message.role}`} key={`${message.role}-${index}`}>
-                <small>{message.role === "user" ? "YOU" : "MARKETLY"}</small>
-                {message.role === "assistant" ? <RichChatMessage message={message} /> : <p>{message.content}</p>}
-                {message.sources?.map((source) => {
-                  const url = safeUrl(source.url);
-                  return url ? <a key={url} href={url} target="_blank" rel="noreferrer">{source.title || "Source"} ↗</a> : null;
-                })}
-              </div>
-            ))}
-            {busy && <div className="chat-thinking"><LoaderCircle size={13} className="spin" /> Reading the available context…</div>}
-            {error && <p role="alert" className="chat-error">{error}</p>}
-            {!messages.length && <div className="assistant-suggestions">{["Why are markets moving today?", "Compare AAPL vs MSFT", "Summarize today’s market news", "Find undervalued large-cap stocks"].map((prompt) => <button key={prompt} type="button" onClick={() => { setQuestion(prompt); document.querySelector<HTMLInputElement>('[aria-label="Ask Marketly"]')?.focus(); }}><Sparkles size={14} />{prompt}</button>)}</div>}
-            <div ref={bottom} />
-          </div>
-        </>
-      )}
-    </div>
-  );
-
-  const composer = (
-      <form onSubmit={submit}>
-        <div className="chat-preferences">
-          <label>Strategy <StyledSelect ariaLabel="Investor strategy" value={strategy} options={["Conservative", "Balanced", "Aggressive growth"].map((item) => ({ value: item, label: item }))} onChange={(value) => { setStrategy(value); try { userStorage.setItem("marketly.strategy", value); } catch { /* Session only. */ } }} /></label>
-          <label>Horizon <StyledSelect ariaLabel="Investment horizon" value={horizon} options={["Under 1 year", "1–3 years", "3–5 years", "5+ years"].map((item) => ({ value: item, label: item }))} onChange={(value) => { setHorizon(value); try { userStorage.setItem("marketly.horizon", value); } catch { /* Session only. */ } }} /></label>
-          <label className="chat-checkbox"><input type="checkbox" checked={research} onChange={(event) => setResearch(event.target.checked)} /> Search web</label>
-          {mode === "dock" && <button className="text-button" type="button" onClick={() => { setPinned(!pinned); setOpen(true); }}>{pinned ? "Unpin" : "Pin to side"}</button>}
-        </div>
-        <div className="chat-input-row">
-          <Sparkles size={18} />
-          <input aria-label="Ask Marketly" maxLength={2000} value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={activeScope === "MARKET" ? "Ask anything about the markets…" : `Ask about ${activeScope}, its competitors, or the risks…`} />
-          <button className="chat-send" type="submit" aria-label="Send message" disabled={!question.trim() || busy}>{busy ? <LoaderCircle size={17} className="spin" /> : <ArrowUp size={19} />}</button>
-        </div>
-        <div className="chat-toolbar">
-          <span className="chat-context"><span className="device-dot" />{activeScope === "MARKET" ? "Market & watchlist context" : `${activeScope} research context`}</span>
-          <span>AI answers · verify key claims</span>
-          {mode === "dock" && <button type="button" onClick={() => setOpen(!open)} aria-label={open ? "Minimize conversation" : "Open conversation"}><MessageSquare size={13} />{messages.length ? `${messages.length} messages` : "Chat"}</button>}
-        </div>
-      </form>
-  );
-
+  const suggestions = [
+    { icon: TrendingUp, text: "Why are markets moving today?" },
+    { icon: Scale, text: "Compare AAPL vs MSFT" },
+    { icon: BarChart3, text: "What are the top AI stocks?" },
+    { icon: FileText, text: "Summarize today’s market news" },
+    { icon: Search, text: "Find undervalued large-cap stocks" },
+  ];
   const panel = (
-    <section className={`chat-dock ${open ? "expanded" : ""} ${mode === "dock" && pinned ? "pinned" : ""} ${mode === "workspace" ? "workspace" : ""}`} aria-label="Research assistant">
-      {mode === "dock" && !open && <button className="assistant-launcher" onClick={() => setOpen(true)} aria-label="Open Marketly assistant"><Sparkles size={19} /><span>Ask AI</span></button>}
-      <div className={`chat-dock-layout ${historyVisible ? "with-history" : "history-hidden"}`}>
-        {mode === "dock" && open && historyVisible && <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />}
-        <div className="chat-conversation-column">
-          {thread}
-          {composer}
-        </div>
-      </div>
+    <section className={`chat-dock assistant-v2 ${open ? "expanded" : ""} ${mode === "workspace" ? "workspace" : ""}`} aria-label="Research assistant">
+      {!open && mode === "dock" ? <button className="assistant-launcher" onClick={() => setOpen(true)} aria-label="Open Marketly assistant"><Sparkles size={19} /><span>Ask AI</span></button> : <>
+        <header className="ai-header">
+          <div><Sparkles size={18} /><h2>Marketly assistant</h2><span className="ai-beta">BETA</span></div>
+          {mode === "dock" ? <button type="button" className="ai-icon" aria-label="Close assistant" title="Close assistant" onClick={() => setOpen(false)}><X size={18} /></button> : <button className="ai-icon" aria-label="Back to Marketly" onClick={() => window.opener ? window.close() : window.location.assign("/")}><ArrowLeft size={18} /></button>}
+        </header>
+        <nav className="ai-tabs" aria-label="Assistant views">
+          <button type="button" className={!historyVisible ? "selected" : ""} aria-pressed={!historyVisible} onClick={() => setHistoryVisible(false)}><MessageSquare size={16} />Chat</button>
+          <button type="button" className={historyVisible ? "selected" : ""} aria-pressed={historyVisible} onClick={() => setHistoryVisible(true)}><History size={16} />History</button>
+          <button type="button" className="ai-icon ai-new" aria-label="New conversation" title="New conversation" disabled={busy} onClick={startNewConversation}><Plus size={18} /></button>
+          <div className="ai-menu-anchor" ref={optionsMenu}>
+            <button type="button" className="ai-icon" aria-label="Conversation options" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><MoreHorizontal size={19} /></button>
+            {menuOpen && <div className="ai-menu" onKeyDown={event => { if (event.key === "Escape") { setMenuOpen(false); } }}>
+              {mode === "dock" && <button type="button" disabled={busy} onClick={() => { setMenuOpen(false); openWorkspace(false); }}><Maximize2 size={15} />Full workspace</button>}
+              <button type="button" disabled={busy} onClick={() => { setMenuOpen(false); openWorkspace(true); }}><ExternalLink size={15} />Open separate window</button>
+            </div>}
+          </div>
+        </nav>
+        {historyVisible ? <div className="ai-history"><ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} /></div> : <div className={`ai-body ${!messages.length ? "is-empty" : ""}`}>
+          {!messages.length ? <>
+            <p className="ai-welcome">Ask about the market,<br />challenge a thesis, or compare companies that matter.</p>
+            <div className="ai-suggestions">{suggestions.map(({ icon: Icon, text }) => <button key={text} type="button" onClick={() => { setQuestion(text); composerInput.current?.focus(); }}><Icon size={17} /><span>{text}</span></button>)}</div>
+          </> : <div className="ai-messages" role="log" aria-live="polite">{messages.map((message, index) => <article className={`ai-message ${message.role}`} key={`${message.role}-${index}`}>
+            <small>{message.role === "user" ? "YOU" : "MARKETLY"}</small>
+            {message.role === "assistant" ? <RichChatMessage message={message} /> : <p>{message.content}</p>}
+            {message.sources?.map(source => { const url = safeUrl(source.url); return url ? <a key={url} href={url} target="_blank" rel="noreferrer">{source.title || "Source"} ↗</a> : null; })}
+          </article>)}</div>}
+          {busy && <div className="ai-status" role="status"><LoaderCircle size={14} className="spin" />Researching your question…</div>}
+          {error && <p role="alert" className="ai-error">{error}</p>}
+          <div ref={bottom} />
+        </div>}
+        <form className="ai-composer" onSubmit={event => { setHistoryVisible(false); void submit(event); }}>
+          <div className="ai-context" aria-label="Included research context"><span><span className="ai-context-dot" />{activeScope === "MARKET" ? "Market context" : activeScope}</span>{Array.isArray(activeContext.current.watchlist) && activeContext.current.watchlist.length > 0 && <span>My watchlist · {activeContext.current.watchlist.length}</span>}</div>
+          <div className="ai-input">
+            <textarea ref={composerInput} aria-label="Ask Marketly" rows={2} maxLength={2000} value={question} onChange={event => setQuestion(event.target.value)} placeholder={activeScope === "MARKET" ? "Ask anything about the markets…" : `Ask about ${activeScope}…`} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
+            <button type="submit" aria-label="Send message" disabled={!question.trim() || busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <ArrowUp size={19} />}</button>
+          </div>
+          <div className="ai-settings">
+            <select aria-label="Investor strategy" value={strategy} onChange={event => { setStrategy(event.target.value); try { userStorage.setItem("marketly.strategy", event.target.value); } catch { /* Session only. */ } }}>
+              {["Conservative", "Balanced", "Aggressive growth"].map(value => <option key={value}>{value}</option>)}
+            </select>
+            <select aria-label="Investment horizon" value={horizon} onChange={event => { setHorizon(event.target.value); try { userStorage.setItem("marketly.horizon", event.target.value); } catch { /* Session only. */ } }}>
+              {["Under 1 year", "1–3 years", "3–5 years", "5+ years"].map(value => <option key={value}>{value}</option>)}
+            </select>
+            <button className="ai-web" type="button" aria-pressed={research} onClick={() => setResearch(!research)}><Globe2 size={14} />Search web</button>
+          </div>
+          <p className="ai-disclaimer">AI can make mistakes. Verify key information.</p>
+        </form>
+      </>}
     </section>
   );
   if (mode === "dock" && mobile) return <Drawer.Root open={open} onOpenChange={setOpen}>
@@ -439,7 +438,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   </Drawer.Root>;
   return mode === "workspace" ? (
     <div className={`chat-workspace-shell ${historyVisible ? "with-history" : "history-hidden"}`}>
-      {historyVisible && <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />}
+
       <main className="chat-workspace-main">{panel}</main>
     </div>
   ) : panel;
