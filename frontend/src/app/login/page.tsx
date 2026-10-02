@@ -24,6 +24,19 @@ export default function Login() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    if (authConfig()) {
+      let active = true;
+      void browserAuth().auth.getSession().then(({ data, error }) => {
+        if (active && !error && data.session) {
+          location.replace(safeNext(new URLSearchParams(location.search).get("next")));
+        }
+      }).catch(() => {});
+      return () => { active = false; };
+    }
+    return undefined;
+  }, []);
+
+  useEffect(() => {
     if (new URLSearchParams(window.location.search).get("error") === "callback") {
       setMessage("Sign-in could not finish. Check that this app’s /auth/callback URL is allowed in Supabase and that the Google provider callback is configured, then try again.");
     }
@@ -136,9 +149,10 @@ export default function Login() {
     setBusy(true);
     setMessage("");
     try {
+      const next = safeNext(new URLSearchParams(location.search).get("next"));
       const { error } = await browserAuth().auth.signInWithOAuth({
         provider,
-        options: { redirectTo: `${location.origin}/auth/callback` },
+        options: { redirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
       });
       if (error) throw error;
     } catch (error) {

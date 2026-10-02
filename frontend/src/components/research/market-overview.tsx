@@ -351,7 +351,7 @@ export function MarketOverview({
                     >
                       {change == null
                         ? "—"
-                        : `${change >= 0 ? "↗" : "↘"} ${format(Math.abs(change), "percent")}`}
+                        : `${change > 0 ? "+" : ""}${format(change, "percent")}`}
                     </small>
                   </a>
                 );

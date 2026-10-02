@@ -779,7 +779,7 @@
   color: inherit;
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(0, 1fr) auto 58px;
+  grid-template-columns: minmax(0, 1fr) auto 72px;
   min-height: 38px;
   text-decoration: none;
 }
@@ -799,9 +799,11 @@
 }
 .fixed-income-list small {
   border-radius: 3px;
-  font-size: 11px;
-  padding: 3px 5px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 5px;
   text-align: right;
+  white-space: nowrap;
 }
 .fixed-income-list small.positive {
   background: rgba(96, 166, 92, 0.12);

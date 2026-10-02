@@ -1,6 +1,7 @@
 "use client";
 import { SelectControl } from "@/components/research/select-control";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { browserAuth } from "@/lib/supabase/client";
 import {
@@ -25,8 +26,10 @@ const defaults = {
 };
 export type InvestorProfile = typeof defaults;
 export default function Settings() {
+  const router = useRouter();
   const [profile, setProfile] = useState(defaults);
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     try {
       setProfile({
@@ -39,20 +42,30 @@ export default function Settings() {
   }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    userStorage.setItem(
-      "marketly.profile",
-      JSON.stringify({ ...profile, onboardingComplete: true }),
-    );
-    userStorage.setItem("marketly.strategy", profile.strategy);
-    userStorage.setItem("marketly.horizon", profile.horizon);
-    await flushStorage();
-    setMessage(
-      hasPendingChanges()
-        ? "Saved locally; synchronization still needs attention."
-        : accountId()
-          ? "Profile synchronized."
-          : "Profile saved on this device.",
-    );
+    setSaving(true);
+    setMessage("");
+    try {
+      userStorage.setItem(
+        "marketly.profile",
+        JSON.stringify({ ...profile, onboardingComplete: true }),
+      );
+      userStorage.setItem("marketly.strategy", profile.strategy);
+      userStorage.setItem("marketly.horizon", profile.horizon);
+      await flushStorage();
+      if (hasPendingChanges()) {
+        setMessage("Preferences were saved locally, but cloud sync is still pending. Retry before leaving this page.");
+        return;
+      }
+      if (new URLSearchParams(window.location.search).get("onboarding") === "1") {
+        router.replace("/");
+        return;
+      }
+      setMessage(accountId() ? "Profile synchronized." : "Profile saved on this device.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Preferences could not be saved. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
   async function signout() {
     await flushStorage();
@@ -186,7 +199,7 @@ export default function Settings() {
           />
           Include my holdings when I ask for portfolio analysis
         </label>
-        <button className="primary-button">Save preferences</button>
+        <button className="primary-button" disabled={saving}>{saving ? "Saving…" : "Save preferences"}</button>
       </form>
       <p role="status">{message}</p>
       {accountId() && (

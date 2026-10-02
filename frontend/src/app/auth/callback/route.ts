@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   const requestedNext = request.nextUrl.searchParams.get("next");
   const next = requestedNext && requestedNext.startsWith("/") && !requestedNext.startsWith("//") && !requestedNext.includes("\\")
     ? requestedNext
-    : "/settings?onboarding=1";
+    : "/";
   try {
     const client = await serverAuth();
     if (code && client) {

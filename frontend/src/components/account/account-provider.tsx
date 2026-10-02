@@ -67,9 +67,20 @@ export function AccountProvider({ children, localMode }: { children: React.React
 
         if (!response?.ok || !payload.userId) throw new Error("Your account session could not be restored. Sign in again and retry.");
         if (alive) {
-          initializeStorage(payload.userId, payload.records || []);
+          const records = payload.records || [];
+          initializeStorage(payload.userId, records);
           setReady(true);
           setError("");
+          const profileRecord = records.find((record) => record.key === "marketly.profile");
+          let onboardingComplete = false;
+          try {
+            onboardingComplete = JSON.parse(profileRecord?.value || "{}").onboardingComplete === true;
+          } catch {
+            /* An unreadable profile should return to preferences for repair. */
+          }
+          if (client && window.location.pathname === "/" && !onboardingComplete) {
+            window.location.replace("/settings?onboarding=1");
+          }
         }
       } catch (reason) {
         if (alive) {
