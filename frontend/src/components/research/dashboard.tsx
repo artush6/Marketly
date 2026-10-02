@@ -63,6 +63,7 @@ import {
 import { SmallCap } from "./small-cap";
 import { SavedConversations } from "./saved-conversations";
 import { RelationshipResearch } from "./relationship-research";
+import { MobileNavigation } from "./mobile-navigation";
 import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
 import { StyledSelect } from "./styled-select";
@@ -633,6 +634,7 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
           Research workspace <span className="nav-divider">/</span> US equities
         </span>
       </nav>
+      <MobileNavigation view={view} onNavigate={navigate} />
       <main className="research-main">
         <EarningsReminders symbols={watchlist} ready={ready} />
         {notice && (

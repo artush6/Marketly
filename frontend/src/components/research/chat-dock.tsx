@@ -1,4 +1,5 @@
 "use client";
+import { Drawer } from "vaul";
 import { accountId, flushStorage, hasPendingChanges, userStorage } from "@/lib/user-storage";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -83,6 +84,14 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
   mode?: "dock" | "workspace";
   initialConversationId?: string;
 }) {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 1023px)");
+    const update = () => { setMobile(query.matches); if (query.matches && mode === "dock") setOpen(false); };
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, [mode]);
   const [pinned, setPinned] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(true);
   const [strategy, setStrategy] = useState("Balanced");
@@ -147,7 +156,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
       setHorizon(userStorage.getItem("marketly.horizon") || "3–5 years");
       setPinned(userStorage.getItem(CHAT_PINNED_KEY) === "true");
       setHistoryVisible(userStorage.getItem(CHAT_HISTORY_KEY) === "true");
-      setOpen(mode === "workspace" || (window.matchMedia("(min-width: 1024px)").matches ? userStorage.getItem(CHAT_OPEN_KEY) !== "false" : userStorage.getItem(CHAT_OPEN_KEY) === "true"));
+      setOpen(mode === "workspace" || (window.matchMedia("(min-width: 1024px)").matches ? userStorage.getItem(CHAT_OPEN_KEY) !== "false" : false));
     } catch { /* Defaults remain usable. */ }
 
     const applyState = (value: { open?: boolean; pinned?: boolean }) => {
@@ -421,6 +430,13 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
       </div>
     </section>
   );
+  if (mode === "dock" && mobile) return <Drawer.Root open={open} onOpenChange={setOpen}>
+    <Drawer.Trigger className="mobile-ask-ai"><Sparkles size={21} /> Ask AI</Drawer.Trigger>
+    <Drawer.Portal><Drawer.Overlay className="mobile-sheet-overlay" /><Drawer.Content className="mobile-assistant-sheet research-app" aria-describedby={undefined}>
+      <div className="sheet-grip" /><Drawer.Title className="sr-only">Marketly assistant</Drawer.Title>
+      {panel}
+    </Drawer.Content></Drawer.Portal>
+  </Drawer.Root>;
   return mode === "workspace" ? (
     <div className={`chat-workspace-shell ${historyVisible ? "with-history" : "history-hidden"}`}>
       {historyVisible && <ChatHistory activeId={activeConversationId} mode="rail" onOpen={openConversation} onNew={startNewConversation} />}
