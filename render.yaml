@@ -35,7 +35,7 @@ services:
       - key: VAPID_PRIVATE_KEY
         sync: false
       - key: VAPID_SUBJECT
-        value: mailto:alerts@marketly.app
+        sync: false
       - key: REDIS_URL
         fromService:
           name: marketly-cache

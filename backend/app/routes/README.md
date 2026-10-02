@@ -22,10 +22,19 @@ Routes should:
 routes/
 ├── analysis.py
 ├── assistant.py
+├── companies.py
+├── discovery.py
 ├── econ_situation.py
 ├── financials.py
+├── heatmap.py
+├── market.py
 └── news.py
 ```
+
+Other routers include `relationships.py` and `notifications.py`.
+`notifications.py` exposes the signed-in user's alert inbox, preferences, push
+subscriptions, test notification and read state. All are registered in
+`app/main.py` with the verified current-user dependency.
 
 ## Example
 

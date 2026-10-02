@@ -2,14 +2,15 @@
 
 Marketly is a full-stack market-intelligence app for researching public companies. It combines a Next.js analysis workspace with a FastAPI backend that fetches provider data, normalizes company facts, scores financial quality, and uses GPT to turn structured evidence into readable investment analysis.
 
-The current product centers on:
+The current product includes:
 
 - a calm, workspace-style frontend for company prompts and ticker analysis
 - financial statement drill-downs by symbol
 - backend-powered scoring across profitability, growth, stability, and valuation
 - business-model classification, event catalysts, scenarios, and trajectory layers
 - follow-up Q&A against the active symbol, score payload, financials, and news
-- a Supabase schema direction for persisting analysis runs and their evidence
+- Supabase-backed accounts, private research state, discovery and alert delivery
+- password, email-code and optional Google sign-in with account recovery
 
 ## Repository Layout
 
@@ -25,14 +26,15 @@ More detailed docs live in:
 
 - `backend/ARCHITECTURE.md` for the backend analysis pipeline
 - `frontend/README.md` for frontend development notes
-- `supabase/README.md` for the database schema direction
+- `supabase/README.md` for database migrations and data ownership
+- `docs/account-and-deployment.md` for Vercel, Render, Supabase Auth and push setup
 - `backend/app/**/README.md` for layer-specific backend notes
 
 ## Tech Stack
 
 Frontend:
 
-- Next.js 15 App Router
+- Next.js 16 App Router
 - React 19 and TypeScript
 - Tailwind CSS 4
 - Radix UI primitives, lucide-react icons, Recharts, and lightweight-charts
@@ -40,7 +42,7 @@ Frontend:
 
 Backend:
 
-- Python 3.11+ with FastAPI and Uvicorn
+- Python 3.13 with FastAPI and Uvicorn
 - Pydantic models and explicit response schemas
 - Financial, news, macro, and GPT integrations
 - Optional Redis cache when `REDIS_URL` is configured
@@ -48,7 +50,8 @@ Backend:
 
 Data and infrastructure:
 
-- Supabase/Postgres schema design for persisted analysis runs
+- Supabase Auth/Postgres for account identity and private research state
+- Supabase-backed durable refresh and alert queues
 - Provider support through Finnhub, FMP, RapidAPI/yfinance paths, FRED, Event Registry, and OpenAI
 
 ## Backend Overview
@@ -88,6 +91,7 @@ Primary endpoints:
 - `GET /score/{symbol}?refresh=false`
 - `POST /assistant/follow-up`
 - `GET /economics`
+- `/notifications` for signed-in alert inbox, preferences and push devices
 
 ## Frontend Overview
 
@@ -112,93 +116,38 @@ By default the browser talks to `/api/backend`, and that Next.js route proxies t
 
 ### Prerequisites
 
-- Node.js 20.9+
-- Python 3.11+; Python 3.13 matches the backend tooling config
-- API keys for the provider features you plan to use
-- Redis and Supabase are optional for local development
+- Node.js 20.9 or newer
+- Python 3.13 recommended
+- Provider keys for the data/features you want to use; Supabase is required for account sync and alerts
 
-### Backend
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-cp .env.example .env
-python run.py
-```
-
-The backend runs at `http://127.0.0.1:8000`.
-
-Fill in the relevant keys in `backend/.env`:
+### Install and run
 
 ```text
-REDIS_URL= # optional; leave unset to use the durable Supabase cache
-FINNHUB_API_KEY=
-FMP_API_KEY=
-FMPSDK_API_KEY=
-RAPIDAPI_KEY=
-FRED_API_KEY=
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5-nano-2025-08-07
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-SEC_USER_AGENT=Marketly/1.0 (contact: your-real-email@example.com)
-VAPID_PUBLIC_KEY= # public key from your Web Push VAPID key pair
-VAPID_PRIVATE_KEY= # private key; backend only, never add a NEXT_PUBLIC_ prefix
-VAPID_SUBJECT=mailto:you@example.com
-```
-
-Background alerts use Supabase tables installed by the `small_cap_discovery`,
-`small_cap_scan_history`, and `background_alerts` migrations. After deploying
-the backend, generate one Web Push VAPID pair with
-`npx --yes web-push generate-vapid-keys --json`, then set `VAPID_PUBLIC_KEY`,
-`VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT=mailto:you@example.com` in the Render
-service environment. Keep the private key on the backend only; never commit it
-or add it to a `NEXT_PUBLIC_` variable. Restart/redeploy the Render service
-after setting the values. The FastAPI service starts its bounded refresh worker
-automatically when `BACKGROUND_REFRESH_ENABLED=true` and Supabase is configured.
-
-To enable a device, sign in to Marketly, follow at least one company, open
-Alerts, and choose **Enable this device**. On iPhone, open the site in Safari,
-choose **Share → Add to Home Screen**, launch the installed app, then enable
-notifications in Alerts. Subscribe each device separately. Use **Send test
-notification** to check delivery.
-
-### Frontend
-
-```bash
-cd frontend
+cd backend
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+cd ../frontend
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-This is the normal local launch command. It starts and health-checks the backend
-at `http://127.0.0.1:8000`, then starts the frontend at
-`http://localhost:3000`. Both processes stop together. The launcher checks backend dependencies before starting.
-It selects `backend/.venv/bin/python`, then the legacy `backend/venv/bin/python`,
-then `python3`. Set `MARKETLY_PYTHON` to explicitly select an interpreter.
-If a Python upgrade breaks the virtual environment, move the old `.venv` aside,
-recreate it with `python3 -m venv backend/.venv` from the repository root, and
-install `backend/requirements.txt` using the new environment’s Python.
-
-Optional `frontend/.env.local`:
+`npm run dev` starts and health-checks FastAPI at `http://127.0.0.1:8000`, then
+starts Next.js at `http://localhost:3000`. Both stop together. Set
+`MARKETLY_PYTHON` only if you need a non-default Python interpreter. Add the
+needed provider and Supabase values to `backend/.env`; add frontend public keys
+to `frontend/.env.local` as described in [Account and deployment setup](docs/account-and-deployment.md).
 
 ```text
 NEXT_PUBLIC_API_URL=/api/backend
 BACKEND_API_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ```
 
-`NEXT_PUBLIC_API_URL` controls the browser-facing API base. `BACKEND_API_URL` controls the server-side proxy target used by the Next.js backend route.
-
-Production defaults to `https://marketly-sxn7.onrender.com`. The root
-`render.yaml` deploys `backend/`, runs its health check at `/healthz`, and keeps
-the background refresh worker enabled. It also provisions `marketly-cache`, a
-Redis-compatible Render Key Value fast layer connected over Render's private
-network. Supabase remains the durable fallback. Configure the remaining secret
-environment variables in Render; they are intentionally not stored in the
-blueprint.
+Do not put Supabase service-role or VAPID private keys in the frontend or any
+`NEXT_PUBLIC_` variable.
 
 ## Useful Commands
 
@@ -223,19 +172,15 @@ npm run start
 npm run lint
 ```
 
-## Current Persistence Direction
+## Persistence
 
-The Supabase schema is designed to store analysis evidence, not just final summaries. The main planned entities include:
+Supabase stores per-user research state, alert preferences, push subscriptions,
+notifications, market refresh jobs, cached data and discovery scan history.
+Private account tables use RLS and are accessed by the backend service role; the
+frontend uses the Supabase publishable key for Auth. The broader long-term
+analysis-evidence model is documented separately and is not all implemented.
 
-- companies
-- source documents
-- fact snapshots and fact values
-- analysis snapshots
-- computed metrics
-- scenarios and trajectory horizons
-- research jobs
-
-See `supabase/README.md` and `supabase/schema.sql` for the current schema notes.
+See [Supabase migrations](supabase/README.md) and [account/deployment setup](docs/account-and-deployment.md).
 
 ## Development Notes
 

@@ -1,6 +1,9 @@
 # Investor intelligence expansion — audit and delivery plan
 
-Audited 2026-09-27 against the supplied 43-section brief. Branch: `codex/investor-intelligence-foundation`.
+Historical audit started 2026-09-27 against the supplied 43-section brief. Its
+feature-slice estimates and pending items describe that review, not a live
+deployment checklist. Current hosting and account setup is in
+[Account and deployment setup](../account-and-deployment.md).
 
 ## Scope and architecture
 
@@ -8,7 +11,14 @@ This is a multi-release product expansion, not a single UI patch. A planning est
 
 The current stack is Next.js 16 / React 19, a Next backend proxy, FastAPI, provider integrations, deterministic scoring/fact services and an OpenAI narrative layer. `dashboard.tsx` owns company research and local watchlists; `CompanyFinancials` already charts statements; `CompanyResearchSnapshot` already provides condensed signals. `companies/{symbol}/intelligence` already supplies objective summary metrics. Finnhub supplies profiles/quotes/discovery, FMP supplies statements/ratios, SEC supplies XBRL and filing evidence, and RapidAPI supplies additional profile fields. Relationship research and news triage already exist.
 
-Redis fronts a durable Supabase cache. Supabase also defines company, statement, fact, document, event, analysis and snapshot entities. Background refresh uses durable jobs, fenced leases, tracked symbols and earnings-aware financial cadence. Tables in schema files do not establish that every feature is implemented or every migration is deployed. Watchlists, saved reports and price alerts use browser local storage; a production authenticated user model is a prerequisite for private cross-device theses and visit cursors.
+Redis fronts the durable Supabase cache. Supabase also stores company, statement,
+fact, news, relationship, refresh-job and snapshot data. The deployed account
+system authenticates through Supabase, stores research state by user, and stores
+alert preferences, push devices and inbox items in private tables. The durable
+worker uses fenced leases and earnings-aware refresh cadence. This audit's
+remaining roadmap items (such as ownership coverage, historical expectation
+vintages and point-in-time calibration) remain separate from those shipped
+account and alert features.
 
 ## Requirements checklist
 
@@ -43,7 +53,7 @@ Redis fronts a durable Supabase cache. Supabase also defines company, statement,
 | 25 | What Changed | Missing per-user visit cursor and fundamental event diff | Pending |
 | 26 | Thesis | Analysis contains thesis prose; private structured user thesis missing | Pending |
 | 27 | Thesis detection | Missing assumption registry and sourced violations | Pending |
-| 28 | Watchlists | Partial: browser-local list, news and earnings | Fundamental change rollup and account sync pending |
+| 28 | Watchlists | Partial: account-synced list, news, earnings and background price/news alerts | Fundamental event rollup and portfolio-aware changes pending |
 | 29 | Portfolio | No production holdings/transactions/exposure model | Pending |
 | 30 | Portfolio feed | Missing owned-company event feed | Pending |
 | 31 | Home | Existing market/news workspace | Personalized fundamental-priority home pending |

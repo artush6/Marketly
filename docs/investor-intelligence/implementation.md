@@ -1,5 +1,10 @@
 # Implementation report — foundation increment
 
+Historical report for the financial-trends increment. It describes that
+increment's scope, not the current authentication, alert or deployment status.
+For current operations, see [Account and deployment setup](../account-and-deployment.md)
+and the [repository README](../../README.md).
+
 ## Completed
 
 - Created `codex/investor-intelligence-foundation` from clean `master`.

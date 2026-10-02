@@ -1,47 +1,38 @@
-# Research dashboard experiment
+# Research workspace
 
-Branch: `codex/research-dashboard`.
+The `/` route is Marketly's signed-in research workspace. It combines a market
+overview, company research, company and market news, calendar, small-cap
+discovery, comparison, saved research and account settings. The older
+`/assistant` route remains available for company-focused conversation.
 
-The home page is now a market overview in a dark terminal-inspired interface. Select a watchlist company or use search to open company research. The existing conversational workspace remains at `/assistant`; financial drill-downs remain at `/financials/[symbol]`.
+## Current behavior
 
-## Included
+- Account authentication uses Supabase sessions; email/password, email-code and
+  password-reset flows are available. Google appears only when its Supabase
+  provider is configured and `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED=true` is deployed.
+- Research preferences and watchlists sync to the signed-in account. Unsupported
+  or missing provider values remain unavailable instead of being invented.
+- Company comparisons show selected-company values; they are not industry-wide
+  aggregates unless a view explicitly says so.
+- Background alerts are account-scoped. Price changes use the provider's daily
+  move against prior close and can be delayed; a related headline is not proof
+  of a cause. Discovery scores and probabilities are heuristic, uncalibrated
+  research signals, not forecasts.
+- User settings and account flows are protected; the login, callback and reset
+  routes remain reachable while signed out.
 
-- Global market overview with cached benchmark ETF quotes (SPY/QQQ/DIA/IWM), general market news, a native full-market heatmap, and up to 12 watchlist quotes. ETF proxies are labeled explicitly.
-- Bottom chat dock on market and company views using the existing backend OpenAI configuration. It sends the displayed context and up to ten previous conversation messages, supports minimize/clear/error recovery, and makes no AI call until submitted. Conversations are held in memory and reset when the research context changes.
+## Alert subscriptions
 
-- Debounced company/ticker search through Finnhub, with an explicitly labeled small local catalog/direct-ticker fallback when discovery is unavailable.
-- Embedded TradingView chart and existing backend financial/news data. AI brief generation is on demand.
-- Local watchlist and up to 30 saved research snapshots (financials, up to 12 news articles, optional generated analysis).
-- Price conditions checked against the selected company's fetched quote on opening/refreshing. They are in-app conditions, not background/email/push notifications.
-- Up to six manually selected competitors or four Finnhub-suggested peers. Comparison shows P/E, net margin, reporting dates, and unweighted selected-peer means. Missing values are excluded and sample counts are shown. This is not an industry-wide average.
-- Evidence tab identifying statement inputs, calculations, and available provider provenance. Generated narrative does not yet have filing-passage citations.
-- Publisher images in news cards and HTTPS article-link previews using Open Graph/Twitter metadata. Private-network targets, unsafe schemes, excessive redirects, oversized pages, and timeouts are rejected. Paywalled/blocked publishers may not expose previews.
-- Responsive layouts, keyboard search, error states, and reduced-motion support.
+The alert page has an in-app inbox and push preferences for 3%, 5% and 10% daily
+price drops, important followed-company news and discovery candidates. Web Push
+requires VAPID keys on the FastAPI service. On iPhone, add Marketly to the Home
+Screen in Safari, open the installed web app, then allow and enable notifications
+from Alerts. Each device subscribes separately. See
+[Account and deployment setup](../docs/account-and-deployment.md).
 
-## Local development
+## Development and validation
 
-Run the backend from `backend`:
-
-```sh
-.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8012
-```
-
-Run the frontend from `frontend`:
-
-```sh
-BACKEND_API_URL=http://127.0.0.1:8012 npm run dev -- --port 3012
-```
-
-Search and suggested peers need the existing backend `FINNHUB_API_KEY`. The new market/discovery routes and updated assistant route must be deployed alongside the frontend if using the hosted API. This branch does not modify credentials or database schemas.
-
-## Intentionally deferred
-
-Accounts/cloud sync, background monitoring, full industry aggregates, historical comparison snapshots, document retrieval and claim-level AI citations. Saved data belongs to this browser/device; clearing site data removes it. Watchlists start with four example companies, not sample prices.
-
-## Checks
-
-- Discovery route tests cover distinct listings, de-duplication, invalid input, absent configuration, and provider errors.
-- Browser checks cover live search/data, saved snapshots surviving reload, peer means with missing values, article previews, alerts, and narrow-screen layout.
-- Production build now checks the full repository. Missing dependencies in the older UI components and their stale window/calendar types have been repaired.
-- The full-market map draws Finviz public US-listed coverage (including ADRs) as a sector/industry treemap with market-cap weights, daily-change colors, company search, and sector zoom. Performance caches for ten minutes; metadata refreshes daily. Failed refreshes retain the last successful in-memory snapshot with a stale label.
-- The Finviz adapter reads public map metadata; it is not a contracted API and provider format changes may require maintenance. Initial failures show an explicit retry state. No invented prices or sample map data are used.
+From this directory, `npm run dev` starts FastAPI and Next.js together after the
+backend environment is installed. Run `npm run build` for a production build and
+`npm run lint` for ESLint. The API, database migration, and hosting setup are
+documented in the root README and linked operations guide.

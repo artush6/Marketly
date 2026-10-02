@@ -63,6 +63,7 @@ data quality tells the user how much to trust it
 services/
 ├── analysis_service.py
 ├── analysis_fallback.py
+├── alert_delivery.py
 ├── data_quality.py
 ├── market_context.py
 ├── metadata.py
@@ -76,6 +77,11 @@ services/
 └── trajectory/
 ```
 
+`market_refresh.py` runs the durable refresh worker from the FastAPI lifespan
+or as a standalone process. It refreshes prices, news, calendars and financials,
+and dispatches account-scoped alerts through `alert_delivery.py`. The worker
+requires Supabase persistence and is controlled by `BACKGROUND_REFRESH_ENABLED`.
+
 ## Standalone Service Files
 
 `analysis_service.py` is the orchestrator for `/score/{symbol}`. It decides the order of the analysis pipeline.
@@ -87,6 +93,9 @@ services/
 `market_context.py` summarizes the macro and market regime around the stock.
 
 `metadata.py` creates versioning, analysis IDs, provenance, and refresh policy metadata for future Supabase storage.
+
+`alert_delivery.py` stores user preferences, device subscriptions and prepared
+notification context, then sends Web Push when backend VAPID keys are configured.
 
 ## Important Rule
 

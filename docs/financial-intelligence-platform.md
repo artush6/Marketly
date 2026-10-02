@@ -1,13 +1,14 @@
 # Financial intelligence platform audit and delivery plan
 
-Audited on 2026-10-02 on `codex/merged-startup-fix`, which includes the latest
-`origin/feature/small-cap-intelligence` commits and the local workspace updates.
+Audit snapshot from 2026-10-02. Branch references describe the source state at
+the time; do not use this plan as the current account/deployment guide. See
+[Account and deployment setup](account-and-deployment.md) for current operations.
 
 ## Current architecture
 
 Marketly is a Next.js 16 / React 19 research UI backed by FastAPI. API routes
 group company analysis, financial statements, market/news, economics, discovery,
-relationships and heatmap data. Provider code is mostly in
+relationships, notifications and heatmap data. Provider code is mostly in
 `backend/app/integrations/` (FMP/financial statements, Finnhub discovery, FRED,
 news, OpenAI, Supabase). The backend service layers include fact normalization
 and coverage, deterministic financial quality/scoring, company classification,
@@ -23,8 +24,8 @@ aware financial trends and comparison metrics. `/discovery/search` and
 movers, earnings, news, relationships, macro/economic context and health routes
 are also available. Frontend API types live in `frontend/src/lib/api.ts`;
 comparison shaping is in `frontend/src/lib/comparison.ts`; discovery and
-relationship components already exist, but a small-cap candidate API was not
-connected to a dedicated leaderboard before this increment.
+relationship components already exist. Small-cap candidate scans are now
+connected to the durable queue and candidate history.
 
 The recurring refresh path is `RefreshWorker` in
 `backend/app/services/market_refresh.py`, started from FastAPI lifespan when
@@ -32,7 +33,8 @@ Supabase is configured. Durable `market_refresh_jobs` rows use claim/finish RPCs
 with fenced leases and backoff. It refreshes quotes, news, calendars,
 financials, and researched relationships. API and worker are still deployed as
 one process. Redis/Upstash is optional; Supabase remains the fallback cache and
-job store. The existing scan service did not yet run from a periodic job.
+job store. The bounded small-cap scan runs as a weekly durable job and stores
+candidate score history; its probabilities remain heuristic and uncalibrated.
 
 ## Persistence audit
 
@@ -47,10 +49,11 @@ the normalized `company_aliases`, `source_documents`, `fact_snapshots`,
 `analysis_snapshots`, `computed_metrics`, `analysis_scenarios`,
 `analysis_horizons`, `research_jobs`, or `tracked_companies` tables through the
 main analysis flow. The schema’s `research_jobs` table is separate from the
-operational `market_refresh_jobs` queue; it is not currently the active worker
-queue. `user_research_state` is written by the authenticated Next.js server
-route, so it will not appear as direct backend Python access. Presence in SQL
-does not prove that a migration was applied to a particular Supabase project.
+operational `market_refresh_jobs` queue, which is the active worker queue.
+Authenticated Next.js routes persist `user_research_state`; alert preferences,
+push subscriptions and inbox items are persisted through the backend. Presence
+in SQL alone does not prove that a migration was applied to a particular
+project; check [the current migration status](../supabase/README.md).
 
 Existing intelligence that should be extended rather than replaced:
 
@@ -89,14 +92,12 @@ multi-week platform cannot be delivered honestly as one all-at-once feature.
 
 ## Phased implementation
 
-1. **Audit and first connected slice (in progress):** document actual reuse and
-   schema gaps; turn existing small-cap scoring into configurable bounded scan
-   requests handled by the durable refresh worker, with current shortlist reads
-   and immutable score observations.
-2. **Discovery foundation:** add cap-band presets, evidence quality controls,
-   richer risk/potential decomposition and a user-facing discovery dashboard;
-   keep scans bounded and manually triggerable until the durable worker stage
-   exists.
+1. **Audit and first connected slice (complete):** document actual reuse and
+   schema gaps; run configurable bounded small-cap scans through the durable
+   refresh worker and store immutable score observations.
+2. **Discovery foundation (partially complete):** cap-band presets, evidence
+   quality controls and a user-facing discovery dashboard exist; richer
+   decomposition and broad provider coverage remain future work.
 3. **Comparable engine:** define comparable classes and compatible-metric
    summaries on top of `comparison_metrics`; do not conflate provider industry
    peers with business-model, valuation, or supply-chain peers.

@@ -1,100 +1,42 @@
-# Marketly Supabase Schema
+# Marketly Supabase
 
-This folder contains the database design for persisting Marketly analysis runs.
+Supabase provides Auth and Postgres persistence for account research state,
+background refresh jobs, company relationships, small-cap discovery and alerts.
+The backend uses the service-role key for server-side reads/writes to private
+tables; the browser uses only the publishable key for Auth.
 
-## What Gets Stored
+## Production project
 
-The schema is designed around one core idea:
+The production project ref is `gffskqucpyujimxaqzrp`. The seven migrations below
+are applied to it as of October 2, 2026. Confirm a project's migration history
+before applying migrations to any other environment.
 
-> Store enough evidence to understand and regenerate an analysis, not just the final GPT summary.
+| Order | Migration | Purpose |
+| --- | --- | --- |
+| 1 | `20260925093816_background_market_refresh.sql` | Durable refresh queue and fenced job functions |
+| 2 | `20260926094653_relationship_news_intelligence.sql` | Relationship evidence and news intelligence |
+| 3 | `20260926153150_harden_relationship_intelligence.sql` | Relationship data hardening |
+| 4 | `20260927161755_user_research_state.sql` | Per-account research state and RLS |
+| 5 | `20261002102000_small_cap_discovery.sql` | Small-cap candidates and queue kind |
+| 6 | `20261002103000_small_cap_scan_history.sql` | Candidate history and scan payloads |
+| 7 | `20261002110000_background_alerts.sql` | Alert preferences, subscriptions and inbox |
 
-## Main Tables
+For setup and deployment workflow, see [Account and deployment setup](../docs/account-and-deployment.md).
+Follow Supabase's [database migration guide](https://supabase.com/docs/guides/deployment/database-migrations)
+when reconciling local and remote migration history; do not mark an unapplied
+migration as applied manually.
 
-```text
-market_data_cache
-  durable fallback cache used when Redis is unavailable
+## Data ownership and security
 
-market_data_snapshots
-  latest provider payload snapshots read before paid/free provider fetches
+- `user_research_state` owns signed-in preferences and watchlists by `auth.users.id`.
+- `user_alert_preferences`, `web_push_subscriptions`, and
+  `user_alert_notifications` store private alert settings, device endpoints and
+  notification history. VAPID private keys are never stored in Supabase.
+- `market_refresh_jobs`, `small_cap_candidates`, and
+  `small_cap_candidate_snapshots` are server-managed data.
+- Private tables enable RLS and revoke browser-role access where the backend's
+  service role is the only intended data path.
+- Provider data and derived research scores may be delayed or heuristic; they
+  are not point-in-time historical calibration or investment forecasts.
 
-financial_statement_rows / financial_metrics / news_articles / analysis_runs
-  operational persistence written by the current backend endpoints
-
-companies
-  stable company registry keyed by symbol
-
-source_documents
-  raw/source memory such as news articles or provider payload references
-
-fact_snapshots
-  coverage summary for a point-in-time fact graph
-
-fact_values
-  individual canonical facts such as revenue, P/E, market cap, gross margin
-
-analysis_snapshots
-  one complete analysis run with version, score, metadata, layers, and full payload
-
-computed_metrics
-  queryable metric blocks linked to an analysis run
-
-analysis_scenarios
-  individual scenario cases with probability, rationale, evidence, and triggers
-
-analysis_horizons
-  trajectory entries for 6M, 12M, 3Y, 5Y, and 10Y views
-
-research_jobs
-  operational queue/state for future refresh or deep-research workers
-```
-
-## Why Analysis Runs Matter
-
-The most important persistence object is an analysis run:
-
-```text
-symbol + analysis_version + data_timestamp + provenance -> analysis_id
-```
-
-This lets Marketly answer:
-
-- What did we know at the time?
-- Which backend version produced the output?
-- Which provider values were used?
-- Was the score deterministic?
-- Which parts were GPT-generated?
-- Can we regenerate only the narrative later?
-
-## What Should Be Committed
-
-Commit:
-
-- `schema.sql`
-- future migration SQL files
-- RLS policies
-- functions
-- fake/dev seed data if needed
-
-Do not commit:
-
-- production dumps
-- user data
-- provider exports with sensitive data
-- local database files
-- secrets
-
-## Integration Direction
-
-When backend persistence is added, prefer this write order:
-
-1. upsert `companies`
-2. insert `fact_snapshots`
-3. insert `fact_values`
-4. insert `analysis_snapshots`
-5. insert `computed_metrics`
-6. insert `analysis_scenarios`
-7. insert `analysis_horizons`
-
-The backend can still return the full API response immediately. Supabase persistence should be additive and should not block the response unless explicitly required.
-
-The current backend already writes operational cache/snapshot tables first. The deeper evidence tables above are the long-term research memory model.
+Never commit credentials, production dumps, user data or provider exports.

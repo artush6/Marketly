@@ -1,5 +1,9 @@
 # Marketly Frontend TODO
 
+Historical frontend checklist; completed items may have changed since it was
+written. For the current app structure and research flow, see
+[frontend development notes](README.md) and [research dashboard](RESEARCH_DASHBOARD.md).
+
 This list captures the next pass after the new frontend MVP.
 
 1. Keep refining the TradingView Symbol Overview chart.

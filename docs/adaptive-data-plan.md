@@ -1,5 +1,11 @@
 # Adaptive data implementation plan / handoff
 
+> Historical implementation snapshot from September 2026. Its notes that there
+> was no user identity flow, no production push, or no hosted worker describe
+> that earlier checkpoint and are superseded. Current setup and supported
+> behavior are documented in [Account and deployment setup](account-and-deployment.md)
+> and [Background market data](background-refresh.md).
+
 ## Scope and constraints
 
 User expanded scope on 2026-09-25. Work only on `codex/background-market-refresh`;

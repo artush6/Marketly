@@ -1,11 +1,11 @@
 # Background market data
 
-The API starts a Supabase-backed refresh worker in its FastAPI lifespan. It makes
-LLM calls for relationship research. Apply `supabase/migrations/20260925093816_background_market_refresh.sql`
-and `supabase/migrations/20260926094653_relationship_news_intelligence.sql` to the
-same project as the backend's `SUPABASE_URL`, then deploy/restart this branch.
-The existing cache, snapshots and financial tables from `supabase/schema.sql` are
-prerequisites. Only the backend service role can access the queue or its functions.
+The FastAPI service starts the Supabase-backed refresh worker in its lifespan
+when `BACKGROUND_REFRESH_ENABLED=true` and Supabase is configured. The production
+project has the ordered migrations listed in [the Supabase guide](../supabase/README.md).
+Use the same project URL for the backend and frontend Auth. Only the backend
+service role can access the queue or its functions. Render keeps the API and
+worker in one web service; a separate worker service is optional, not required.
 
 ## Schedule
 
@@ -28,6 +28,8 @@ prerequisites. Only the backend service role can access the queue or its functio
   News regexes remain discovery hints and no longer create verified graph edges.
 - Inactive symbols stop after thirty days without visits. Opening the watchlist
   renews tracking. Funds used as benchmarks only receive quote jobs.
+- Small-cap discovery runs a bounded weekly scan and records candidate history.
+  Discovery scores/probabilities are heuristic and not calibrated forecasts.
 
 The worker processes one job at a time and pauses five seconds between jobs. These
 are target intervals: large lists, provider latency and rate limits can delay runs.
@@ -54,19 +56,22 @@ alone do not deploy the application or keep its hosting process awake.
 
 ## User behavior
 
-All watchlist symbols (up to 100) are registered by `/market/earnings`. Existing
-watchlists remain device-local; the shared registry stores ticker symbols, never
-private lists or user identifiers. `/financials/{symbol}` still performs an initial
+Signed-in watchlists are stored in `user_research_state`; the worker syncs watched
+symbols from those account records into a shared bounded refresh queue. The queue
+contains tickers and job state, not private theses or preferences. `/financials/{symbol}` still performs an initial
 provider fetch when there is no usable snapshot, so previously unseen companies work.
 Watching a company queues that fetch before its page is opened. Unsupported symbols
 may still have no provider financials; missing values are not invented.
 
 Earnings reminders appear in the app from seven days before the calendar date
 through the release day, with stable IDs and device-local dismissal. They are based
-on durable calendar data and do not require the site to be open when the calendar
-is refreshed. No email/push delivery is configured. Existing price alerts remain
-checked in the browser. The app polls reminders and quotes once a minute while
-visible. A missing calendar is unknown, not a confirmed absence of earnings.
+on durable calendar data. Optional Web Push alerts cover followed-stock daily drops
+(3%, 5%, 10%), important ticker news and high-scoring discovery candidates. Alerts
+are saved to the account inbox; push delivery requires VAPID keys in the Render
+backend environment. The site need not stay open after a device is subscribed.
+For iPhone, use the Home Screen web app on iOS 16.4 or later. See
+[Account and deployment setup](account-and-deployment.md). A missing calendar is
+unknown, not a confirmed absence of earnings.
 
 Quotes are cached separately in Redis and Supabase. Last good prices survive a
 provider outage and are labeled when old. Cached company responses overlay these
