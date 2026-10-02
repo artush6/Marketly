@@ -93,7 +93,7 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     return () => query.removeEventListener("change", update);
   }, [mode]);
   const [pinned, setPinned] = useState(false);
-  const [historyVisible, setHistoryVisible] = useState(true);
+  const [historyVisible, setHistoryVisible] = useState(false);
   const [strategy, setStrategy] = useState("Balanced");
   const [horizon, setHorizon] = useState("3–5 years");
   const [research, setResearch] = useState(false);
