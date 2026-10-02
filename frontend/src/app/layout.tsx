@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "../components/research/research.css";
 import "../components/research/terminal.css";
@@ -9,6 +9,8 @@ import "../components/research/mobile-redesign.css";
 import { AccountProvider } from "@/components/account/account-provider";
 import { localWorkspaceAllowed } from "@/lib/supabase/config";
 import { MarketTickerTape } from "@/components/research/market-ticker-tape";
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export const metadata: Metadata = {
   title: {
