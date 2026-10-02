@@ -153,3 +153,15 @@ def test_score_invalidation_works_without_redis():
          patch('app.core.cache.supabase_store.delete_json') as delete:
         CacheManager.delete_key(CacheManager.make_key('scores', 'NEW'))
     delete.assert_called_once_with('scores', 'NEW')
+
+
+def test_small_cap_refresh_executes_profile_scan_and_persists_snapshot():
+    from app.services import small_cap_discovery
+    with patch.object(small_cap_discovery, 'scan_small_caps', return_value={'candidates': []}) as scan, \
+         patch.object(small_cap_discovery, 'persist_small_cap_scan') as persist:
+        assert refresh.execute_job({
+            'kind': 'small_caps', 'symbol': 'MARKET',
+            'input_payload': {'countries': ['US'], 'deep_limit': 2},
+        }) == 7 * 86400
+    scan.assert_called_once()
+    persist.assert_called_once_with({'candidates': []})

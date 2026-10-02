@@ -105,6 +105,17 @@ def execute_job(job):
         from app.services.relationship_research import research_relationships
         research_relationships(symbol)
         return 14 * 86400
+    if kind == 'small_caps':
+        from app.services.small_cap_discovery import (
+            SmallCapDiscoveryProfile,
+            persist_small_cap_scan,
+            scan_small_caps,
+        )
+        profile_data = job.get('input_payload') or {}
+        profile = SmallCapDiscoveryProfile(**profile_data).validate()
+        scan = scan_small_caps(profile=profile)
+        persist_small_cap_scan(scan)
+        return 7 * 86400
     raise ValueError('Unknown refresh job')
 
 

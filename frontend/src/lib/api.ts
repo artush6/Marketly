@@ -472,6 +472,96 @@ export async function refreshRelationships(symbol: string) {
   return response.json() as Promise<RelationshipResponse>;
 }
 
+export type SmallCapCandidate = {
+  symbol: string;
+  company_name: string | null;
+  sector: string | null;
+  industry: string | null;
+  market_cap: number | null;
+  market_cap_class: string | null;
+  potential_score: number | null;
+  estimated_outperformance_probability: number | null;
+  probability_method: string;
+  confidence: "low" | "medium" | "high" | null;
+  evidence_coverage: number | null;
+  relationship_count: number;
+  risk_flags: string[];
+  positives: string[];
+  payload: Record<string, unknown>;
+  last_scanned_at: string;
+};
+
+export type SmallCapDiscoveryProfile = {
+  name?: string;
+  min_market_cap?: number;
+  max_market_cap?: number;
+  min_average_volume?: number;
+  countries?: string[];
+  sector?: string | null;
+  deep_limit?: number;
+};
+
+export type SmallCapProfilePreset = Required<Pick<SmallCapDiscoveryProfile,
+  "name" | "min_market_cap" | "max_market_cap" | "min_average_volume" | "countries" | "deep_limit">>;
+
+export function getSmallCapProfilePresets() {
+  return requestJson<{ profiles: SmallCapProfilePreset[]; marketCapCurrency: string }>(
+    "/discovery/small-caps/profiles",
+  );
+}
+
+export function getSmallCapCandidates(options: { limit?: number; minScore?: number } = {}) {
+  const query = new URLSearchParams();
+  if (options.limit != null) query.set("limit", String(options.limit));
+  if (options.minScore != null) query.set("min_score", String(options.minScore));
+  return requestJson<{ candidates: SmallCapCandidate[]; persistenceAvailable: boolean; source: string }>(
+    `/discovery/small-caps?${query.toString()}`,
+  );
+}
+
+export function queueSmallCapScan(profile: SmallCapDiscoveryProfile = {}) {
+  return fetch(`${getBaseUrl()}/discovery/small-caps/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+    cache: "no-store",
+    signal: AbortSignal.timeout(15000),
+  }).then(async (response) => {
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.detail || `Request failed with status ${response.status}`);
+    return payload as { queued: true; profile: SmallCapDiscoveryProfile; statusUrl: string };
+  });
+}
+
+export type SmallCapScoreObservation = {
+  scanned_at: string;
+  method_version: string;
+  potential_score: number | null;
+  risk_score: number | null;
+  evidence_coverage: number | null;
+  estimated_outperformance_probability: number | null;
+  probability_method: string | null;
+  payload: Record<string, unknown>;
+};
+
+export function getSmallCapScoreHistory(symbol: string, limit = 50) {
+  return requestJson<{ symbol: string; observations: SmallCapScoreObservation[]; persistenceAvailable: boolean }>(
+    `/discovery/small-caps/${encodeURIComponent(symbol)}/history?limit=${limit}`,
+  );
+}
+
+export function getSmallCapScanStatus() {
+  return requestJson<{
+    available: boolean;
+    scan: null | {
+      status: "queued" | "running" | "completed" | "retrying";
+      last_success_at?: string | null;
+      last_error?: string | null;
+      input_payload?: SmallCapDiscoveryProfile;
+    };
+  }>("/discovery/small-caps/scan-status");
+}
+
 export async function getTickerScore(
   symbol: string,
 ): Promise<BackendScoreResponse> {

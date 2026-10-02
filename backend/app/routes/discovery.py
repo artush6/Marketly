@@ -3,12 +3,47 @@
 import re
 
 import requests
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
+from app.integrations import supabase_store
+from app.services.small_cap_discovery import (
+    DISCOVERY_PROFILE_PRESETS,
+    MAX_DEEP_CANDIDATES,
+    SmallCapDiscoveryProfile,
+    enqueue_small_cap_scan,
+    load_persisted_small_caps,
+    load_small_cap_history,
+    small_cap_scan_status,
+)
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])
 SYMBOL = re.compile(r"^[A-Z0-9][A-Z0-9.:-]{0,19}$")
+
+
+class SmallCapScanRequest(BaseModel):
+    name: str = Field(default="custom", max_length=80)
+    min_market_cap: int = Field(default=50_000_000, ge=0)
+    max_market_cap: int = Field(default=2_000_000_000, gt=0)
+    min_average_volume: int = Field(default=100_000, ge=0)
+    countries: list[str] = Field(default_factory=lambda: ["US"], min_length=1, max_length=5)
+    sector: str | None = Field(default=None, max_length=80)
+    deep_limit: int = Field(default=10, ge=1, le=MAX_DEEP_CANDIDATES)
+
+    def as_profile(self) -> SmallCapDiscoveryProfile:
+        try:
+            return SmallCapDiscoveryProfile(
+                name=self.name,
+                min_market_cap=self.min_market_cap,
+                max_market_cap=self.max_market_cap,
+                min_average_volume=self.min_average_volume,
+                countries=tuple(self.countries),
+                sector=self.sector,
+                deep_limit=self.deep_limit,
+            ).validate()
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
 
 def provider_get(path: str, params: dict):
@@ -64,3 +99,71 @@ def peers(symbol: str):
     results = list(dict.fromkeys(item for item in payload if isinstance(item, str)
                                 and SYMBOL.fullmatch(item) and item != symbol))[:6]
     return {"symbols": results, "source": "Finnhub", "benchmark": "Selected peer average"}
+
+
+@router.get("/small-caps")
+def small_cap_candidates(
+    limit: int = Query(default=30, ge=1, le=100),
+    min_score: int = Query(default=0, ge=0, le=100),
+):
+    """Read the durable discovery shortlist without making provider calls."""
+    return {
+        "candidates": load_persisted_small_caps(limit=limit, min_score=min_score),
+        "persistenceAvailable": supabase_store.is_configured(),
+        "source": "Marketly deterministic small-cap discovery",
+    }
+
+
+@router.get("/small-caps/profiles")
+def small_cap_profile_presets():
+    return {
+        "profiles": [
+            {
+                "name": name,
+                **limits,
+                "min_average_volume": 100_000,
+                "countries": ["US"],
+                "deep_limit": 10,
+            }
+            for name, limits in DISCOVERY_PROFILE_PRESETS.items()
+        ],
+        "marketCapCurrency": "USD",
+    }
+
+
+@router.get("/small-caps/{symbol}/history")
+def small_cap_candidate_history(symbol: str, limit: int = Query(default=50, ge=1, le=100)):
+    symbol = symbol.strip().upper()
+    if not SYMBOL.fullmatch(symbol):
+        raise HTTPException(422, "Invalid ticker.")
+    return {
+        "symbol": symbol,
+        "observations": load_small_cap_history(symbol, limit=limit),
+        "persistenceAvailable": supabase_store.is_configured(),
+    }
+
+
+@router.get("/small-caps/scan-status")
+def small_cap_scan_status_route():
+    try:
+        status = small_cap_scan_status()
+    except Exception as exc:
+        raise HTTPException(503, "Small-cap scan status is temporarily unavailable.") from exc
+    return {"available": status is not None, "scan": status}
+
+
+@router.post("/small-caps/scan", status_code=status.HTTP_202_ACCEPTED)
+def run_small_cap_scan(request: SmallCapScanRequest):
+    """Queue an explicit bounded scan; the durable worker handles provider I/O."""
+    if not settings.FMP_API_KEY:
+        raise HTTPException(503, "Small-cap screening requires an FMP API key.")
+    if not supabase_store.is_configured():
+        raise HTTPException(503, "Durable discovery requires Supabase to be configured.")
+    profile = request.as_profile()
+    try:
+        queued = enqueue_small_cap_scan(profile)
+    except Exception as exc:
+        raise HTTPException(503, "Small-cap scan could not be queued.") from exc
+    if not queued:
+        raise HTTPException(409, "A small-cap scan is already running.")
+    return {"queued": True, "profile": profile.__dict__, "statusUrl": "/discovery/small-caps/scan-status"}

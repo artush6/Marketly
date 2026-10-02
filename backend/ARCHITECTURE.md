@@ -1059,6 +1059,18 @@ This lets the product answer:
 - Scenario probabilities are analyst-style weights, not calibrated odds.
 - Provider observability should be stronger.
 - Cash-flow and capital-structure analysis should be expanded.
-- No Supabase persistence yet.
+- Normalized analysis snapshots, fact values, event history, analogs and research
+  jobs are not yet fully wired into the live analysis flow.
+
+## Financial Intelligence Expansion (2026-10)
+
+The current platform audit, schema wiring matrix and phased delivery plan live
+in [`docs/financial-intelligence-platform.md`](../docs/financial-intelligence-platform.md).
+The existing small-cap potential service is now exposed through the discovery
+API. Scan requests carry a validated profile into the durable market refresh
+queue; the worker performs bounded provider enrichment and saves both the
+current candidate and an immutable method-versioned score observation. The
+resulting heuristic probability remains explicitly uncalibrated. This is the
+first vertical slice, not completion of the larger research platform.
 
 These are not failures. They are the next boundary of the product.
