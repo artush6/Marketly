@@ -26,11 +26,6 @@ struct MarketsView: View {
                         Text(snapshot.note).font(.caption2).foregroundStyle(
                             MarketTheme.tertiaryText)
                     } else if state.isLoading {
-                        indexCards(
-                            MarketSnapshot(
-                                quotes: DemoData.indices, articles: [], fetchedAt: nil, note: "")
-                        ).redacted(reason: .placeholder).allowsHitTesting(false)
-                            .accessibilityHidden(true)
                         LoadingRows()
                     }
                 }
@@ -101,11 +96,9 @@ struct MarketsView: View {
                 Eyebrow(text: "Marketly / Overview")
                 Spacer()
                 if let date = state.value?.fetchedAt {
-                    Text(
-                        app.mode == .demo
-                            ? "Sample snapshot" : date.formatted(date: .omitted, time: .shortened)
-                    ).font(.system(size: 10, design: .monospaced)).foregroundStyle(
-                        MarketTheme.tertiaryText)
+                    Text(date.formatted(date: .omitted, time: .shortened)).font(
+                        .system(size: 10, design: .monospaced)
+                    ).foregroundStyle(MarketTheme.tertiaryText)
                 }
 
                 Button {

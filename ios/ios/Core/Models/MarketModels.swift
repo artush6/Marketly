@@ -39,7 +39,6 @@ struct Article: Identifiable, Codable, Hashable {
     let publishedAt: Date?
     let imageURL: URL?
     let url: URL?
-    var isDemo: Bool = false
     var relatedSymbols: [String] = []
     var importanceLabel: String? = nil
 }

@@ -85,9 +85,8 @@ struct SmallCapView: View {
                 Spacer()
                 Image(systemName: "arrow.clockwise")
             }.frame(minHeight: 44)
-        }.buttonStyle(.bordered).tint(MarketTheme.accentMint).disabled(
-            scanning || app.mode == .demo
-        ).accessibilityIdentifier("small-cap-scan")
+        }.buttonStyle(.bordered).tint(MarketTheme.accentMint).disabled(scanning)
+            .accessibilityIdentifier("small-cap-scan")
     }
 
     private func refresh() async {

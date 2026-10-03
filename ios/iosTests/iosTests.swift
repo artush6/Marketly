@@ -68,25 +68,15 @@ import Testing
         #expect(MarketFormat.price(quote.price) == "—")
     }
 
-    @Test func demoSearchAndCompanyAgree() async throws {
-        let service = DemoServices(delay: .zero)
-        let result = try await service.search(query: "Apple")
-        #expect(result.first?.symbol == "AAPL")
-        let company = try await service.company(symbol: "AAPL")
-        #expect(company.quote.symbol == result.first?.symbol)
-        #expect(!company.quote.history.isEmpty)
-    }
-
-    @Test func switchingModesRebuildsServicesWithoutMixingWatchlists() throws {
+    @Test func appAlwaysUsesLiveServices() throws {
         let app = AppModel(preview: true)
         let initialGeneration = app.generation
         app.toggleWatchlist("NVDA")
-        try app.configure(mode: .live, baseURL: "https://api.example.com", token: "")
+        try app.configure(
+            baseURL: "https://api.example.com", token: "",
+            supabaseURL: "https://marketly.supabase.co", publishableKey: "test-key")
         #expect(app.generation != initialGeneration)
         #expect(app.services.market is LiveServices)
         #expect(app.watchlist.contains("NVDA"))
-        try app.configure(mode: .demo, baseURL: "https://api.example.com", token: "")
-        #expect(app.services.market is DemoServices)
-        #expect(!app.watchlist.contains("NVDA"))
     }
 }

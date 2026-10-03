@@ -9,10 +9,7 @@ struct EditorialCard: View {
                 HStack {
                     Eyebrow(text: article.category)
                     Spacer()
-                    if article.isDemo {
-                        Text("Sample story").font(.caption2).foregroundStyle(
-                            MarketTheme.tertiaryText)
-                    } else if let date = article.publishedAt {
+                    if let date = article.publishedAt {
                         Text(date, style: .relative).font(.caption2).foregroundStyle(
                             MarketTheme.tertiaryText)
                     }

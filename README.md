@@ -147,8 +147,8 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ```
 
-Do not put Supabase service-role or VAPID private keys in the frontend or any
-`NEXT_PUBLIC_` variable.
+Do not put Supabase service-role, VAPID private, or APNs signing keys in the
+frontend or any `NEXT_PUBLIC_` variable.
 
 ## Useful Commands
 

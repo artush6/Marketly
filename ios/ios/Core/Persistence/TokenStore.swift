@@ -93,11 +93,3 @@ struct KeychainTokenStore: TokenStore {
         var errorDescription: String? { "Secure session storage is unavailable (\(status))." }
     }
 }
-
-struct DevelopmentTokenStore: TokenStore {
-    func read() throws -> String? { nil }
-
-    func save(_ token: String) throws {}
-
-    func clear() throws {}
-}

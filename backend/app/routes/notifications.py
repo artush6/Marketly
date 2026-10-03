@@ -107,6 +107,15 @@ class SubscriptionDelete(BaseModel):
     endpoint: str = Field(min_length=30, max_length=3000)
 
 
+class APNSDeviceInput(BaseModel):
+    device_token: str = Field(pattern=r"^[0-9a-fA-F]{64,512}$")
+    environment: Literal["development", "production"]
+
+
+class APNSDeviceDelete(APNSDeviceInput):
+    pass
+
+
 @router.get("")
 def alert_inbox(user: Identity | None = Depends(current_user)):
     identity = _user(user)
@@ -120,8 +129,9 @@ def alert_inbox(user: Identity | None = Depends(current_user)):
             "preferences": alert_delivery.preferences(identity.user_id),
             "followedSymbols": followed,
             "ruleSymbols": sorted({rule["symbol"] for rule in rules}),
-            "deviceCount": len(alert_delivery.subscriptions(identity.user_id)),
-            "pushConfigured": bool(settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY),
+            "deviceCount": alert_delivery.device_count(identity.user_id),
+            "pushConfigured": alert_delivery.push_configured(),
+            "webPushConfigured": bool(settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY),
         }
     except Exception as exc:
         raise HTTPException(503, "Alerts could not be loaded right now.") from exc
@@ -222,10 +232,39 @@ def remove_subscription(values: SubscriptionDelete, user: Identity | None = Depe
         raise HTTPException(503, "This device could not be removed.") from exc
 
 
+@router.post("/apns-devices", status_code=201)
+def add_apns_device(values: APNSDeviceInput, user: Identity | None = Depends(current_user)):
+    identity = _user(user)
+    try:
+        alert_delivery.register_apns_device(
+            identity.user_id, values.device_token.lower(), values.environment)
+        from app.services.market_refresh import register_symbols
+        try:
+            register_symbols(_followed_symbols(identity.user_id))
+        except Exception:
+            logger.warning("APNs device saved but immediate refresh registration failed", exc_info=True)
+        return {"saved": True, "deviceCount": alert_delivery.device_count(identity.user_id)}
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(503, "This device could not be registered for alerts.") from exc
+
+
+@router.delete("/apns-devices")
+def remove_apns_device(values: APNSDeviceDelete, user: Identity | None = Depends(current_user)):
+    identity = _user(user)
+    try:
+        alert_delivery.delete_apns_device(
+            identity.user_id, values.device_token.lower(), values.environment)
+        return {"deleted": True}
+    except Exception as exc:
+        raise HTTPException(503, "This device could not be removed.") from exc
+
+
 @router.post("/test")
 def test_notification(user: Identity | None = Depends(current_user)):
     identity = _user(user)
-    if not alert_delivery.subscriptions(identity.user_id):
+    if not alert_delivery.subscriptions(identity.user_id) and not alert_delivery.apns_devices(identity.user_id):
         raise HTTPException(409, "Enable notifications on this device first.")
     try:
         import secrets

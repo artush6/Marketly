@@ -29,7 +29,6 @@ protocol AssistantService {
 }
 
 protocol AuthService {
-    var isDevelopment: Bool { get }
     func signInWithGoogle(supabaseURL: URL, publishableKey: String) async throws
 
     func saveAccessToken(_ token: String) throws
@@ -37,7 +36,6 @@ protocol AuthService {
 }
 
 struct SessionAuthService: AuthService {
-    var isDevelopment: Bool
     let tokens: any TokenStore
     func signInWithGoogle(supabaseURL: URL, publishableKey: String) async throws {
         try await GoogleSignInService(tokens: tokens as? KeychainTokenStore ?? KeychainTokenStore())
@@ -82,4 +80,12 @@ protocol AlertService {
     func createRule(_ rule: AlertRuleBody) async throws
     func deleteRule(id: String) async throws
     func markRead(id: String) async throws
+    func registerDevice(token: String, environment: String) async throws
+    func removeDevice(token: String, environment: String) async throws
+    func sendTest() async throws -> AlertTestResult
+}
+
+struct AlertTestResult: Decodable {
+    let queued: Bool
+    let sent: Bool
 }

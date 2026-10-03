@@ -18,7 +18,8 @@ type Preferences = {
 };
 type Inbox = {
   notifications: AlertItem[]; preferences: Preferences;
-  followedSymbols: string[]; ruleSymbols: string[]; deviceCount: number; pushConfigured: boolean;
+  followedSymbols: string[]; ruleSymbols: string[]; deviceCount: number;
+  pushConfigured: boolean; webPushConfigured?: boolean;
 };
 const DEFAULTS: Preferences = { price_drop_thresholds: [3, 5, 10], important_news_enabled: true, discovery_enabled: true, discovery_min_score: 70 };
 
@@ -256,11 +257,11 @@ export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Comp
         <p>Enable each device you want to receive alerts on. Devices are linked to your signed-in account.</p>
         {pushState === "unsupported" ? <p className="disclosure">Push is unavailable here. Open Marketly in a secure browser. On iPhone, add it to your Home Screen first.</p>
           : pushState === "denied" ? <p className="disclosure">Notifications are blocked by this browser. Allow them in the site’s notification settings, then retry.</p>
-          : <button className="primary-button alert-push-button" disabled={busy || loading || !inbox || !inbox.pushConfigured} onClick={() => void (deviceSubscribed ? sendTest() : enableDevice())}>
+          : <button className="primary-button alert-push-button" disabled={busy || loading || !inbox || !(inbox.webPushConfigured ?? inbox.pushConfigured)} onClick={() => void (deviceSubscribed ? sendTest() : enableDevice())}>
             {busy ? <LoaderCircle className="spin" size={15} /> : deviceSubscribed ? <Check size={15} /> : <Bell size={15} />}
-            {!inbox ? "Alerts unavailable" : !inbox.pushConfigured ? "Server setup needed" : deviceSubscribed ? "Send test notification" : "Enable this device"}
+            {!inbox ? "Alerts unavailable" : !(inbox.webPushConfigured ?? inbox.pushConfigured) ? "Server setup needed" : deviceSubscribed ? "Send test notification" : "Enable this device"}
           </button>}
-        {inbox && !inbox.pushConfigured && <p className="disclosure alert-push-setup">To turn on push, add <code>VAPID_PUBLIC_KEY</code>, <code>VAPID_PRIVATE_KEY</code>, and <code>VAPID_SUBJECT</code> to the Marketly backend environment in Render, then restart the service. Keep the private key on the backend only.</p>}
+        {inbox && !(inbox.webPushConfigured ?? inbox.pushConfigured) && <p className="disclosure alert-push-setup">To turn on web push, add <code>VAPID_PUBLIC_KEY</code>, <code>VAPID_PRIVATE_KEY</code>, and <code>VAPID_SUBJECT</code> to the Marketly backend environment in Render, then restart the service. Keep the private key on the backend only.</p>}
         {inbox?.deviceCount ? <div className="alert-device-row"><span>{inbox.deviceCount} device{inbox.deviceCount === 1 ? "" : "s"} connected to your account</span>{deviceSubscribed ? <button className="text-button" disabled={busy} onClick={() => void disableDevice()}><BellOff size={13} /> Remove this device</button> : null}</div> : null}
         <p className="disclosure ios-install-note">iPhone: open this site in Safari, choose Share → Add to Home Screen, open the new app icon, then enable notifications here.</p>
       </section>

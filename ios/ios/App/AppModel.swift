@@ -1,12 +1,6 @@
 import Observation
 import SwiftUI
 
-enum ServiceMode: String, CaseIterable, Identifiable {
-    case demo = "Demo"
-    case live = "Live"
-    var id: String { rawValue }
-}
-
 struct Services {
     let market: any MarketDataService
     let company: any CompanyService
@@ -19,24 +13,23 @@ struct Services {
     let alerts: any AlertService
     let savedResearch: LocalResearchService
     let workspace: SupabaseWorkspaceStore?
-    static func make(
-        mode: ServiceMode, url: URL, defaults: UserDefaults, supabaseURL: URL?,
-        publishableKey: String
-    ) -> Services {
-        let local = LocalWatchlistService(
-            defaults: defaults, key: "marketly.watchlist.\(mode.rawValue)")
-        let saved = LocalResearchService(
-            defaults: defaults, key: "marketly.saved-research.\(mode.rawValue)")
-        if mode == .demo {
-            let demo = DemoServices()
-            let research = DemoResearchServices()
-            return Services(
-                market: demo, company: demo, news: demo, assistant: demo, watchlist: local,
-                auth: SessionAuthService(isDevelopment: true, tokens: DevelopmentTokenStore()),
-                smallCaps: research, calendar: research, alerts: research, savedResearch: saved,
-                workspace: nil)
+    static func make(url: URL, defaults: UserDefaults, supabaseURL: URL?, publishableKey: String)
+        -> Services
+    {
+        let watchlistKey = "marketly.watchlist"
+        let savedResearchKey = "marketly.saved-research"
+        if defaults.stringArray(forKey: watchlistKey) == nil,
+            let previousWatchlist = defaults.stringArray(forKey: "marketly.watchlist.Live")
+        {
+            defaults.set(previousWatchlist, forKey: watchlistKey)
         }
-
+        if defaults.data(forKey: savedResearchKey) == nil,
+            let previousSaved = defaults.data(forKey: "marketly.saved-research.Live")
+        {
+            defaults.set(previousSaved, forKey: savedResearchKey)
+        }
+        let local = LocalWatchlistService(defaults: defaults, key: watchlistKey)
+        let saved = LocalResearchService(defaults: defaults, key: savedResearchKey)
         let tokens = KeychainTokenStore()
         let sessionManager = supabaseURL.map {
             SupabaseSessionManager(projectURL: $0, publishableKey: publishableKey, tokens: tokens)
@@ -45,8 +38,8 @@ struct Services {
             client: APIClient(baseURL: url, tokenStore: tokens, authSession: sessionManager))
         return Services(
             market: live, company: live, news: live, assistant: live, watchlist: local,
-            auth: SessionAuthService(isDevelopment: false, tokens: tokens), smallCaps: live,
-            calendar: live, alerts: live, savedResearch: saved,
+            auth: SessionAuthService(tokens: tokens), smallCaps: live, calendar: live, alerts: live,
+            savedResearch: saved,
             workspace: supabaseURL.flatMap { projectURL in
                 guard let sessionManager else { return nil }
                 return SupabaseWorkspaceStore(
@@ -57,7 +50,6 @@ struct Services {
 }
 
 @Observable @MainActor final class AppModel {
-    var mode: ServiceMode
     var baseURL: String
     var supabaseURL: String
     var publishableKey: String
@@ -70,23 +62,19 @@ struct Services {
     var selectedTab = 0
     var assistantContext: AssistantContext?
     var settingsPresented = false
+    var pushStatus: String?
     private let defaults: UserDefaults
     init(preview: Bool = false) {
-        let testing = ProcessInfo.processInfo.arguments.contains("--ui-testing")
         defaults =
-            preview || testing
+            preview || ProcessInfo.processInfo.arguments.contains("--ui-testing")
             ? UserDefaults(suiteName: "marketly.\(UUID().uuidString)")! : .standard
 
-        let storedMode = defaults.string(forKey: "marketly.mode")
-        let defaultMode: ServiceMode = testing ? .demo : .live
-        let configuredMode = storedMode.flatMap(ServiceMode.init(rawValue:)) ?? defaultMode
         let configuredBackendURL =
             defaults.string(forKey: "marketly.backend") ?? AppConfig.backendURL
         let configuredSupabaseURL =
             defaults.string(forKey: "marketly.supabase-url") ?? AppConfig.supabaseURL
         let configuredPublishableKey =
             defaults.string(forKey: "marketly.supabase-key") ?? AppConfig.publishableKey
-        mode = configuredMode
         baseURL = configuredBackendURL
         supabaseURL = configuredSupabaseURL
         publishableKey = configuredPublishableKey
@@ -97,7 +85,7 @@ struct Services {
                 string: "https://marketly-sxn7.onrender.com")!
         let authURL = try? APIClient.validatedURL(configuredSupabaseURL)
         let initialServices = Services.make(
-            mode: configuredMode, url: backend, defaults: defaults, supabaseURL: authURL,
+            url: backend, defaults: defaults, supabaseURL: authURL,
             publishableKey: configuredPublishableKey)
         services = initialServices
         watchlist = initialServices.watchlist.load()
@@ -108,34 +96,35 @@ struct Services {
             recentSearches = items
         }
 
-        if authenticated { Task { await hydrateWorkspace() } }
+        if authenticated {
+            Task {
+                await hydrateWorkspace()
+                await syncAPNSRegistration()
+            }
+        }
     }
 
-    func configure(
-        mode: ServiceMode, baseURL: String, token: String, supabaseURL: String,
-        publishableKey: String
-    ) throws {
+    func configure(baseURL: String, token: String, supabaseURL: String, publishableKey: String)
+        throws
+    {
         let url = try APIClient.validatedURL(baseURL)
-        if mode == .live, !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             try KeychainTokenStore().save(token.trimmingCharacters(in: .whitespacesAndNewlines))
         }
 
-        let authURL = supabaseURL.isEmpty ? nil : try APIClient.validatedURL(supabaseURL)
-        guard mode == .demo || (authURL != nil && !publishableKey.isEmpty) else {
+        let authURL = try APIClient.validatedURL(supabaseURL)
+        guard !publishableKey.isEmpty else {
             throw APIError.unavailable(
                 "Add the Supabase project URL and publishable key in Settings before continuing.")
         }
-        self.mode = mode
         self.baseURL = baseURL
         self.supabaseURL = supabaseURL
         self.publishableKey = publishableKey
-        defaults.set(mode.rawValue, forKey: "marketly.mode")
         defaults.set(baseURL, forKey: "marketly.backend")
         defaults.set(supabaseURL, forKey: "marketly.supabase-url")
         defaults.set(publishableKey, forKey: "marketly.supabase-key")
         services = Services.make(
-            mode: mode, url: url, defaults: defaults, supabaseURL: authURL,
-            publishableKey: publishableKey)
+            url: url, defaults: defaults, supabaseURL: authURL, publishableKey: publishableKey)
         watchlist = services.watchlist.load()
         authenticated = ((try? KeychainTokenStore().read()) ?? nil) != nil
         assistantContext = nil
@@ -150,13 +139,47 @@ struct Services {
         try await services.auth.signInWithGoogle(supabaseURL: url, publishableKey: publishableKey)
         authenticated = true
         await hydrateWorkspace()
+        await syncAPNSRegistration()
         generation = UUID()
     }
 
-    func signOut() throws {
+    func signOut() async throws {
+        if let token = defaults.string(forKey: "marketly.apns-token") {
+            try? await services.alerts.removeDevice(token: token, environment: Self.apnsEnvironment)
+        }
         try services.auth.signOut()
         authenticated = false
         generation = UUID()
+    }
+
+    func receiveAPNSToken(_ token: String) async {
+        defaults.set(token, forKey: "marketly.apns-token")
+        await syncAPNSRegistration()
+    }
+
+    func receiveAPNSError(_ message: String) {
+        pushStatus = "Apple could not register this device: \(message)"
+    }
+
+    private func syncAPNSRegistration() async {
+        guard let token = defaults.string(forKey: "marketly.apns-token") else { return }
+        guard authenticated else {
+            pushStatus = "Sign in to connect this device to Marketly alerts."
+            return
+        }
+        do {
+            try await services.alerts.registerDevice(
+                token: token, environment: Self.apnsEnvironment)
+            pushStatus = "This device is registered for Marketly alerts."
+        } catch { pushStatus = error.localizedDescription }
+    }
+
+    static var apnsEnvironment: String {
+        #if DEBUG
+            "development"
+        #else
+            "production"
+        #endif
     }
 
     func saveResearch(_ quote: Quote) {

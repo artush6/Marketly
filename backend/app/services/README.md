@@ -100,7 +100,7 @@ requires Supabase persistence and is controlled by `BACKGROUND_REFRESH_ENABLED`.
 
 `alert_delivery.py` stores user preferences, custom symbol rules, device
 subscriptions and prepared notification context, then sends Web Push when
-backend VAPID keys are configured.
+backend VAPID keys or Apple Push Notification service credentials are configured.
 
 ## Important Rule
 

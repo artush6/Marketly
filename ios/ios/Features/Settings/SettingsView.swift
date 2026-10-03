@@ -1,9 +1,10 @@
 import SwiftUI
+import UIKit
+import UserNotifications
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
-    @State private var mode = ServiceMode.live
     @State private var backendURL = AppConfig.backendURL
     @State private var supabaseURL = AppConfig.supabaseURL
     @State private var publishableKey = AppConfig.publishableKey
@@ -37,7 +38,7 @@ struct SettingsView: View {
                 Text(
                     "The API base URL defaults to Marketly’s Render service. Google sign-in uses the same Supabase project as the web app."
                 ).font(.caption).foregroundStyle(MarketTheme.secondaryText)
-                Button("Save connection") { save(mode: app.mode) }.accessibilityIdentifier(
+                Button("Save connection") { saveConnection() }.accessibilityIdentifier(
                     "apply-connection")
                 if let savedMessage {
                     Text(savedMessage).font(.caption).foregroundStyle(MarketTheme.secondaryText)
@@ -49,10 +50,12 @@ struct SettingsView: View {
                     Label("Signed in with Google", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(MarketTheme.positive)
                     Button("Sign out", role: .destructive) {
-                        do {
-                            try app.signOut()
-                            error = nil
-                        } catch { self.error = error.localizedDescription }
+                        Task {
+                            do {
+                                try await app.signOut()
+                                error = nil
+                            } catch { self.error = error.localizedDescription }
+                        }
                     }
                 } else {
                     Button {
@@ -73,43 +76,25 @@ struct SettingsView: View {
                     .font(.caption2).foregroundStyle(MarketTheme.tertiaryText)
             }.listRowBackground(MarketTheme.surface)
 
-            Section("Data source") {
-                Picker("Market data", selection: $mode) {
-                    ForEach(ServiceMode.allCases) { Text($0.rawValue).tag($0) }
-                }.pickerStyle(.segmented).onChange(of: mode) { _, value in
-                    if value == .demo {
-                        do {
-                            try app.configure(
-                                mode: .demo, baseURL: backendURL, token: "",
-                                supabaseURL: supabaseURL, publishableKey: publishableKey)
-                        } catch { self.error = error.localizedDescription }
-                    }
-                }
+            Section("Live market data") {
+                Label(
+                    "FastAPI · live service only", systemImage: "antenna.radiowaves.left.and.right"
+                ).foregroundStyle(MarketTheme.positive)
                 Text(
-                    mode == .demo
-                        ? "Demo mode uses clearly labeled, fixed illustrative fixtures."
-                        : "Live mode calls FastAPI. Quotes may be delayed and require sign-in."
+                    "Market data, research, and alerts always use the configured FastAPI service. No demo market data is shown."
                 ).font(.caption).foregroundStyle(MarketTheme.secondaryText)
             }.listRowBackground(MarketTheme.surface)
 
             Section("Notifications") {
-                Button("Enable notification permissions") {
-                    Task {
-                        do {
-                            let granted = try await AppleNotificationService().requestPermission()
-                            notificationStatus =
-                                granted
-                                ? "Permission enabled. APNs device registration still needs the Marketly alert backend."
-                                : "Notifications are disabled in iOS Settings."
-                        } catch { notificationStatus = error.localizedDescription }
-                    }
-                }
-                if let notificationStatus {
+                Button("Enable push notifications") { Task { await enableNotifications() } }
+                if let pushStatus = app.pushStatus {
+                    Text(pushStatus).font(.caption).foregroundStyle(MarketTheme.secondaryText)
+                } else if let notificationStatus {
                     Text(notificationStatus).font(.caption).foregroundStyle(
                         MarketTheme.secondaryText)
                 }
                 Text(
-                    "This app can manage alert rules, but native remote push requires APNs setup on the server."
+                    "Marketly will ask iOS for permission, register this device with your account, and send alerts through Apple Push Notification service."
                 ).font(.caption2).foregroundStyle(MarketTheme.tertiaryText)
             }.listRowBackground(MarketTheme.surface)
 
@@ -132,7 +117,6 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline).toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }.onAppear {
-                mode = app.mode
                 backendURL = app.baseURL
                 supabaseURL = app.supabaseURL.isEmpty ? AppConfig.supabaseURL : app.supabaseURL
                 publishableKey =
@@ -140,10 +124,10 @@ struct SettingsView: View {
             }
     }
 
-    private func save(mode: ServiceMode) {
+    private func saveConnection() {
         do {
             try app.configure(
-                mode: mode, baseURL: backendURL, token: "", supabaseURL: supabaseURL,
+                baseURL: backendURL, token: "", supabaseURL: supabaseURL,
                 publishableKey: publishableKey)
             savedMessage = "Connection saved."
             error = nil
@@ -155,13 +139,27 @@ struct SettingsView: View {
         defer { signingIn = false }
         do {
             try app.configure(
-                mode: .live, baseURL: backendURL, token: "", supabaseURL: supabaseURL,
+                baseURL: backendURL, token: "", supabaseURL: supabaseURL,
                 publishableKey: publishableKey)
-            mode = .live
             try await app.signInWithGoogle()
             savedMessage = "Signed in. Marketly’s live API is ready."
             error = nil
         } catch { self.error = error.localizedDescription }
+    }
+
+    private func enableNotifications() async {
+        do {
+            let granted = try await AppleNotificationService().requestPermission()
+            guard granted else {
+                notificationStatus = "Notifications are disabled in iOS Settings."
+                return
+            }
+            UIApplication.shared.registerForRemoteNotifications()
+            notificationStatus =
+                app.authenticated
+                ? "Permission granted. Registering this device with Marketly…"
+                : "Permission granted. Sign in to attach this device to your alerts."
+        } catch { notificationStatus = error.localizedDescription }
     }
 }
 

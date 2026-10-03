@@ -11,10 +11,7 @@ struct ArticleDetailView: View {
                 Eyebrow(text: article.category)
                 Text(article.headline).font(.largeTitle.weight(.semibold)).tracking(-0.8)
                 Text(article.source).font(.caption).foregroundStyle(MarketTheme.accentMint)
-                if article.isDemo {
-                    Text("Sample editorial content for the native app preview.").font(.caption)
-                        .foregroundStyle(MarketTheme.warning)
-                } else if let date = article.publishedAt {
+                if let date = article.publishedAt {
                     Text(date.formatted(date: .abbreviated, time: .shortened)).font(.caption)
                         .foregroundStyle(MarketTheme.secondaryText)
                 }

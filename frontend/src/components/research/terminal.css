@@ -1587,14 +1587,13 @@
 .market-tape-viewport { flex:1; min-width:0; overflow:hidden; mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent); }
 .market-tape-track { display:flex; align-items:stretch; width:max-content; min-width:100%; }
 .market-tape-track.scrolling { animation:market-tape-scroll 64s linear infinite; }
-.market-tape:hover .market-tape-track { animation-play-state:paused; }
 .market-tape-track a { display:flex; align-items:center; gap:8px; min-width:190px; padding:0 16px; border-right:1px solid #2a2a2a; color:inherit; font:11px ui-monospace,SFMono-Regular,Consolas,monospace; white-space:nowrap; }
 .market-tape-track a span { color:#929292; }.market-tape-track a b{font-weight:600;color:#e0e0e0}.market-tape-track a small{font-size:10px}
 .market-tape-loading {display:flex;align-items:center;gap:7px;padding:0 3%;color:#8b8b8b;font-size:11px}
 .market-tape-manage {width:42px;border:0;border-left:1px solid #353535;background:#161616;color:#adadad;display:grid;place-items:center}.market-tape-manage:hover{color:#9fc5b4;background:#242424}
 .market-tape-picker {position:absolute;right:8px;top:46px;width:min(410px,calc(100vw - 20px));padding:14px;border:1px solid #4c4c4c;background:#191919;box-shadow:0 20px 60px #000b;border-radius:6px}
 .market-tape-picker header{display:flex;justify-content:space-between;color:#e3e3e3}.market-tape-picker header button{border:0;background:none;color:#ababab}.market-tape-picker p{color:#8a8a8a;font-size:11px}.market-tape-options{display:grid;grid-template-columns:1fr 1fr;gap:5px;max-height:320px;overflow:auto}.market-tape-options button{display:flex;align-items:center;gap:8px;text-align:left;border:1px solid #323232;background:#141414;color:#a8a8a8;padding:8px;border-radius:4px}.market-tape-options button.selected{border-color:#7e7e7e;background:#2b2b2b;color:#9fc5b4}.market-tape-picker button span,.market-tape-picker button small{display:block}.market-tape-picker button small{color:#7c7c7c;margin-top:2px}
-@keyframes market-tape-scroll{to{transform:translateX(-50%)}}
+@keyframes market-tape-scroll{to{transform:translateX(-25%)}}
 
 /* Ranked movers */
 .movers-panel{margin:20px 0;border:1px solid #323232;background:#151515;padding:16px}.movers-columns{display:grid;grid-template-columns:1fr 1fr;gap:26px}.movers-columns>div>h3{display:flex;align-items:center;gap:6px;color:#8e8e8e;font:11px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase}.movers-columns>div>button{width:100%;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:9px;padding:9px 0;border:0;border-top:1px solid #2a2a2a;background:none;color:#d4d4d4;text-align:left}.movers-columns>div>button:hover{background:#1e1e1e}.movers-columns b,.movers-columns small{display:block}.movers-columns small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#7b7b7b;font-size:10px}.movers-columns strong{font:12px ui-monospace,SFMono-Regular,Consolas,monospace}

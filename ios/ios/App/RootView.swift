@@ -29,6 +29,12 @@ struct RootView: View {
             }.sheet(isPresented: $app.settingsPresented) {
                 NavigationStack { SettingsView() }.environment(app).preferredColorScheme(.dark)
                     .tint(MarketTheme.accentMint)
+            }.onReceive(NotificationCenter.default.publisher(for: .marketlyAPNSToken)) { event in
+                guard let token = event.object as? String else { return }
+                Task { await app.receiveAPNSToken(token) }
+            }.onReceive(NotificationCenter.default.publisher(for: .marketlyAPNSError)) { event in
+                guard let message = event.object as? String else { return }
+                app.receiveAPNSError(message)
             }
     }
 }

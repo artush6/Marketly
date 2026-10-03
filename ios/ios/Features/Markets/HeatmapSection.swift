@@ -47,8 +47,7 @@ struct HeatmapSection: View {
                     Menu {
                         Picker("Timeframe", selection: $period) {
                             ForEach(MarketPeriod.allCases) { item in
-                                Text(item.rawValue).tag(item).disabled(
-                                    app.mode == .live && item != .day)
+                                Text(item.rawValue).tag(item).disabled(item != .day)
                             }
                         }
                     } label: {
@@ -95,11 +94,8 @@ struct HeatmapSection: View {
                     }
 
                     .font(.system(size: 9)).foregroundStyle(MarketTheme.tertiaryText)
-                    Text(
-                        app.mode == .demo
-                            ? "Sample universe · \(period.rawValue) change"
-                            : "Finviz universe · Delayed · Daily change"
-                    ).font(.caption2).foregroundStyle(MarketTheme.tertiaryText)
+                    Text("Finviz universe · Delayed · Daily change").font(.caption2)
+                        .foregroundStyle(MarketTheme.tertiaryText)
                 }
             }
 

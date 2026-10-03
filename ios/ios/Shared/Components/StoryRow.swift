@@ -10,7 +10,7 @@ struct StoryRow: View {
                 Text(article.headline).font(.subheadline.weight(.medium)).lineLimit(3)
                     .multilineTextAlignment(.leading)
                 HStack(spacing: 6) {
-                    Text(article.isDemo ? "Sample" : article.source).lineLimit(1)
+                    Text(article.source).lineLimit(1)
                     if !article.relatedSymbols.isEmpty {
                         Text("· " + article.relatedSymbols.joined(separator: ", ")).lineLimit(1)
                     }

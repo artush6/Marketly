@@ -19,10 +19,12 @@ migrations, in dependency order:
 6. `20261002103000_small_cap_scan_history.sql`
 7. `20261002110000_background_alerts.sql`
 8. `20261002213645_per_symbol_alert_rules.sql`
+9. `20261003152511_native_apns_devices.sql`
 
-All eight migrations are applied to the production project as of October 2,
-2026. For a new Supabase environment, check its migration history before
-applying any schema, then apply missing migrations in order.
+The first eight migrations are applied to the production project as of October
+2, 2026. Apply the APNs device migration before deploying native registration.
+For a new Supabase environment, check its migration history before applying any
+schema, then apply missing migrations in order.
 See [Supabase's migration guide](https://supabase.com/docs/guides/deployment/database-migrations).
 
 Configure these values in the indicated hosting environment:
@@ -35,6 +37,10 @@ Configure these values in the indicated hosting environment:
 | `SUPABASE_ANON_KEY` | Render | Backend token verification/config |
 | `SUPABASE_SERVICE_ROLE_KEY` | Render only | Private server-side persistence; never expose to the browser |
 | `BACKGROUND_REFRESH_ENABLED` | Render | Keep `true` to run the durable refresh loop |
+| `APNS_KEY_ID` | Render only | Apple push key identifier |
+| `APNS_TEAM_ID` | Render only | Apple Developer team identifier |
+| `APNS_AUTH_KEY` | Render only | APNs `.p8` private signing key |
+| `APNS_TOPIC` | Render | Native app bundle identifier (`Marketly.ios`) |
 
 Use the same project URL and matching keys across frontend and backend. Do not
 commit credentials or put a service-role key in any `NEXT_PUBLIC_` variable.
@@ -106,6 +112,34 @@ available to Home Screen web apps on iOS 16.4 or later: in Safari choose
 enable notifications in Marketly. Grant the iOS notification permission when
 asked. A normal Safari tab alone is not sufficient for iPhone Web Push. Subscribe
 each device separately and use **Send test notification** to verify delivery.
+
+## Native iOS push notifications
+
+The iOS target uses bundle identifier `Marketly.ios` and includes the APNs
+entitlement. Enable **Push Notifications** for that App ID in the Apple Developer
+portal, then refresh the development or distribution provisioning profile used
+by Xcode. Debug builds register with the APNs sandbox; Release builds use
+production APNs.
+
+Create an APNs authentication key in Apple Developer account settings and add
+these variables to the Render service environment. The `.p8` key is private;
+paste its full contents in Render and never put it in the iOS app, repository,
+or chat.
+
+```text
+APNS_KEY_ID=<Apple key ID>
+APNS_TEAM_ID=<Apple team ID>
+APNS_AUTH_KEY=<full .p8 private key contents>
+APNS_TOPIC=Marketly.ios
+```
+
+Deploy the FastAPI service after applying the migration and setting those
+values. In the iOS app, the user signs in, chooses **Enable push notifications**
+in Settings, and accepts the iOS prompt. The device is then registered against
+that account. Use **Send test notification** in Alerts to confirm delivery.
+The inbox and ticker-alert worker remain available when APNs credentials are
+not configured, but remote delivery is not active until these Apple settings
+are in place.
 
 ## Deployment order
 

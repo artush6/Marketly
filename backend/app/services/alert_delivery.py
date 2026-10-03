@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from hashlib import sha256
 import json
 import logging
 from typing import Any
@@ -11,6 +12,7 @@ from app.core.config import settings
 from app.integrations import supabase_store
 
 logger = logging.getLogger(__name__)
+_APNS_PROVIDER_TOKEN: tuple[str, datetime, str] | None = None
 DEFAULT_PREFERENCES = {
     "price_drop_thresholds": [3, 5, 10],
     "important_news_enabled": True,
@@ -120,6 +122,38 @@ def delete_subscription(user_id: str, endpoint: str) -> None:
     response.raise_for_status()
 
 
+def register_apns_device(user_id: str, device_token: str, environment: str) -> None:
+    if not supabase_store.is_configured():
+        raise RuntimeError("Durable alerts are not configured.")
+    existing = supabase_store._select_rows("apns_push_devices", {
+        "device_token": f"eq.{device_token}", "environment": f"eq.{environment}",
+        "select": "user_id", "limit": "1",
+    })
+    if existing and existing[0].get("user_id") != user_id:
+        raise ValueError("This device is already registered to another account.")
+    now = datetime.now(timezone.utc).isoformat()
+    supabase_store._upsert_rows("apns_push_devices", [{
+        "user_id": user_id, "device_token": device_token,
+        "environment": environment, "updated_at": now, "last_seen_at": now,
+    }], on_conflict="device_token,environment", strict=True)
+
+
+def delete_apns_device(user_id: str, device_token: str, environment: str) -> None:
+    response = supabase_store.requests.delete(
+        supabase_store._rest_url("apns_push_devices"),
+        headers=supabase_store._headers(prefer="return=minimal"),
+        params={"user_id": f"eq.{user_id}", "device_token": f"eq.{device_token}",
+                "environment": f"eq.{environment}"}, timeout=10,
+    )
+    response.raise_for_status()
+
+
+def apns_devices(user_id: str) -> list[dict[str, Any]]:
+    return supabase_store._select_rows("apns_push_devices", {
+        "user_id": f"eq.{user_id}", "select": "id,device_token,environment", "limit": "20",
+    })
+
+
 def list_notifications(user_id: str, limit: int = 50) -> list[dict[str, Any]]:
     return supabase_store._select_rows("user_alert_notifications", {
         "user_id": f"eq.{user_id}",
@@ -172,7 +206,7 @@ def _remove_endpoint(endpoint: str) -> None:
         logger.info("Expired web-push endpoint cleanup failed")
 
 
-def _push(user_id: str, notification: dict[str, Any]) -> bool:
+def _push_web(user_id: str, notification: dict[str, Any]) -> bool:
     if not settings.VAPID_PUBLIC_KEY or not settings.VAPID_PRIVATE_KEY:
         return False
     from pywebpush import WebPushException, webpush
@@ -208,6 +242,111 @@ def _push(user_id: str, notification: dict[str, Any]) -> bool:
         except Exception as exc:
             logger.info("Web-push send failed: %s", type(exc).__name__)
     return delivered
+
+
+def _apns_configured() -> bool:
+    return bool(settings.APNS_KEY_ID and settings.APNS_TEAM_ID and settings.APNS_AUTH_KEY)
+
+
+def _apns_provider_token() -> str:
+    global _APNS_PROVIDER_TOKEN
+    now = datetime.now(timezone.utc)
+    key = (settings.APNS_KEY_ID or "", settings.APNS_TEAM_ID or "", settings.APNS_AUTH_KEY or "")
+    fingerprint = sha256("\0".join(key).encode()).hexdigest()
+    if _APNS_PROVIDER_TOKEN and _APNS_PROVIDER_TOKEN[0] == fingerprint:
+        if (now - _APNS_PROVIDER_TOKEN[1]).total_seconds() < 50 * 60:
+            return _APNS_PROVIDER_TOKEN[2]
+
+    import jwt
+
+    private_key = (settings.APNS_AUTH_KEY or "").replace("\\n", "\n")
+    token = jwt.encode(
+        {"iss": settings.APNS_TEAM_ID, "iat": int(now.timestamp())},
+        private_key, algorithm="ES256", headers={"kid": settings.APNS_KEY_ID},
+    )
+    _APNS_PROVIDER_TOKEN = (fingerprint, now, token)
+    return token
+
+
+def _remove_apns_device(device_token: str, environment: str) -> None:
+    try:
+        supabase_store.requests.delete(
+            supabase_store._rest_url("apns_push_devices"),
+            headers=supabase_store._headers(prefer="return=minimal"),
+            params={"device_token": f"eq.{device_token}", "environment": f"eq.{environment}"},
+            timeout=10,
+        ).raise_for_status()
+    except Exception:
+        logger.info("Expired APNs device cleanup failed")
+
+
+def _push_apns(user_id: str, notification: dict[str, Any]) -> bool:
+    if not _apns_configured():
+        return False
+
+    import httpx
+
+    try:
+        devices = apns_devices(user_id)
+    except Exception as exc:
+        logger.info("APNs devices could not be loaded: %s", type(exc).__name__)
+        return False
+    if not devices:
+        return False
+
+    try:
+        provider_token = _apns_provider_token()
+    except Exception as exc:
+        logger.error("APNs provider token could not be created: %s", type(exc).__name__)
+        return False
+
+    headers = {
+        "authorization": f"bearer {provider_token}",
+        "apns-topic": settings.APNS_TOPIC,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+    }
+    payload = {"aps": {"alert": {"title": notification["title"],
+                                   "body": notification["body"]}, "sound": "default"},
+               "id": notification["id"], "url": notification["target_url"],
+               "category": notification.get("category", "important_news")}
+    delivered = False
+    try:
+        with httpx.Client(http2=True, timeout=8) as client:
+            for row in devices:
+                host = ("api.sandbox.push.apple.com" if row["environment"] == "development"
+                        else "api.push.apple.com")
+                try:
+                    response = client.post(
+                        f"https://{host}/3/device/{row['device_token']}",
+                        headers=headers, json=payload,
+                    )
+                    if response.status_code == 200:
+                        delivered = True
+                    elif response.status_code == 410:
+                        _remove_apns_device(row["device_token"], row["environment"])
+                        logger.info("Removed expired APNs device token")
+                    else:
+                        logger.info("APNs send failed with status %s", response.status_code)
+                except Exception as exc:
+                    logger.info("APNs send failed: %s", type(exc).__name__)
+    except Exception as exc:
+        logger.info("APNs HTTP/2 client unavailable: %s", type(exc).__name__)
+    return delivered
+
+
+def push_configured() -> bool:
+    return bool((settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY) or _apns_configured())
+
+
+def device_count(user_id: str) -> int:
+    return len(subscriptions(user_id)) + len(apns_devices(user_id))
+
+
+def _push(user_id: str, notification: dict[str, Any]) -> bool:
+    web_delivered = _push_web(user_id, notification)
+    apns_delivered = _push_apns(user_id, notification)
+    return web_delivered or apns_delivered
 
 
 def create_notification(

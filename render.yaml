@@ -36,6 +36,14 @@ services:
         sync: false
       - key: VAPID_SUBJECT
         sync: false
+      - key: APNS_KEY_ID
+        sync: false
+      - key: APNS_TEAM_ID
+        sync: false
+      - key: APNS_AUTH_KEY
+        sync: false
+      - key: APNS_TOPIC
+        value: Marketly.ios
       - key: REDIS_URL
         fromService:
           name: marketly-cache

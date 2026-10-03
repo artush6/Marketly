@@ -25,15 +25,6 @@ struct CompanyDetailView: View {
 
         .marketScreen().navigationTitle(symbol).navigationBarTitleDisplayMode(.inline).toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if let detail = state.value {
-                    Button {
-                        app.saveResearch(detail.quote)
-                    } label: {
-                        Image(systemName: "bookmark").frame(width: 44, height: 44)
-                    }.accessibilityLabel("Save \(symbol) research")
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) { app.toggleWatchlist(symbol) }
                 } label: {
@@ -93,9 +84,8 @@ struct CompanyDetailView: View {
                 HStack {
                     Text("Price performance").font(.headline)
                     Spacer()
-                    Text(app.mode == .demo ? "SAMPLE" : "HISTORY").font(
-                        .system(.caption2, design: .monospaced)
-                    ).foregroundStyle(MarketTheme.secondaryText)
+                    Text("HISTORY").font(.system(.caption2, design: .monospaced)).foregroundStyle(
+                        MarketTheme.secondaryText)
                 }
 
                 PriceChart(

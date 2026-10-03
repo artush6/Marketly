@@ -50,10 +50,21 @@ export function MarketTickerTape() {
     }
   }, [workspace]);
 
-  useEffect(() => { if (pathname !== "/login") void load().catch(() => setError("Market tape is unavailable.")); }, [load, pathname]);
+  useEffect(() => {
+    if (pathname === "/login") return;
+    void load().catch(() => setError("Market tape is unavailable."));
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void load().catch(() => setError("Market tape is unavailable."));
+      }
+    }, 60_000);
+    return () => window.clearInterval(refresh);
+  }, [load, pathname]);
 
   const selected = useMemo(() => new Set(data.items.map((item) => item.symbol)), [data.items]);
-  const loop = data.items.length > 4 ? [...data.items, ...data.items] : data.items;
+  const loop = data.items.length
+    ? [...data.items, ...data.items, ...data.items, ...data.items]
+    : [];
 
   async function update(symbol: string) {
     const next = selected.has(symbol)
@@ -99,7 +110,7 @@ export function MarketTickerTape() {
   return (
     <section className="market-tape" aria-label="Global market ticker">
       <div className="market-tape-viewport">
-        <div className={`market-tape-track ${data.items.length > 4 ? "scrolling" : ""}`}>
+        <div className={`market-tape-track ${data.items.length ? "scrolling" : ""}`}>
           {loop.map((item, index) => (
             <a href={`https://www.tradingview.com/symbols/${item.symbol}/`} target="_blank" rel="noreferrer" key={`${item.symbol}-${index}`}>
               <span>{item.name}</span><b>{format(item.price, "money")}</b>

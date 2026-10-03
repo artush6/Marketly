@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AlertsView: View {
     @Environment(AppModel.self) private var app
@@ -9,6 +10,8 @@ struct AlertsView: View {
     @State private var direction = "above"
     @State private var triggerType = "price"
     @State private var saving = false
+    @State private var requestingPush = false
+    @State private var sendingTest = false
     @State private var notice: String?
 
     var body: some View {
@@ -22,6 +25,27 @@ struct AlertsView: View {
                     ).font(.caption).foregroundStyle(MarketTheme.secondaryText)
                 }.padding(.vertical, 10)
             }.listRowBackground(MarketTheme.background).listRowSeparator(.hidden)
+
+            Section("This device") {
+                Button {
+                    Task { await enablePushOnThisDevice() }
+                } label: {
+                    HStack {
+                        if requestingPush { ProgressView() }
+                        Label("Enable push notifications", systemImage: "bell.badge")
+                        Spacer()
+                    }
+                }.disabled(requestingPush)
+                if let pushStatus = app.pushStatus {
+                    Text(pushStatus).font(.caption).foregroundStyle(MarketTheme.secondaryText)
+                } else {
+                    Text(
+                        app.authenticated
+                            ? "Allow notifications to connect this device to your Marketly alerts."
+                            : "Allow notifications, then sign in to connect this device to your alerts."
+                    ).font(.caption).foregroundStyle(MarketTheme.secondaryText)
+                }
+            }.listRowBackground(MarketTheme.surface)
 
             Section("Create a rule") {
                 TextField("Ticker", text: $symbol).textInputAutocapitalization(.characters)
@@ -87,6 +111,18 @@ struct AlertsView: View {
             }.listRowBackground(MarketTheme.surface)
 
             Section("Recent notifications") {
+                if let inboxValue = inbox.value {
+                    Button {
+                        Task { await sendTestNotification() }
+                    } label: {
+                        HStack {
+                            if sendingTest { ProgressView() }
+                            Label("Send test notification", systemImage: "paperplane")
+                            Spacer()
+                        }
+                    }.disabled(
+                        sendingTest || inboxValue.deviceCount == 0 || !inboxValue.pushConfigured)
+                }
                 if let error = inbox.error {
                     Text(error).font(.caption).foregroundStyle(MarketTheme.warning)
                 } else if let items = inbox.value?.notifications, items.isEmpty {
@@ -122,7 +158,9 @@ struct AlertsView: View {
                 if let inboxValue = inbox.value {
                     LabeledContent("Registered devices", value: "\(inboxValue.deviceCount)")
                     Text(
-                        "\(inboxValue.pushConfigured ? "Web push is configured." : "Push provider credentials are not configured.") This native app has not registered APNs device tokens."
+                        inboxValue.pushConfigured
+                            ? "Push delivery is configured for registered devices."
+                            : "Push provider credentials are not configured on the Marketly server."
                     ).font(.caption2).foregroundStyle(MarketTheme.tertiaryText)
                 }
             }.listRowBackground(MarketTheme.surface)
@@ -130,6 +168,9 @@ struct AlertsView: View {
             "Alerts"
         ).navigationBarTitleDisplayMode(.inline).task { await refresh() }.refreshable {
             await refresh()
+        }.onChange(of: app.pushStatus) { _, status in
+            guard status?.contains("registered for Marketly alerts") == true else { return }
+            Task { await refreshInbox() }
         }
     }
 
@@ -165,6 +206,35 @@ struct AlertsView: View {
         do {
             try await app.services.alerts.deleteRule(id: rule.id)
             await refresh()
+        } catch { notice = error.localizedDescription }
+    }
+
+    private func sendTestNotification() async {
+        sendingTest = true
+        defer { sendingTest = false }
+        do {
+            let result = try await app.services.alerts.sendTest()
+            notice =
+                result.sent
+                ? "Test notification sent. Check this device."
+                : "Test alert was saved, but the push provider did not confirm delivery."
+            await refreshInbox()
+        } catch { notice = error.localizedDescription }
+    }
+
+    private func enablePushOnThisDevice() async {
+        requestingPush = true
+        defer { requestingPush = false }
+        do {
+            guard try await AppleNotificationService().requestPermission() else {
+                notice = "Notifications are disabled in iOS Settings."
+                return
+            }
+            UIApplication.shared.registerForRemoteNotifications()
+            notice =
+                app.authenticated
+                ? "Permission granted. Registering this device with Marketly…"
+                : "Permission granted. Sign in to attach this device to your alerts."
         } catch { notice = error.localizedDescription }
     }
 }

@@ -226,11 +226,8 @@ struct AssistantSheet: View {
 
                 .toggleStyle(.switch).fixedSize().disabled(model.isSending)
                 Spacer()
-                Text(
-                    model.prompt.count > 3_500
-                        ? "Question too long"
-                        : app.mode == .demo ? "Demo responses" : "Check original sources"
-                ).font(.system(size: 9)).foregroundStyle(MarketTheme.tertiaryText)
+                Text(model.prompt.count > 3_500 ? "Question too long" : "Check original sources")
+                    .font(.system(size: 9)).foregroundStyle(MarketTheme.tertiaryText)
             }
         }
 

@@ -31,6 +31,10 @@ class Settings:
     VAPID_PUBLIC_KEY: Optional[str]
     VAPID_PRIVATE_KEY: Optional[str]
     VAPID_SUBJECT: str
+    APNS_KEY_ID: Optional[str]
+    APNS_TEAM_ID: Optional[str]
+    APNS_AUTH_KEY: Optional[str]
+    APNS_TOPIC: str
 
 
 @lru_cache(maxsize=1)
@@ -55,6 +59,10 @@ def get_settings() -> Settings:
         VAPID_PUBLIC_KEY=os.getenv("VAPID_PUBLIC_KEY"),
         VAPID_PRIVATE_KEY=os.getenv("VAPID_PRIVATE_KEY"),
         VAPID_SUBJECT=os.getenv("VAPID_SUBJECT", "mailto:alerts@marketly.app"),
+        APNS_KEY_ID=os.getenv("APNS_KEY_ID"),
+        APNS_TEAM_ID=os.getenv("APNS_TEAM_ID"),
+        APNS_AUTH_KEY=os.getenv("APNS_AUTH_KEY"),
+        APNS_TOPIC=os.getenv("APNS_TOPIC", "Marketly.ios"),
     )
 
 
