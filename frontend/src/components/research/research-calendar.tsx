@@ -20,6 +20,7 @@ function eventDateLabel(value: string) {
 }
 
 export function ResearchCalendar({ symbols, onSelectSymbol }: { symbols: string[]; onSelectSymbol: (symbol: string) => void }) {
+  const [layout, setLayout] = useState("Agenda");
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
   const [symbolFilter, setSymbolFilter] = useState("all");
@@ -78,6 +79,7 @@ export function ResearchCalendar({ symbols, onSelectSymbol }: { symbols: string[
           {loading ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />} Refresh
         </button>
       </div>
+      <div className="ui-toolbar">{["Agenda","Month"].map(value=><button key={value} aria-pressed={layout===value} onClick={()=>setLayout(value)}>{value}</button>)}</div>
       <div className="calendar-toolbar">
         <div className="calendar-month-control">
           <button className="icon-button" aria-label="Previous month" onClick={() => setMonth((value) => new Date(value.getFullYear(), value.getMonth() - 1, 1))}><ChevronLeft size={17} /></button>
@@ -94,7 +96,7 @@ export function ResearchCalendar({ symbols, onSelectSymbol }: { symbols: string[
       </div>
       {error && <div className="inline-error" role="alert">{error} <button className="text-button" onClick={() => setRefresh((value) => value + 1)}>Try again</button></div>}
       {data?.pendingSymbols.length ? <p className="calendar-feed-note" role="status">Calendar data is still being collected for {data.pendingSymbols.join(", ")}. Refresh in a little while.</p> : null}
-      <div className="calendar-layout">
+      {layout==="Agenda" ? <div className="comparison-table-wrap"><table className="terminal-table"><thead><tr><th>Company / event</th><th>Date</th><th>Time</th><th>Period</th><th>Status</th><th>Source</th></tr></thead><tbody>{monthEvents.map(event=><tr key={event.id}><th><button onClick={()=>onSelectSymbol(event.symbol)}>{event.symbol}<small>Quarterly earnings</small></button></th><td>{event.date}</td><td>{event.hour||"—"}</td><td>{event.quarter?`Q${event.quarter} ${event.year||""}`:"—"}</td><td>{event.estimated?"Estimated":"Reported"}</td><td>{event.source}</td></tr>)}</tbody></table>{!monthEvents.length&&<div className="empty-state">{loading?"Loading earnings…":"No watchlist earnings available for this month."}</div>}</div> : <div className="calendar-layout">
         <div className="calendar-grid-wrap">
           <div className="calendar-weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
           <div className="calendar-grid" aria-label={monthLabel + " earnings dates"}>
@@ -127,6 +129,7 @@ export function ResearchCalendar({ symbols, onSelectSymbol }: { symbols: string[
           <div className="calendar-agenda-footer">{data?.note || "Source: Finnhub · estimated dates"}</div>
         </aside>
       </div>
+      }
       <div className="calendar-feed-disclosure">Only earnings dates from the configured provider are shown. Macro, dividend, FDA, IPO, and product events are not connected yet.</div>
     </section>
   );

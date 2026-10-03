@@ -64,6 +64,8 @@ function AlertContext({ item, expanded = false }: { item: AlertItem; expanded?: 
 }
 
 export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Company) => void }) {
+  const [filter,setFilter] = useState("all");
+  const [unreadOnly,setUnreadOnly] = useState(false);
   const [inbox, setInbox] = useState<Inbox>();
   const [preferences, setPreferences] = useState<Preferences>(DEFAULTS);
   const [publicKey, setPublicKey] = useState<string>();
@@ -197,7 +199,9 @@ export function AlertCenter({ onSelectSymbol }: { onSelectSymbol: (company: Comp
       </section>
     </div>
     <div className="alert-inbox-heading"><div><h2>Recent alerts</h2><p>{inbox?.followedSymbols.length ? `Watching ${inbox.followedSymbols.join(", ")}` : "Your followed companies will appear here."}</p></div><span>{inbox?.notifications.filter((item) => !item.read_at).length || 0} unread</span></div>
-    {loading && !inbox ? <p className="disclosure"><LoaderCircle className="spin" size={15} /> Loading alerts…</p> : inbox?.notifications.length ? <div className="alert-inbox-list">{inbox.notifications.map((item) => <article key={item.id} className={`alert-inbox-item ${item.read_at ? "read" : "unread"} ${item.severity}`}>
+    <div className="ui-toolbar" aria-label="Filter alerts">{[["all","All"],["price_move","Price"],["important_news","News"],["discovery","Discovery"]].map(([value,label])=><button key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{label}</button>)}<button aria-pressed={unreadOnly} onClick={()=>setUnreadOnly(!unreadOnly)}>Unread only</button></div>
+    {inbox && !inbox.notifications.some(item=>(filter==="all"||item.category===filter)&&(!unreadOnly||!item.read_at)) && <p className="disclosure">No alerts match these filters.</p>}
+    {loading && !inbox ? <p className="disclosure"><LoaderCircle className="spin" size={15} /> Loading alerts…</p> : inbox?.notifications.length ? <div className="alert-inbox-list">{inbox.notifications.filter(item=>(filter==="all"||item.category===filter)&&(!unreadOnly||!item.read_at)).map((item) => <article key={item.id} className={`alert-inbox-item ${item.read_at ? "read" : "unread"} ${item.severity}`}>
       <button className="alert-inbox-open" onClick={() => void openAlert(item)}><span className={`alert-category-dot ${item.category}`} /><span className="alert-inbox-copy"><strong>{item.title}</strong><small>{item.body}</small><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time></span><span className="alert-unread-mark" /></button>
       {Object.keys(item.explanation || {}).length ? <AlertContext item={item} expanded={Boolean(deepLinkSymbol && deepLinkSymbol === item.symbol)} /> : null}
     </article>)}</div> : <div className="empty-state alert-empty"><Bell size={19} /><strong>No alerts yet</strong><p>Once push is enabled, Marketly will check followed-stock moves, important news, and new high-scoring small-cap research.</p></div>}

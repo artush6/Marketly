@@ -6,6 +6,7 @@ import "../components/research/amber.css";
 import "../components/research/workspace-theme.css";
 import "../components/research/redesign.css";
 import "../components/research/mobile-redesign.css";
+import "../components/research/product-system.css";
 import { AccountProvider } from "@/components/account/account-provider";
 import { localWorkspaceAllowed } from "@/lib/supabase/config";
 import { MarketTickerTape } from "@/components/research/market-ticker-tape";

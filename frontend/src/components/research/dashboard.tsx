@@ -8,20 +8,16 @@ import { CompanyLogo } from "./company-logo";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+
 import {
   ArrowUpRight,
   Bell,
   Bookmark,
   Building2,
-  CalendarDays,
   ChevronRight,
   ExternalLink,
   FileText,
-  Globe2,
-  Layers3,
   LoaderCircle,
-  Newspaper,
   Plus,
   RefreshCw,
   Sparkles,
@@ -61,14 +57,14 @@ import {
   financialDocumentUrl,
 } from "./financial-documents";
 import { SmallCap } from "./small-cap";
-import { SavedConversations } from "./saved-conversations";
+import { ResearchLibrary } from "./research-library";
 import { RelationshipResearch } from "./relationship-research";
-import { MobileNavigation } from "./mobile-navigation";
+import { WorkspaceChrome } from "./workspace-shell";
 import { ChatDock } from "./chat-dock";
 import { NewsHub } from "./news-hub";
 import { StyledSelect } from "./styled-select";
 import { ResearchCalendar } from "./research-calendar";
-import { AlertBell } from "./alert-bell";
+
 import { AlertCenter } from "./alert-center";
 
 type View = "Small CAP" | "Markets" | "News" | "Company" | "Watchlist" | "Saved research" | "Calendar" | "Alerts";
@@ -180,7 +176,7 @@ function NewsCard({ article }: { article: BackendNewsItem }) {
 }
 
 export function ResearchDashboard({ initialView = "Markets" }: { initialView?: View }) {
-  const pathname = usePathname();
+
   const [company, setCompany] = useState<Company>(STARTER_COMPANIES[0]);
   const [view, setView] = useState<View>(initialView);
   const [companyOpened, setCompanyOpened] = useState(false);
@@ -265,6 +261,8 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
       setNotice("Saved browser data could not be restored.");
     }
     setReady(true);
+    const requestedView = new URLSearchParams(window.location.search).get("view");
+    if (["Markets", "Small CAP", "News", "Company", "Watchlist", "Saved research", "Calendar", "Alerts"].includes(requestedView || "")) setView(requestedView as View);
     const symbol = new URLSearchParams(window.location.search).get("symbol");
     if (symbol && /^[A-Z0-9][A-Z0-9.:-]{0,19}$/.test(symbol)) {
       setCompanyOpened(true);
@@ -357,7 +355,7 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
       "",
       next === "Company"
         ? `/?symbol=${encodeURIComponent(company.symbol)}`
-        : "/",
+        : `/?view=${encodeURIComponent(next)}`,
     );
   }
 
@@ -581,62 +579,7 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
 
   return (
     <div className="research-app">
-      <header className="research-header">
-        <button
-          className="research-brand"
-          onClick={() => navigate("Markets")}
-          aria-label="Marketly markets"
-        >
-          <span className="brand-mark">
-            <i />
-            <i />
-            <i />
-          </span>
-          marketly<span className="brand-period">.</span>
-        </button>
-        <CompanySearch onSelect={select} />
-        <AlertBell onOpen={() => { navigate("Alerts"); window.scrollTo({ top: 0, behavior: "instant" }); }} />
-        <div className="header-context">
-          <span className="device-dot" />
-          <Link href="/settings">Profile & settings</Link><Link href="/portfolio">Portfolio</Link><Link href="/compare">Compare</Link>
-        </div>
-      </header>
-      <nav className="research-nav" aria-label="Primary navigation">
-        <div>
-          {(
-            ["Markets", "Small CAP", "News", "Company", "Watchlist", "Saved research"] as View[]
-          ).map((item) => (
-            <button
-              className={view === item ? "active" : ""}
-              onClick={() => navigate(item)}
-              key={item}
-            >
-              {item === "Markets" ? (
-                <Globe2 size={16} />
-              ) : item === "News" ? (
-                <Newspaper size={16} />
-              ) : item === "Company" ? (
-                <Layers3 size={16} />
-              ) : item === "Watchlist" ? (
-                <Star size={16} />
-              ) : (
-                <Bookmark size={16} />
-              )}
-              {item}
-              {item === "Saved research" && saved.length > 0 && (
-                <small>{saved.length}</small>
-              )}
-            </button>
-          ))}
-          <Link className={`research-nav-link${pathname === "/calendar" ? " active" : ""}`} href="/calendar" aria-current={pathname === "/calendar" ? "page" : undefined}><CalendarDays size={16} /> Calendar</Link>
-          <Link className={`research-nav-link${pathname === "/alerts" ? " active" : ""}`} href="/alerts" aria-current={pathname === "/alerts" ? "page" : undefined}><Bell size={16} /> Alerts</Link>
-        </div>
-        <span>
-          <span className="device-dot" />
-          Research workspace <span className="nav-divider">/</span> US equities
-        </span>
-      </nav>
-      <MobileNavigation view={view} onNavigate={navigate} />
+      <WorkspaceChrome active={view} onNavigate={navigate} onSelect={select} />
       <main className="research-main">
         <EarningsReminders symbols={watchlist} ready={ready} />
         {notice && (
@@ -679,74 +622,7 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
         ) : view === "Small CAP" ? (<SmallCap onSelect={select} />) : view === "News" ? (
           <NewsHub symbols={watchlist} />
         ) : view === "Saved research" ? (
-          <section className="library-view">
-            <div className="section-heading">
-              <div>
-                <h1>Saved research</h1>
-                <p>Point-in-time snapshots of your companies and analysis.</p>
-              </div>
-              <Bookmark size={23} />
-            </div>
-            <SavedConversations />
-            {saved.length === 0 ? (
-              <div className="large-empty">
-                <Bookmark size={32} />
-                <h2>Your research, ready to revisit.</h2>
-                <p>
-                  Open a company and choose Save research to keep its
-                  financials, news, and analysis.
-                </p>
-                <button
-                  className="primary-button"
-                  onClick={() => navigate("Markets")}
-                >
-                  Explore companies <ArrowUpRight size={15} />
-                </button>
-              </div>
-            ) : (
-              <div className="saved-list">
-                {saved.map((item) => (
-                  <div key={item.id}>
-                    <button
-                      className="saved-item"
-                      onClick={() => {
-                        setCompany({ symbol: item.symbol, name: item.name });
-                        setSnapshot(item);
-                        setCompanyOpened(true);
-                        setView("Company");
-                      }}
-                    >
-                      <CompanyLogo symbol={item.symbol} size="medium" />
-                      <span>
-                        <b>{item.name}</b>
-                        <small>
-                          {item.symbol} · Saved{" "}
-                          {new Date(item.savedAt).toLocaleString()}
-                        </small>
-                      </span>
-                      <span className="saved-score">
-                        {item.analysis?.score != null
-                          ? `${item.analysis.score}/100`
-                          : "Financial snapshot"}
-                      </span>
-                      <ArrowUpRight size={17} />
-                    </button>
-                    <button
-                      className="icon-button"
-                      aria-label={`Delete saved ${item.symbol} research`}
-                      onClick={() =>
-                        setSaved((items) =>
-                          items.filter((s) => s.id !== item.id),
-                        )
-                      }
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          <ResearchLibrary items={saved} onExplore={() => navigate("Company")} onDelete={id=>setSaved(items=>items.filter(item=>item.id!==id))} onOpen={item=>{ setCompany({symbol:item.symbol,name:item.name}); setSnapshot(item); setCompanyOpened(true); setView("Company"); }} />
         ) : view === "Watchlist" ? (
           <section className="library-view">
             <div className="section-heading">
@@ -759,39 +635,8 @@ export function ResearchDashboard({ initialView = "Markets" }: { initialView?: V
               </div>
               <Star size={23} />
             </div>
-            <div className="watchlist-grid">
-              {watchlist.map((symbol) => (
-                <div key={symbol}>
-                  <button
-                    onClick={() =>
-                      select(
-                        STARTER_COMPANIES.find((c) => c.symbol === symbol) ?? {
-                          symbol,
-                          name: symbol,
-                        },
-                      )
-                    }
-                  >
-                    <CompanyLogo symbol={symbol} size="medium" />
-                    <span>
-                      <b>{symbol}</b>
-                      <small>
-                        {STARTER_COMPANIES.find((c) => c.symbol === symbol)
-                          ?.name || "Open company"}
-                      </small>
-                    </span>
-                    <ArrowUpRight size={18} />
-                  </button>
-                  <button
-                    className="icon-button"
-                    aria-label={`Remove ${symbol} from watchlist`}
-                    onClick={() => toggleWatch(symbol)}
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <div className="ui-toolbar"><CompanySearch compact onSelect={c=>{if(!watchlist.includes(c.symbol))toggleWatch(c.symbol);}}/><button onClick={()=>navigate("Calendar")}>Upcoming earnings</button><button onClick={()=>navigate("News")}>Watchlist news</button></div>
+            <div className="comparison-table-wrap"><table className="terminal-table"><thead><tr><th>Company</th><th>Price</th><th>1D</th><th>Research</th><th>Following</th></tr></thead><tbody>{watchlist.map(symbol=>{const c=STARTER_COMPANIES.find(item=>item.symbol===symbol)||{symbol,name:symbol};const q=market.data?.quotes.find(item=>item.symbol===symbol);return <tr key={symbol}><th><button onClick={()=>select(c)}>{symbol}<small>{c.name}</small></button></th><td>{format(q?.price,"number")}</td><td className={(q?.changePercent??0)>=0?"positive":"negative"}>{format(q?.changePercent,"percent")}</td><td><button onClick={()=>select(c)}>Open research ↗</button></td><td><button aria-label={`Remove ${symbol} from watchlist`} onClick={()=>toggleWatch(symbol)}><Star size={15} fill="currentColor"/></button></td></tr>;})}</tbody></table></div>
             {!watchlist.length && (
               <div className="empty-state">
                 Search for a company, then select Watch to start your list.

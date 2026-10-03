@@ -370,7 +370,13 @@ export function ChatDock({ scope, context, mode = "dock", initialConversationId 
     }
   }
 
-  const suggestions = [
+  const suggestions = activeScope !== "MARKET" ? [
+    { icon: FileText, text: `Summarize ${activeScope}’s financial performance` },
+    { icon: Scale, text: `Compare ${activeScope} with its closest peers` },
+    { icon: TrendingUp, text: `What drives ${activeScope}’s growth?` },
+    { icon: Search, text: `Challenge the investment thesis for ${activeScope}` },
+    { icon: BarChart3, text: `What risks matter most for ${activeScope}?` },
+  ] : [
     { icon: TrendingUp, text: "Why are markets moving today?" },
     { icon: Scale, text: "Compare AAPL vs MSFT" },
     { icon: BarChart3, text: "What are the top AI stocks?" },

@@ -6,7 +6,7 @@ import { BarChart3, Telescope, Newspaper, Star, Menu, X } from "lucide-react";
 import { Drawer } from "vaul";
 
 type View = "Markets" | "Small CAP" | "News" | "Company" | "Watchlist" | "Saved research" | "Calendar" | "Alerts";
-export function MobileNavigation({ view, onNavigate }: { view: View; onNavigate: (view: View) => void }) {
+export function MobileNavigation({ view, onNavigate }: { view: string; onNavigate: (view: View) => void }) {
   const [open, setOpen] = useState(false);
   return <>
     <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
