@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 import { getSmallCapCandidates, getSmallCapProfilePresets, getSmallCapScanStatus, queueSmallCapScan, type ComparisonMetric, type SmallCapCandidate, type SmallCapProfilePreset } from "@/lib/api";
 import { comparisonUrl, metricText } from "@/lib/comparison";
+import { userStorage } from "@/lib/user-storage";
 import { format } from "@/lib/research";
 import { type Company } from "@/lib/research";
 import { MarketMovers } from "./market-movers";
@@ -32,6 +33,7 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
   const [snapshot, setSnapshot] = useState<MarketUniverse>();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [screenNotice, setScreenNotice] = useState("");
   const [query, setQuery] = useState("");
   const [sector, setSector] = useState("");
   const [industry, setIndustry] = useState("");
@@ -134,6 +136,7 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
           {loading ? <LoaderCircle size={14} className="spin" /> : <RefreshCw size={14} />} Retry
         </button>
       </div>
+      <div className="ui-toolbar"><button onClick={()=>{userStorage.setItem("marketly.smallcap.screen",JSON.stringify({query,sector,industry,cap,sort,ascending}));setScreenNotice("Screen saved to your workspace.");}}>Save screen</button><button onClick={()=>{try{const v=JSON.parse(userStorage.getItem("marketly.smallcap.screen")||"null");if(!v){setScreenNotice("No saved screen yet.");return;}setQuery(v.query||"");setSector(v.sector||"");setIndustry(v.industry||"");setCap(v.cap||"");setSort(v.sort||"marketCap");setAscending(Boolean(v.ascending));setScreenNotice("Saved screen restored.");}catch{setScreenNotice("Saved screen could not be restored.");}}}>Load screen</button><button onClick={()=>{setQuery("");setSector("");setIndustry("");setCap("");setSelected([]);}}>Reset filters</button><span role="status">{screenNotice}</span></div>
       <div className="discovery-filters">
         <input aria-label="Search small caps" placeholder="Company, ticker or industry" value={query} onChange={(event) => setQuery(event.target.value)} />
         <StyledSelect ariaLabel="Small-cap sector" value={sector} onChange={(value) => { setSector(value); setIndustry(""); }} options={[{ value: "", label: "All sectors" }, ...sectors.map((value) => ({ value, label: value }))]} />
@@ -143,7 +146,7 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
         <button className="secondary-button" onClick={()=>setAscending(!ascending)}>{ascending?"Ascending ↑":"Descending ↓"}</button>
         <button className="secondary-button" onClick={() => window.dispatchEvent(new CustomEvent("marketly-research-question", { detail: `Research smaller public companies in ${query || industry || sector || "my watchlist sectors"}. Verify current market caps, identify concrete catalysts and traction, assess cash runway, dilution, trading liquidity and downside. Compare 3 candidates for my strategy and cite issuer sources. Do not describe any candidate as a guaranteed winner.` }))}>Research opportunities ↗</button>
       </div>
-      <section className="potential-discovery" aria-labelledby="potential-title">
+      <details className="potential-discovery"><summary>Potential shortlist · {shortlist.length} saved candidates<span>Open research scan</span></summary>
         <div className="potential-heading">
           <div><div className="eyebrow">RANKED RESEARCH QUEUE</div><h2 id="potential-title">Potential shortlist</h2><p>Structured fundamentals, valuation, balance-sheet signals, and available relationship evidence.</p></div>
           <div className="potential-controls">
@@ -167,7 +170,7 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
             <div className="potential-risks">{candidate.risk_flags.slice(0, 2).map((flag) => <span key={flag}>{flag.replaceAll("_", " ")}</span>)}</div>
           </article>)}
         </div> : <div className="empty-state">No saved scan results yet. Run a bounded scan to build the first ranked shortlist.</div>}
-      </section>
+      </details>
       {error && <div className="inline-error" role="alert">{error} <button className="text-button" onClick={() => void load()}>Try again</button></div>}
       {loading && !snapshot && <p><LoaderCircle size={14} className="spin" /> Loading market universe…</p>}
       {snapshot && (
@@ -177,16 +180,7 @@ export function SmallCap({ onSelect }: { onSelect: (company: Company) => void })
       )}
       {snapshot?.fundamentalsStatus === "unavailable" && <p className="disclosure">Fundamental cache is unavailable. Market-cap and price screening remain available.</p>}
       {selected.length>0&&<div className="compare-selection"><span>{selected.length} selected</span>{selected.length>=2&&<a className="secondary-button" href={comparisonUrl(selected)} target="_blank" rel="noopener noreferrer">Compare selected ↗</a>}<button onClick={()=>setSelected([])}>Clear</button></div>}
-      <div className="watchlist-grid discovery-grid">
-        {candidates.slice(0, limit).map((stock) => (
-          <article key={stock.symbol} className="discovery-company">
-            <button className="discovery-company-open" onClick={() => onSelect(stock)}><span><b>{stock.symbol} · {stock.name}</b><small>{stock.sector} · {stock.industry}</small></span><strong>{format(stock.marketCap*1e6,"money")}</strong></button>
-            {stock.metrics && Object.values(stock.metrics).some((m)=>m.value!=null) && <dl className="discovery-metrics">{[["revenueGrowth","Rev growth"],["trailingPE","Trailing P/E"],["netMargin","Net margin"],["fcfYield","FCF yield (FY)"]].filter(([key])=>stock.metrics?.[key]?.value!=null).map(([key,label])=><div key={key} title={[stock.metrics?.[key]?.period,stock.metrics?.[key]?.source].filter(Boolean).join(" · ")}><dt>{label}</dt><dd>{metricText(stock.metrics?.[key])}</dd></div>)}</dl>}
-            {stock.metrics && <div className="discovery-tags">{(stock.metrics?.netIncome?.value ?? 0)>0&&<span>Profitable FY</span>}{(stock.metrics?.freeCashFlow?.value ?? 0)>0&&<span>Positive FCF FY</span>}{(stock.metrics?.netDebt?.value ?? 0)<0&&<span>Net cash</span>}</div>}
-            <label className="discovery-compare"><input type="checkbox" checked={selected.includes(stock.symbol)} disabled={!selected.includes(stock.symbol)&&selected.length>=6} onChange={()=>setSelected(selected.includes(stock.symbol)?selected.filter((s)=>s!==stock.symbol):[...selected,stock.symbol])}/>Compare</label>
-          </article>
-        ))}
-      </div>
+      <div className="comparison-table-wrap"><table className="terminal-table"><thead><tr><th>Company</th><th>1D</th><th>Market cap</th><th>Revenue growth</th><th>P/E</th><th>Net margin</th><th>FCF yield</th><th>Compare</th></tr></thead><tbody>{candidates.slice(0,limit).map(stock=><tr key={stock.symbol}><th><button onClick={()=>onSelect(stock)}><b>{stock.symbol}</b><small>{stock.name}</small><small>{stock.sector}</small></button></th><td className={(stock.changePercent??0)>=0?"positive":"negative"}>{format(stock.changePercent,"percent")}</td><td>{format(stock.marketCap*1e6,"money")}</td>{["revenueGrowth","trailingPE","netMargin","fcfYield"].map(key=><td key={key} title={[stock.metrics?.[key]?.period,stock.metrics?.[key]?.source].filter(Boolean).join(" · ")}>{metricText(stock.metrics?.[key])}</td>)}<td><input aria-label={`Compare ${stock.symbol}`} type="checkbox" checked={selected.includes(stock.symbol)} disabled={!selected.includes(stock.symbol)&&selected.length>=6} onChange={()=>setSelected(selected.includes(stock.symbol)?selected.filter(s=>s!==stock.symbol):[...selected,stock.symbol])}/></td></tr>)}</tbody></table></div>
       {snapshot && !candidates.length && <div className="empty-state">No companies match these filters. Broaden the sector, industry, or search.</div>}
       {limit < candidates.length && <button className="secondary-button" onClick={() => setLimit((value) => value + 30)}>Show 30 more</button>}
     </section><aside className="small-cap-sidebar"><MarketMovers scope="smallCap" onSelect={onSelect} /></aside></div>

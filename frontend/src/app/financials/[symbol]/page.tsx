@@ -12,7 +12,7 @@ import {
   Database,
   Radar,
 } from "lucide-react";
-import { MarketlyNavbar } from "@/components/marketly";
+import { WorkspaceShell } from "@/components/research/workspace-shell";
 import {
   type BackendFinancialStatement,
   type BackendFinancialsResponse,
@@ -428,13 +428,7 @@ export default async function FinancialsPage({ params }: FinancialsPageProps) {
   );
 
   return (
-    <div className="relative min-h-screen bg-background text-foreground">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(61,217,179,0.08),transparent_38%),linear-gradient(180deg,rgba(10,16,24,0.12),rgba(5,9,14,0.18))]" />
-      <div className="terminal-grid pointer-events-none absolute inset-0 opacity-40" />
-
-      <MarketlyNavbar currentSymbol={ticker} />
-
-      <main className="relative mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 pb-16 pt-[92px] sm:px-6 lg:px-10">
+    <WorkspaceShell active="Company"><main className="financial-terminal">
         <section className="mx-auto w-full max-w-[1180px] space-y-6">
           <div className="overflow-hidden rounded-[34px] border border-white/8 bg-[linear-gradient(145deg,rgba(13,22,33,0.98),rgba(8,12,18,0.96))]">
             <div className="flex flex-wrap items-start justify-between gap-5 border-b border-white/8 px-6 py-6 sm:px-8">
@@ -590,6 +584,6 @@ export default async function FinancialsPage({ params }: FinancialsPageProps) {
           )}
         </section>
       </main>
-    </div>
+    </WorkspaceShell>
   );
 }

@@ -1,4 +1,6 @@
 "use client";
+import { AppearanceSettings } from "@/components/research/appearance-settings";
+import { WorkspaceShell } from "@/components/research/workspace-shell";
 import { SelectControl } from "@/components/research/select-control";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -113,7 +115,7 @@ export default function Settings() {
     );
   }
   return (
-    <main className="account-page">
+    <WorkspaceShell active="Settings"><main className="account-page">
       <nav>
         <Link href="/">← Research</Link>
         <Link href="/portfolio">Portfolio</Link>
@@ -124,8 +126,8 @@ export default function Settings() {
         All financial profile fields are optional. You can update them at any
         time.
       </p>
-      <form className="account-form" onSubmit={save}>
-        <div className="account-grid">
+      <div className="settings-layout"><aside className="settings-index"><a href="#profile-settings">Profile</a><a href="#appearance">Appearance</a><a href="#research-settings">Research defaults</a><a href="#account-security">Data & account</a><Link href="/alerts">Notifications ↗</Link></aside><div><AppearanceSettings/><form id="profile-settings" className="account-form" onSubmit={save}>
+        <h2>Profile & research defaults</h2><div className="account-grid" id="research-settings">
           {(
             [
               ["name", "Name"],
@@ -203,7 +205,7 @@ export default function Settings() {
       </form>
       <p role="status">{message}</p>
       {accountId() && (
-        <div className="account-actions">
+        <div id="account-security" className="account-actions">
           <button
             className="secondary-button"
             onClick={() => void recoverChanges()}
@@ -218,6 +220,6 @@ export default function Settings() {
           </button>
         </div>
       )}
-    </main>
+    </div></div></main></WorkspaceShell>
   );
 }
