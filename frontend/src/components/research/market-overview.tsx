@@ -144,6 +144,7 @@ export function MarketOverview({
           <h1>
             The market, in focus<span>.</span>
           </h1>
+          <p className="market-intro-copy">Real-time markets, key stories, and sector performance.</p>
         </div>
         <div className="market-refresh">
           <span>
@@ -214,7 +215,8 @@ export function MarketOverview({
                 {data.news.toSorted((a, b) => (b.importanceScore ?? 0) - (a.importanceScore ?? 0) || (b.datetime ?? 0) - (a.datetime ?? 0)).slice(0, 6).map((article, i) => (
                   <details key={article.url ?? i} open={i === 0}>
                     <summary>
-                      <span>{article.headline}</span>
+                      <span className="briefing-image"><ArticleImage article={article} /></span>
+                      <span className="briefing-copy">{article.headline}<small>{article.source || "Publisher"}{article.datetime ? ` · ${new Date(article.datetime * 1000).toLocaleDateString([], { month: "short", day: "numeric" })}` : ""}</small></span>
                       <ChevronDown size={14} />
                     </summary>
                     <p>
